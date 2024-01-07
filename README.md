@@ -1,4 +1,4 @@
-**Installation automatique de la traduction française de Star Citizen**
+### Installation automatique de la traduction française de Star Citizen (avec BAT)
 
 :warning: - Fichier traduit par le Cirque Lisoir et la communauté FR
 
