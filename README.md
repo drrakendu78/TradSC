@@ -1,3 +1,5 @@
+:warning: - **Fichier traduit par le Cirque Lisoir et la communauté FR
+
 
 ### Installation automatique (avec PowerShell)
 > - Télécharger le script Powershell [ici](https://cdn.discordapp.com/attachments/1105979484638826529/1193344698727805051/install_fr.ps1?ex=65ac5fdb&is=6599eadb&hm=553ed53e188e1fd2b90ec40c2117bcdc58c851e9f291684c441473e186d58718&).
