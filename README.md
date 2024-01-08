@@ -9,5 +9,3 @@
 
 
 
-:warning: - **Fichier traduit par le Cirque Lisoir et la communauté FR**
-
