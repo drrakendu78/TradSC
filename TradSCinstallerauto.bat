@@ -18,7 +18,7 @@ for %%d in (%drives%) do (
 )
 
 :: Demander à l'utilisateur de choisir un chemin
-set /p choice="Entrez le numéro du chemin où vous souhaitez télécharger et exécuter le fichier : "
+set /p choice="Entrez le numero du chemin ou vous souhaitez telecharger et executer le fichier : "
 
 :: Extraire le chemin sélectionné
 set "selectedPath="
@@ -31,7 +31,7 @@ if "%selectedPath%"=="" (
     exit /b
 )
 
-echo Le repertoire StarCitizen a été trouvé à l'emplacement: %selectedPath%!
+echo Le repertoire StarCitizen a ete trouvé a l'emplacement: %selectedPath%!
 
 :: En train de télécharger le script depuis GitHub
 echo Telechargement du script depuis GitHub...
