@@ -66,8 +66,8 @@ echo Le repertoire StarCitizen a ete trouve a l'emplacement: %selectedPath%!
 echo Telechargement du script depuis GitHub...
 powershell -Command "Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/drrakendu78/TradSC/main/TradSC_Updater.ps1' -OutFile '%TEMP%\TradSC_Updater.ps1'"
 
-:: Deplacement du script telecharge
-echo Deplacement du script vers le repertoire StarCitizen...
+:: Deplacement et remplacement du script telecharge
+echo Deplacement et remplacement du script vers le repertoire StarCitizen...
 move /Y "%TEMP%\TradSC_Updater.ps1" "%selectedPath%"
 
 :: Execution du script en arriere-plan
