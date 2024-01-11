@@ -19,6 +19,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $localization1 = Join-Path $ScriptDir "LIVE"
 $localization2 = Join-Path $ScriptDir "PTU"
 $localization3 = Join-Path $ScriptDir "TECH-PREVIEW"
+$localization4 = Join-Path $ScriptDir "EPTU"  # Ajout de l'option EPTU
 
 # Fonction pour afficher le texte art ASCII
 function Show-ASCII-Art {
@@ -58,8 +59,9 @@ function Show-Menu {
     Write-Host "1. Traduire la version Live"
     Write-Host "2. Traduire la version PTU"
     Write-Host "3. Traduire la version TECH-PREVIEW"
-    Write-Host "4. Creer un raccourci"
-    Write-Host "5. Quitter"
+    Write-Host "4. Traduire la version EPTU"  # Option EPTU
+    Write-Host "5. Creer un raccourci"
+    Write-Host "6. Quitter"
 }
 
 function Create-Shortcut {
@@ -91,7 +93,6 @@ function DownloadAndCopyTranslation {
     $response = Invoke-WebRequest -Uri $url -Method Get
     $bytes = [System.Text.Encoding]::UTF8.GetBytes($response.Content)
     $remoteHash = Calculate-MD5Hash -bytes $bytes
-
 
     $localFilePath = Join-Path $dataPath "global.ini"
     if (Test-Path $localFilePath) {
@@ -138,9 +139,12 @@ while ($true) {
             DownloadAndCopyTranslation -destinationDir $localization3
         }
         '4' {
-            Create-Shortcut
+            DownloadAndCopyTranslation -destinationDir $localization4  # Option EPTU
         }
         '5' {
+            Create-Shortcut
+        }
+        '6' {
             exit
         }
         default {
