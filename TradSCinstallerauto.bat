@@ -12,9 +12,10 @@ set "count=1"
 for %%d in (%drives%) do (
     if exist "%%d:\StarCitizen" set "foundPaths=!foundPaths!%%d:\StarCitizen;" & echo !count!. %%d:\StarCitizen & set /a "count+=1"
     if exist "%%d:\Roberts Space Industries\StarCitizen" set "foundPaths=!foundPaths!%%d:\Roberts Space Industries\StarCitizen;" & echo !count!. %%d:\Roberts Space Industries\StarCitizen & set /a "count+=1"
-    if exist "%%d:\jeux\StarCitizen" set "foundPaths=!foundPaths!%%d:\jeux\StarCitizen;" & echo !count!. %%d:\jeux\StarCitizen & set /a "count+=1"
-    if exist "%%d:\game\StarCitizen" set "foundPaths=!foundPaths!%%d:\game\StarCitizen;" & echo !count!. %%d:\game\StarCitizen & set /a "count+=1"
-    if exist "%%d:\games\StarCitizen" set "foundPaths=!foundPaths!%%d:\games\StarCitizen;" & echo !count!. %%d:\games\StarCitizen & set /a "count+=1"
+    if exist "%%d:\jeux\StarCitizen" set "foundPaths=!foundPaths!%%d:\jeux\StarCitizen;" & echo !count!. %%d:\jeux\Roberts Space Industries\StarCitizen & set /a "count+=1"
+    if exist "%%d:\jeux\StarCitizen" set "foundPaths=!foundPaths!%%d:\jeux\StarCitizen;" & echo !count!. %%d:\jeu\Roberts Space Industries\StarCitizen & set /a "count+=1"
+    if exist "%%d:\game\StarCitizen" set "foundPaths=!foundPaths!%%d:\game\StarCitizen;" & echo !count!. %%d:\game\Roberts Space Industrie\StarCitizen & set /a "count+=1"
+    if exist "%%d:\games\StarCitizen" set "foundPaths=!foundPaths!%%d:\games\StarCitizen;" & echo !count!. %%d:\games\Roberts Space Industrie\StarCitizen & set /a "count+=1"
 )
 
 :: Demander à l'utilisateur de choisir un chemin
