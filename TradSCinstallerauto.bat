@@ -1,5 +1,5 @@
 @echo off
-:: Vérifiez si le script est exécuté en tant qu'administrateur
+:: Verifiez si le script est execute en tant qu'administrateur
 >nul 2>&1 "%SYSTEMROOT%\system32\cacls.exe" "%SYSTEMROOT%\system32\config\system"
 if '%errorlevel%' == '0' (
     echo Script execute avec des droits d'administrateur
@@ -12,7 +12,7 @@ if '%errorlevel%' == '0' (
 :: Code principal
 setlocal enabledelayedexpansion
 
-:: Liste des lecteurs à vérifier
+:: Liste des lecteurs a verifier
 set "drives=C D E F G H I J K L M N O P Q R S T U V W X Y Z"
 
 :menu
@@ -46,10 +46,10 @@ for %%d in (%drives%) do (
     )
 )
 
-:: Demander à l'utilisateur de choisir un chemin
+:: Demander a l'utilisateur de choisir un chemin
 set /p choice="Entrez le numero du chemin : "
 
-:: Extraire le chemin sélectionné
+:: Extraire le chemin selectionne
 set "selectedPath="
 for /f "tokens=%choice% delims=;" %%a in ("!foundPaths!") do set "selectedPath=%%a"
 
@@ -62,15 +62,15 @@ if "%selectedPath%"=="" (
 
 echo Le repertoire StarCitizen a ete trouve a l'emplacement: %selectedPath%!
 
-:: Téléchargement du script depuis GitHub
+:: Telechargement du script depuis GitHub
 echo Telechargement du script depuis GitHub...
 powershell -Command "Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/drrakendu78/TradSC/main/TradSC_Updater.ps1' -OutFile '%TEMP%\TradSC_Updater.ps1'"
 
-:: Déplacement du script téléchargé
-echo Déplacement du script vers le repertoire StarCitizen...
+:: Deplacement du script telecharge
+echo Deplacement du script vers le repertoire StarCitizen...
 move /Y "%TEMP%\TradSC_Updater.ps1" "%selectedPath%"
 
-:: Exécution du script en arrière-plan
+:: Execution du script en arriere-plan
 echo Execution du script en arriere-plan...
 powershell -Command "Start-Process powershell -ArgumentList '-ExecutionPolicy Bypass -File ""%selectedPath%\TradSC_Updater.ps1""' -Verb RunAs"
 
