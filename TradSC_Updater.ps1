@@ -112,7 +112,7 @@ function DownloadAndCopyTranslation {
     try {
         Invoke-WebRequest -Uri $url -OutFile $localFilePath
         Write-Host "Fichier de traduction telecharge avec succes dans $dataPath"
-        Read-Host "Appuyez sur Entrée pour revenir au menu..."
+        Read-Host "Appuyez sur Entree pour revenir au menu..."
     } catch {
         Write-Host "Erreur lors du téléchargement du fichier : $_"
     }
