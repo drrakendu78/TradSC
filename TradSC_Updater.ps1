@@ -8,7 +8,7 @@ function Test-Admin {
 }
 
 if (-not (Test-Admin)) {
-    Write-Warning "Ce script nécessite des privilèges d'administrateur. Redémarrage avec des droits élevés..."
+    Write-Warning "Ce script nécessite des privileges d'administrateur. Redemarrage avec des droits eleves..."
     Start-Sleep -Seconds 2
     Start-Process powershell.exe -Verb RunAs -ArgumentList "-File `"$($MyInvocation.MyCommand.Path)`""
     exit
@@ -103,7 +103,7 @@ function DownloadAndCopyTranslation {
         $localHash = Calculate-MD5Hash -bytes $localContent
 
         if ($remoteHash -eq $localHash) {
-            Write-Host "Le fichier est déjà à jour. Aucune action nécessaire."
+            Write-Host "Le fichier est deja a jour. Aucune action necessaire."
             Read-Host "Appuyez sur Entrée pour revenir au menu..."
             return
         }
