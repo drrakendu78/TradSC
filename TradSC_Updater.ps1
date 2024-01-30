@@ -1,17 +1,20 @@
-# VÈrification des droits d'administrateur
+# Modifier la politique d'ex√©cution
+Set-ExecutionPolicy -Scope "CurrentUser" -ExecutionPolicy "Unrestricted"
+
+# V√©rification des droits d'administrateur
 function Test-Admin {
     $currentUser = New-Object Security.Principal.WindowsPrincipal $([Security.Principal.WindowsIdentity]::GetCurrent())
     return $currentUser.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
 if (-not (Test-Admin)) {
-    Write-Warning "Ce script nÈcessite des privilËges d'administrateur. RedÈmarrage avec des droits ÈlevÈs..."
+    Write-Warning "Ce script n√©cessite des privil√®ges d'administrateur. Red√©marrage avec des droits √©lev√©s..."
     Start-Sleep -Seconds 2
     Start-Process powershell.exe -Verb RunAs -ArgumentList "-File `"$($MyInvocation.MyCommand.Path)`""
     exit
 }
 
-# DÈfinition de l'encodage de sortie de la console pour supporter les caractËres accentuÈs
+# D√©finition de l'encodage de sortie de la console pour supporter les caract√®res accentu√©s
 $OutputEncoding = [System.Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -100,8 +103,8 @@ function DownloadAndCopyTranslation {
         $localHash = Calculate-MD5Hash -bytes $localContent
 
         if ($remoteHash -eq $localHash) {
-            Write-Host "Le fichier est dÈj‡ ‡ jour. Aucune action nÈcessaire."
-            Read-Host "Appuyez sur EntrÈe pour revenir au menu..."
+            Write-Host "Le fichier est d√©j√† √† jour. Aucune action n√©cessaire."
+            Read-Host "Appuyez sur Entr√©e pour revenir au menu..."
             return
         }
     }
@@ -109,9 +112,9 @@ function DownloadAndCopyTranslation {
     try {
         Invoke-WebRequest -Uri $url -OutFile $localFilePath
         Write-Host "Fichier de traduction telecharge avec succes dans $dataPath"
-        Read-Host "Appuyez sur EntrÈe pour revenir au menu..."
+        Read-Host "Appuyez sur Entr√©e pour revenir au menu..."
     } catch {
-        Write-Host "Erreur lors du tÈlÈchargement du fichier : $_"
+        Write-Host "Erreur lors du t√©l√©chargement du fichier : $_"
     }
 }
 
