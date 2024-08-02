@@ -12,19 +12,19 @@ Contributeurs:
 "@
 }
 
-# Verification des droits d'administrateur
+# Vérification des droits d'administrateur
 function Test-Admin {
     $currentUser = New-Object Security.Principal.WindowsPrincipal $([Security.Principal.WindowsIdentity]::GetCurrent())
     return $currentUser.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
 if (-not (Test-Admin)) {
-    [System.Windows.Forms.MessageBox]::Show("Ce script necessite des privileges d'administrateur. Redemarrage avec des droits eleves...", "Erreur", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+    [System.Windows.Forms.MessageBox]::Show("Ce script nécessite des privilèges d'administrateur. Redémarrage avec des droits élevés...", "Erreur", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
     Start-Process powershell.exe -Verb RunAs -ArgumentList "-File `"$($MyInvocation.MyCommand.Path)`""
     exit
 }
 
-# Definition de l'encodage de sortie de la console pour supporter les caracteres accentues
+# Définition de l'encodage de sortie de la console pour supporter les caractères accentués
 $OutputEncoding = [System.Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -34,22 +34,31 @@ $localization2 = Join-Path $ScriptDir "PTU"
 $localization3 = Join-Path $ScriptDir "TECH-PREVIEW"
 $localization4 = Join-Path $ScriptDir "EPTU"  # Ajout de l'option EPTU
 
-# Fonction pour telecharger et copier la traduction
+# Fonction pour télécharger et copier la traduction
 function DownloadAndCopyTranslation {
     param (
         [string]$destinationDir
     )
 
     $downloadingForm = New-Object System.Windows.Forms.Form
-    $downloadingForm.Text = "Telechargement"
+    $downloadingForm.Text = "Téléchargement"
     $downloadingForm.Size = New-Object System.Drawing.Size(300, 150)
     $downloadingForm.StartPosition = "CenterScreen"
 
     $label = New-Object System.Windows.Forms.Label
-    $label.Text = "Telechargement en cours..."
+    $label.Text = "Téléchargement en cours..."
     $label.AutoSize = $true
     $label.Location = New-Object System.Drawing.Point(10, 20)
     $downloadingForm.Controls.Add($label)
+
+    $progressBar = New-Object System.Windows.Forms.ProgressBar
+    $progressBar.Style = 'Continuous'
+    $progressBar.Minimum = 0
+    $progressBar.Maximum = 100
+    $progressBar.Value = 0
+    $progressBar.Size = New-Object System.Drawing.Size(250, 20)
+    $progressBar.Location = New-Object System.Drawing.Point(10, 50)
+    $downloadingForm.Controls.Add($progressBar)
 
     $downloadingForm.Show()
     $downloadingForm.Refresh()
@@ -59,29 +68,34 @@ function DownloadAndCopyTranslation {
         New-Item -Path $dataPath -ItemType Directory -Force
     }
 
-    $url = "https://traduction.circuspes.fr/download/global.ini"
-    
-    $response = Invoke-WebRequest -Uri $url -Method Get
-    $bytes = [System.Text.Encoding]::UTF8.GetBytes($response.Content)
-    $remoteHash = Calculate-MD5Hash -bytes $bytes
-
     $localFilePath = Join-Path $dataPath "global.ini"
-    if (Test-Path $localFilePath) {
-        $localContent = [System.IO.File]::ReadAllBytes($localFilePath)
-        $localHash = Calculate-MD5Hash -bytes $localContent
-
-        if ($remoteHash -eq $localHash) {
-            [System.Windows.Forms.MessageBox]::Show("Le fichier est deja a jour. Aucune action necessaire.", "Information", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-            $downloadingForm.Close()
-            return
-        }
-    }
+    $url = "https://traduction.circuspes.fr/download/global.ini"
 
     try {
-        Invoke-WebRequest -Uri $url -OutFile $localFilePath
-        [System.Windows.Forms.MessageBox]::Show("Fichier de traduction telecharge avec succes dans $dataPath", "Succes", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+        # Téléchargement du fichier avec progression
+        $response = Invoke-WebRequest -Uri $url -Method Get -UseBasicParsing
+        $totalLength = [int]$response.Headers["Content-Length"]
+        $bytesReceived = 0
+
+        # Ouvrir le flux de contenu
+        $responseStream = $response.RawContentStream
+        $fileStream = [System.IO.File]::Create($localFilePath)
+
+        # Initialisation d'un buffer
+        $buffer = New-Object byte[] 8192
+        $bytesRead = 0
+
+        while (($bytesRead = $responseStream.Read($buffer, 0, $buffer.Length)) -gt 0) {
+            $fileStream.Write($buffer, 0, $bytesRead)
+            $bytesReceived += $bytesRead
+            $progressBar.Value = [math]::Round(($bytesReceived / $totalLength) * 100)
+            $downloadingForm.Refresh()
+        }
+
+        $fileStream.Close()
+        [System.Windows.Forms.MessageBox]::Show("Fichier de traduction téléchargé avec succès dans $dataPath", "Succès", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
     } catch {
-        [System.Windows.Forms.MessageBox]::Show("Erreur lors du telechargement du fichier : $_", "Erreur", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        [System.Windows.Forms.MessageBox]::Show("Erreur lors du téléchargement du fichier : $_", "Erreur", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
     }
 
     $downloadingForm.Close()
@@ -95,7 +109,7 @@ function Create-Shortcut {
     $shortcut.TargetPath = $PSCommandPath
     $shortcut.WorkingDirectory = $ScriptDir
     $shortcut.Save()
-    [System.Windows.Forms.MessageBox]::Show("Raccourci cree sur le bureau : $shortcutFile", "Succes", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+    [System.Windows.Forms.MessageBox]::Show("Raccourci créé sur le bureau : $shortcutFile", "Succès", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
 }
 
 function Calculate-MD5Hash {
@@ -107,7 +121,7 @@ function Calculate-MD5Hash {
     return [BitConverter]::ToString($hash) -replace '-', ''
 }
 
-# Creer le formulaire principal
+# Créer le formulaire principal
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "StarCitizen - Translation FR"
 $form.Size = New-Object System.Drawing.Size(361, 258) # largeur = 361, hauteur = 84 + 174
@@ -123,12 +137,12 @@ $form.Controls.Add($labelContributors)
 
 # Ajouter les boutons
 $buttons = @(
-    @{Text="Traduire la version Live"; Location=[System.Drawing.Point]::new(10, 110); Click={DownloadAndCopyTranslation -destinationDir $localization1}},
-    @{Text="Traduire la version PTU"; Location=[System.Drawing.Point]::new(10, 150); Click={DownloadAndCopyTranslation -destinationDir $localization2}},
-    @{Text="Traduire la version TECH-PREVIEW"; Location=[System.Drawing.Point]::new(10, 190); Click={DownloadAndCopyTranslation -destinationDir $localization3}},
-    @{Text="Traduire la version EPTU"; Location=[System.Drawing.Point]::new(170, 110); Click={DownloadAndCopyTranslation -destinationDir $localization4}},
-    @{Text="Creer un raccourci"; Location=[System.Drawing.Point]::new(170, 150); Click={Create-Shortcut}},
-    @{Text="Quitter"; Location=[System.Drawing.Point]::new(170, 190); Click={$form.Close()}}
+    @{Text="Traduire la version Live"; Location=[System.Drawing.Point]::new(10, 100); Click={DownloadAndCopyTranslation -destinationDir $localization1}},
+    @{Text="Traduire la version PTU"; Location=[System.Drawing.Point]::new(10, 140); Click={DownloadAndCopyTranslation -destinationDir $localization2}},
+    @{Text="Traduire la version TECH-PREVIEW"; Location=[System.Drawing.Point]::new(10, 180); Click={DownloadAndCopyTranslation -destinationDir $localization3}},
+    @{Text="Traduire la version EPTU"; Location=[System.Drawing.Point]::new(170, 100); Click={DownloadAndCopyTranslation -destinationDir $localization4}},
+    @{Text="Créer un raccourci"; Location=[System.Drawing.Point]::new(170, 140); Click={Create-Shortcut}},
+    @{Text="Quitter"; Location=[System.Drawing.Point]::new(170, 180); Click={$form.Close()}}
 )
 
 foreach ($buttonInfo in $buttons) {
@@ -138,16 +152,11 @@ foreach ($buttonInfo in $buttons) {
     $button.Location = $buttonInfo.Location
     $button.Add_Click($buttonInfo.Click)
     $form.Controls.Add($button)
-}
 
-# Ajuster les positions des boutons pour correspondre à la nouvelle taille de la fenêtre
-$labelContributors.Location = New-Object System.Drawing.Point(10, 10)
-$buttons[0].Location = New-Object System.Drawing.Point(10, 100)
-$buttons[1].Location = New-Object System.Drawing.Point(10, 140)
-$buttons[2].Location = New-Object System.Drawing.Point(10, 180)
-$buttons[3].Location = New-Object System.Drawing.Point(170, 100)
-$buttons[4].Location = New-Object System.Drawing.Point(170, 140)
-$buttons[5].Location = New-Object System.Drawing.Point(170, 180)
+    # Changer la couleur du bouton lorsqu'il est cliqué
+    $button.Add_MouseDown({ $button.BackColor = [System.Drawing.Color]::LightBlue })
+    $button.Add_MouseUp({ $button.BackColor = [System.Drawing.Color]::FromName("Control") })
+}
 
 # Afficher le formulaire
 [void][System.Windows.Forms.Application]::Run($form)
