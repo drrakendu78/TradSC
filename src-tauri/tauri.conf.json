@@ -1,0 +1,96 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/schema.json",
+  "build": {
+    "beforeBuildCommand": "npm run build",
+    "beforeDevCommand": "npm run dev",
+    "devPath": "http://localhost:3000",
+    "distDir": "../out"
+  },
+  "package": {
+    "productName": "Traduction Française Iridian For Prosperity",
+    "version": "1.0.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "shell": {
+        "all": false,
+        "open": "^https?://[^/]+\\..*"
+      },
+      "window": {
+        "all": false,
+        "close": true,
+        "hide": true,
+        "show": true,
+        "maximize": true,
+        "minimize": true,
+        "unmaximize": true,
+        "unminimize": true,
+        "startDragging": true
+      }
+    },
+    "bundle": {
+      "active": true,
+      "category": "Utility",
+      "copyright": "@Drrakendu78 - Djamel Lazreg",
+      "deb": {
+        "depends": []
+      },
+      "externalBin": [],
+      "icon": ["icons/icon.ico"],
+      "identifier": "com.onivoid.multitool",
+      "longDescription": "Traduction Française pour Star Citizen par Drrakendu78",
+      "macOS": {
+        "entitlements": null,
+        "exceptionDomain": "",
+        "frameworks": [],
+        "providerShortName": null,
+        "signingIdentity": null
+      },
+      "resources": [],
+      "shortDescription": "Traduction Française Star Citizen",
+      "targets": ["msi"],
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "timestampUrl": "",
+        "wix": {
+          "language": "fr-FR"
+        }
+      }
+    },
+    "security": {
+      "csp": null
+    },
+    "updater": {
+      "active": false
+    },
+    "windows": [
+      {
+        "title": "Traduction Française Iridian For Prosperity - Loading",
+        "width": 350,
+        "height": 400,
+        "decorations": false,
+        "transparent": true,
+        "resizable": false,
+        "center": true,
+        "url": "splash",
+        "label": "splashscreen"
+      },
+      {
+        "title": "Traduction Française Iridian For Prosperity",
+        "label": "main",
+        "transparent": true,
+        "fullscreen": false,
+        "height": 700,
+        "minHeight": 600,
+        "resizable": true,
+        "width": 1050,
+        "minWidth": 1050,
+        "decorations": false,
+        "center": true,
+        "visible": false
+      }
+    ]
+  }
+}
