@@ -22,7 +22,7 @@ Une application de bureau construite avec Tauri et React pour gérer les traduct
 
 1. Clonez le dépôt :
 ```bash
-git clone https://github.com/votre-username/votre-repo.git
+git clone https://github.com/drrakendu78/TradSC/votre-repo.git
 cd votre-repo
 ```
 
