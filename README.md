@@ -66,7 +66,7 @@ Consultez notre [Politique de confidentialité](PRIVACY.md) pour plus d'informat
 
 Pour obtenir de l'aide ou signaler un bug :
 - Rejoignez notre [Discord](https://discord.gg/xeczPncUY4)
-- Ouvrez une [Issue](https://github.com/votre-username/votre-repo/issues)
+- Ouvrez une [Issue](https://github.com/drrakendu78/TradSC/issues)
 
 ## ✨ Remerciements
 
