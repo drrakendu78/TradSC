@@ -29,10 +29,6 @@ export default function Page() {
             }}
             className="flex min-h-screen flex-col"
         >
-            <div className="flex items-center gap-3 mb-6">
-                <Image src={logo} alt="Logo" width={50} height={50} priority />
-                <p>Traduction Française Iridian For Prosperity - version {appInfos.version}</p>
-            </div>
             <div className="flex-1 overflow-auto">
                 <RssFeed />
             </div>

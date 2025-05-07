@@ -22,22 +22,33 @@ export const CustomMenu = ({ fullWidth }: { fullWidth: boolean }) => {
     return (
         <div>
             <DraggableRegion>
-                <div
-                    className={`${
-                        fullWidth
-                            ? "grid grid-cols-4 px-4 py-6"
-                            : "flex justify-center items-center p-5"
-                    } text-foreground`}
-                >
-                    {fullWidth && (
-                        <div className="flex items-center justify-center col-span-3 overflow-hidden">
-                            <h1 className="font-bold uppercase text-primary text-nowrap">
-                            I.F.P {appInfos.version}
-                            </h1>
+                <div className={`flex items-center justify-center gap-4 px-4 py-6`}>
+                    <span
+                        className={`font-bold uppercase text-primary text-nowrap text-xl ${fullWidth ? '' : 'hidden'}`}
+                    >
+                        I.F.P {appInfos.version}
+                    </span>
+                    <div
+                        className="flex items-center justify-center"
+                    >
+                        <div
+                            className="rounded-full overflow-hidden transition-all duration-300"
+                            style={{
+                                width: fullWidth ? 90 : 100,
+                                height: fullWidth ? 90 : 100,
+                                animation: 'logo-glow 2.5s infinite ease-in-out',
+                            }}
+                        >
+                            <Image
+                                src={logo}
+                                alt="Logo"
+                                width={fullWidth ? 90 : 100}
+                                height={fullWidth ? 90 : 100}
+                                style={{
+                                    animation: 'drop-glow 2.5s infinite ease-in-out'
+                                }}
+                            />
                         </div>
-                    )}
-                    <div className="col-span-1 flex items-center justify-center">
-                        <Image src={logo} alt="Logo" width={50} height={50} />
                     </div>
                 </div>
             </DraggableRegion>

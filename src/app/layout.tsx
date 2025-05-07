@@ -11,11 +11,27 @@ import { usePathname } from "next/navigation";
 import { loadAndApplyTheme } from "@/utils/CustomThemeProvider";
 import { useTheme } from "next-themes";
 import { Toaster } from "@/components/ui/toaster";
+import Image from "next/image";
+import LogoW from "@/assets/svg/logo-w.svg";
 
 const fontSans = FontSans({
     subsets: ["latin"],
     variable: "--font-sans",
 });
+
+function FloatingHeader() {
+    return (
+        <header className="w-full bg-background shadow-md border-b border-border rounded-tr-3xl">
+            <div className="flex items-center gap-4 px-8 py-3">
+                <span
+                    className="text-xl font-bold text-black dark:text-foreground [animation:glow-light_2s_ease-in-out_infinite] dark:[animation:glow-dark_2s_ease-in-out_infinite]"
+                >
+                    Traduction Française Iridian For Prosperity - version 1.0.0
+                </span>
+            </div>
+        </header>
+    );
+}
 
 export default function RootLayout({
     children,
@@ -26,6 +42,7 @@ export default function RootLayout({
     const isSplashRoute = pathname === "/splash";
     const [loaded, setLoaded] = useState(false);
     const { setTheme } = useTheme();
+    const [sidebarWidth, setSidebarWidth] = useState(100);
 
     useEffect(() => {
         if (!loaded) {
@@ -59,10 +76,13 @@ export default function RootLayout({
                             />
                             <ControlMenu />
                             <div className="max-h-screen w-full flex rounded-l-3xl overflow-hidden">
-                                <Sidebar />
-                                <main className="flex flex-col max-h-screen rounded-r-3xl overflow-hidden w-full pt-20 px-10">
+                                <Sidebar setSidebarWidth={setSidebarWidth} />
+                                <div className="flex-1 h-full min-h-screen flex flex-col rounded-r-3xl rounded-br-3xl overflow-hidden bg-background">
+                                    <FloatingHeader />
+                                    <main className="flex flex-col max-h-screen w-full px-10 bg-transparent">
                                     {children}
                                 </main>
+                                </div>
                             </div>
                             <Toaster />
                         </Suspense>

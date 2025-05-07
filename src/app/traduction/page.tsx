@@ -292,7 +292,7 @@ export default function Page() {
                 }}
                 className="flex flex-col"
             >
-                <Card className="col-span-1">
+                <Card className="col-span-1 !bg-[hsl(222,47%,17%)]">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <span className="relative inline-flex rounded-full h-3 w-3 bg-primary">

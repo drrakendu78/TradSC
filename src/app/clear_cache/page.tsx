@@ -56,7 +56,7 @@ export default function ClearCachePage() {
             className="flex h-screen flex-col max-w-full"
         >
             <div className="flex items-center gap-2">
-                <h1 className="text-2xl">Gestion du cache</h1>
+                <h1 className="text-2xl" style={{ animation: "glow-light 2s ease-in-out infinite" }}>Gestion du cache</h1>
                 <ActionsMenu setCacheInfos={setCacheInfos} />
             </div>
             <Separator className="my-5" />

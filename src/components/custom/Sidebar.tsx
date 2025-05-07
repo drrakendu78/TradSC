@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { invoke } from "@tauri-apps/api/tauri";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ColorPicker } from "./ColorPicker";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -39,16 +39,19 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-export const Sidebar = () => {
+export const Sidebar = ({ setSidebarWidth }: { setSidebarWidth?: (w: number) => void }) => {
     const [fullWidth, setFullWidth] = useState(false);
+    useEffect(() => {
+        if (setSidebarWidth) setSidebarWidth(fullWidth ? 280 : 100);
+    }, [fullWidth, setSidebarWidth]);
     const openExternalLink = async (url: string) => {
         await invoke("open_external", { url });
     };
     return (
         <div
-            className={`border-r bg-card relative transition-size duration-150 ${
-                fullWidth ? "w-[280px]" : "w-[100px]"
-            }`}
+            className={`border-r relative transition-size duration-150 ${
+                fullWidth ? "w-[320px]" : "w-[140px]"
+            } bg-[#e2e8f0] dark:bg-[#1e293b]`}
         >
             <Button
                 size={fullWidth ? "icon" : "iconSm"}
@@ -57,7 +60,7 @@ export const Sidebar = () => {
             >
                 {fullWidth ? <Minimize2 /> : <Maximize2 className="h-4 w-4" />}
             </Button>
-            <div className="flex h-full max-h-screen flex-col ">
+            <div className={`flex h-full max-h-screen flex-col ${fullWidth ? 'justify-center' : ''}`}>
                 <CustomMenu fullWidth={fullWidth} />
                 <Separator />
                 <div className="flex flex-col justify-between h-full pb-4">
@@ -141,30 +144,6 @@ export const Sidebar = () => {
                             href="#"
                             onClick={(e) => {
                                 e.preventDefault();
-                                openExternalLink(
-                                    "https://discord.gg/xeczPncUY4",
-                                );
-                            }}
-                            className={`${
-                                !fullWidth && "justify-center pl-0"
-                            } group flex items-center gap-3 rounded-lg py-2 pl-2 text-muted-foreground transition-all hover:text-primary`}
-                        >
-                            <TooltipProvider delayDuration={50}>
-                                <Tooltip>
-                                    <TooltipTrigger>
-                                        <DiscordIcon className="h-4 w-4 fill-muted-foreground group-hover:fill-primary transition-all" />
-                                    </TooltipTrigger>
-                                    <TooltipContent side="right">
-                                        <p>Discord</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
-                            {fullWidth && "Discord"}
-                        </Link>
-                        <Link
-                            href="#"
-                            onClick={(e) => {
-                                e.preventDefault();
                                 openExternalLink("https://iridianforprosperity.com/index.html");
                             }}
                             className={`${
@@ -183,18 +162,33 @@ export const Sidebar = () => {
                             </TooltipProvider>
                             {fullWidth && "Website"}
                         </Link>
+                        <Link
+                            href="#"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                openExternalLink("https://discord.gg/xeczPncUY4");
+                            }}
+                            className={`${
+                                !fullWidth && "justify-center pl-0"
+                            } group flex items-center gap-3 rounded-lg py-2 pl-2 text-muted-foreground transition-all hover:text-primary`}
+                        >
+                            <TooltipProvider delayDuration={50}>
+                                <Tooltip>
+                                    <TooltipTrigger>
+                                        <DiscordIcon className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-all" />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="right">
+                                        <p>Discord</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                            {fullWidth && "Discord"}
+                        </Link>
                     </nav>
-                    <div
-                        className={`flex ${
-                            fullWidth ? "justify-between" : "justify-center"
-                        } items-center px-4`}
-                    >
+                    <div className={`flex ${fullWidth ? "justify-between" : "justify-center"} items-center px-4`}>
                         {fullWidth && (
                             <p className="text-xs text-muted-foreground text-nowrap">
-                                <span className="text-primary">
-                                Traduction Française IFP {}
-                                </span>{" "}
-                                - By Drrakendu78
+                                <span className="text-primary">Traduction Française IFP</span> - By Drrakendu78
                             </p>
                         )}
                         <Dialog>
@@ -217,15 +211,11 @@ export const Sidebar = () => {
                                         <div>
                                             <ul className="text-foreground flex flex-col gap-4 mt-4">
                                                 <li className="flex items-center gap-5 text-foreground">
-                                                    <p className="min-w-[100px]">
-                                                        DarkMode :{" "}
-                                                    </p>
+                                                    <p className="min-w-[100px]">DarkMode : </p>
                                                     <DarkModeSelector />
                                                 </li>
                                                 <li className="flex items-center gap-5 text-foreground">
-                                                    <p className="min-w-[100px]">
-                                                        Color Picker :{" "}
-                                                    </p>
+                                                    <p className="min-w-[100px]">Color Picker : </p>
                                                     <ColorPicker />
                                                 </li>
                                             </ul>
