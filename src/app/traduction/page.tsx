@@ -407,34 +407,42 @@ export default function Page() {
                 delay: 0.2,
                 ease: [0, 0.71, 0.2, 1.01],
             }}
-            className="flex h-full max-h-screen flex-col max-w-full"
+            className="flex h-full max-h-screen flex-col max-w-full p-6"
         >
-            <h1 className="text-2xl mb-5">Traduction du jeu</h1>
-            <Separator />
-
-            {paths && Object.entries(paths?.versions)[0] ? (
-                <div
-                    className="grid w-full max-w-full 
-            auto-cols-max auto-rows-min grid-cols-2 
-            gap-4 mt-5 overflow-y-scroll overflow-x-hidden h-screen pr-3 pb-3"
-                >
-                    {renderCard}
-                </div>
-            ) : (
-                <div className="flex flex-col items-center justify-center w-full h-screen">
-                    <h2 className="text-3xl font-bold text-primary mb-2">
-                        Aucune versions du jeu n{"'"}a était trouvée
-                    </h2>
-                    <p className="max-w-[500px] text-center leading-7">
-                        Pour régler ce problème, lancez StarCitizen, puis
-                        rechargez cette page en faisant la manipulation suivante
-                        :
-                        <span className="bg-gray-500 px-2 py-1 ml-2">
-                            CRTL + R
-                        </span>
+            <div className="space-y-6">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight text-primary">Traduction du jeu</h1>
+                    <p className="text-muted-foreground mt-2">
+                        Gérez et installez les traductions pour les différentes versions de Star Citizen.
                     </p>
                 </div>
-            )}
+                <Separator />
+
+                {paths && Object.entries(paths?.versions)[0] ? (
+                    <div
+                        className="grid w-full max-w-full 
+                        auto-cols-max auto-rows-min grid-cols-1 md:grid-cols-2 
+                        gap-6 mt-5 overflow-y-auto overflow-x-hidden h-[calc(100vh-12rem)] pr-3 pb-3"
+                    >
+                        {renderCard}
+                    </div>
+                ) : (
+                    <div className="flex flex-col items-center justify-center w-full h-[calc(100vh-12rem)]">
+                        <div className="text-center space-y-4">
+                            <h2 className="text-3xl font-bold text-primary">
+                                Aucune version du jeu n{"'"}a été trouvée
+                            </h2>
+                            <p className="max-w-[500px] text-muted-foreground">
+                                Pour régler ce problème, lancez Star Citizen, puis
+                                rechargez cette page en faisant la manipulation suivante :
+                                <span className="bg-primary/10 text-primary px-2 py-1 ml-2 rounded-md font-mono">
+                                    CTRL + R
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+                )}
+            </div>
         </motion.div>
     );
 }

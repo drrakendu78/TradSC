@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { invoke } from "@tauri-apps/api/tauri";
 import { useState, useEffect } from "react";
 import { ColorPicker } from "./ColorPicker";
@@ -42,12 +43,22 @@ import {
 
 export const Sidebar = ({ setSidebarWidth }: { setSidebarWidth?: (w: number) => void }) => {
     const [fullWidth, setFullWidth] = useState(false);
+    const pathname = usePathname();
+
     useEffect(() => {
         if (setSidebarWidth) setSidebarWidth(fullWidth ? 280 : 100);
     }, [fullWidth, setSidebarWidth]);
+
     const openExternalLink = async (url: string) => {
         await invoke("open_external", { url });
     };
+
+    const isActive = (path: string) => {
+        if (path === "/" && pathname === "/") return true;
+        if (path !== "/" && pathname.startsWith(path)) return true;
+        return false;
+    };
+
     return (
         <div
             className={`border-r relative transition-size duration-150 ${
@@ -79,14 +90,14 @@ export const Sidebar = ({ setSidebarWidth }: { setSidebarWidth?: (w: number) => 
                         )}
                         <Link
                             href="/"
-                            className={`${
-                                !fullWidth && "justify-center pl-0"
-                            } flex items-center gap-3 rounded-lg py-2 pl-2 text-muted-foreground transition-all hover:text-primary`}
+                            className={`flex items-center gap-3 rounded-md py-1.5 pl-2 transition-all ${
+                                fullWidth && isActive("/") ? "bg-primary/5 text-primary" : !fullWidth && isActive("/") ? "text-primary" : "text-muted-foreground hover:text-primary"
+                            } ${!fullWidth ? "justify-center pl-0" : ""}`}
                         >
                             <TooltipProvider delayDuration={10}>
                                 <Tooltip>
                                     <TooltipTrigger>
-                                        <Home className="h-4 w-4" />
+                                        <Home className={`h-4 w-4 ${isActive("/") ? "text-primary" : ""}`} />
                                     </TooltipTrigger>
                                     <TooltipContent side="right">
                                         <p>Homepage</p>
@@ -102,14 +113,14 @@ export const Sidebar = ({ setSidebarWidth }: { setSidebarWidth?: (w: number) => 
                         )}
                         <Link
                             href="/traduction"
-                            className={`${
-                                !fullWidth && "justify-center pl-0"
-                            } flex items-center gap-3 rounded-lg py-2 pl-2 text-muted-foreground transition-all hover:text-primary`}
+                            className={`flex items-center gap-3 rounded-md py-1.5 pl-2 transition-all ${
+                                fullWidth && isActive("/traduction") ? "bg-primary/5 text-primary" : !fullWidth && isActive("/traduction") ? "text-primary" : "text-muted-foreground hover:text-primary"
+                            } ${!fullWidth ? "justify-center pl-0" : ""}`}
                         >
                             <TooltipProvider delayDuration={50}>
                                 <Tooltip>
                                     <TooltipTrigger>
-                                        <Languages className="h-4 w-4" />
+                                        <Languages className={`h-4 w-4 ${isActive("/traduction") ? "text-primary" : ""}`} />
                                     </TooltipTrigger>
                                     <TooltipContent side="right">
                                         <p>Traduction</p>
@@ -120,14 +131,14 @@ export const Sidebar = ({ setSidebarWidth }: { setSidebarWidth?: (w: number) => 
                         </Link>
                         <Link
                             href="/clear_cache"
-                            className={`${
-                                !fullWidth && "justify-center pl-0"
-                            } flex items-center gap-3 rounded-lg py-2 pl-2 text-muted-foreground transition-all hover:text-primary`}
+                            className={`flex items-center gap-3 rounded-md py-1.5 pl-2 transition-all ${
+                                fullWidth && isActive("/clear_cache") ? "bg-primary/5 text-primary" : !fullWidth && isActive("/clear_cache") ? "text-primary" : "text-muted-foreground hover:text-primary"
+                            } ${!fullWidth ? "justify-center pl-0" : ""}`}
                         >
                             <TooltipProvider delayDuration={50}>
                                 <Tooltip>
                                     <TooltipTrigger>
-                                        <DatabaseZap className="h-4 w-4" />
+                                        <DatabaseZap className={`h-4 w-4 ${isActive("/clear_cache") ? "text-primary" : ""}`} />
                                     </TooltipTrigger>
                                     <TooltipContent side="right">
                                         <p>Gestion du cache</p>
@@ -147,9 +158,9 @@ export const Sidebar = ({ setSidebarWidth }: { setSidebarWidth?: (w: number) => 
                                 e.preventDefault();
                                 openExternalLink("https://iridianforprosperity.com/index.html");
                             }}
-                            className={`${
-                                !fullWidth && "justify-center pl-0"
-                            } group flex items-center gap-3 rounded-lg py-2 pl-2 text-muted-foreground transition-all hover:text-primary`}
+                            className={`flex items-center gap-3 rounded-md py-1.5 pl-2 transition-all ${
+                                fullWidth && isActive("/") ? "bg-primary/5 text-primary" : !fullWidth && isActive("/") ? "text-primary" : "text-muted-foreground hover:text-primary"
+                            } ${!fullWidth ? "justify-center pl-0" : ""}`}
                         >
                             <TooltipProvider delayDuration={50}>
                                 <Tooltip>
@@ -169,9 +180,9 @@ export const Sidebar = ({ setSidebarWidth }: { setSidebarWidth?: (w: number) => 
                                 e.preventDefault();
                                 openExternalLink("https://discord.gg/xeczPncUY4");
                             }}
-                            className={`${
-                                !fullWidth && "justify-center pl-0"
-                            } group flex items-center gap-3 rounded-lg py-2 pl-2 text-muted-foreground transition-all hover:text-primary`}
+                            className={`flex items-center gap-3 rounded-md py-1.5 pl-2 transition-all ${
+                                fullWidth && isActive("/") ? "bg-primary/5 text-primary" : !fullWidth && isActive("/") ? "text-primary" : "text-muted-foreground hover:text-primary"
+                            } ${!fullWidth ? "justify-center pl-0" : ""}`}
                         >
                             <TooltipProvider delayDuration={50}>
                                 <Tooltip>
@@ -187,14 +198,14 @@ export const Sidebar = ({ setSidebarWidth }: { setSidebarWidth?: (w: number) => 
                         </Link>
                         <Link
                             href="/patchnotes"
-                            className={`${
-                                !fullWidth && "justify-center pl-0"
-                            } group flex items-center gap-3 rounded-lg py-2 pl-2 text-muted-foreground transition-all hover:text-primary`}
+                            className={`flex items-center gap-3 rounded-md py-1.5 pl-2 transition-all ${
+                                fullWidth && isActive("/patchnotes") ? "bg-primary/5 text-primary" : !fullWidth && isActive("/patchnotes") ? "text-primary" : "text-muted-foreground hover:text-primary"
+                            } ${!fullWidth ? "justify-center pl-0" : ""}`}
                         >
                             <TooltipProvider delayDuration={50}>
                                 <Tooltip>
                                     <TooltipTrigger>
-                                        <FileText className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-all" />
+                                        <FileText className={`h-4 w-4 ${isActive("/patchnotes") ? "text-primary" : ""}`} />
                                     </TooltipTrigger>
                                     <TooltipContent side="right">
                                         <p>Patchnotes</p>

@@ -53,24 +53,34 @@ export default function ClearCachePage() {
                 delay: 0.2,
                 ease: [0, 0.71, 0.2, 1.01],
             }}
-            className="flex h-screen flex-col max-w-full"
+            className="flex h-full max-h-screen flex-col max-w-full p-6"
         >
-            <div className="flex items-center gap-2">
-                <h1 className="text-2xl" style={{ animation: "glow-light 2s ease-in-out infinite" }}>Gestion du cache</h1>
-                <ActionsMenu setCacheInfos={setCacheInfos} />
+            <div className="space-y-6">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight text-primary">Gestion du cache</h1>
+                    <p className="text-muted-foreground mt-2">
+                        Gérez et nettoyez les fichiers de cache de Star Citizen.
+                    </p>
+                </div>
+                <Separator />
+                <div className="h-[calc(100vh-12rem)]">
+                    <DataTable
+                        columns={columns(toast, updateCacheInfos)}
+                        data={cacheInfos}
+                    />
+                </div>
             </div>
-            <Separator className="my-5" />
-            <DataTable
-                columns={columns(toast, updateCacheInfos)}
-                data={cacheInfos}
-            />
         </motion.div>
     ) : (
-        <div className="flex h-screen max-w-full flex-row gap-3 items-center justify-center">
-            <p>
-                Récupération des données{" "}
-                {Array.from({ length: loadingDot }).map(() => ".")}
-            </p>
+        <div className="flex h-[calc(100vh-12rem)] max-w-full flex-col items-center justify-center">
+            <div className="text-center space-y-4">
+                <h2 className="text-3xl font-bold text-primary">
+                    Récupération des données
+                </h2>
+                <p className="text-muted-foreground">
+                    Chargement en cours{Array.from({ length: loadingDot }).map(() => ".")}
+                </p>
+            </div>
         </div>
     );
 }
