@@ -1,0 +1,11 @@
+{
+  "version": "1.0.8",
+  "notes": "📝 Patchnote 1.0.8 :\n\n🎨 Interface\n- 🖤 Le chemin d'installation du jeu est maintenant affiché en noir profond en mode clair, et en gris clair en mode sombre, pour une lisibilité parfaite dans tous les thèmes.\n- 📁 Icône de dossier harmonisée avec le thème (noir en clair, gris en sombre).\n- 🪶 Texte du chemin plus fin et plus discret, pour un rendu encore plus élégant et moderne.\n\n⚡ Expérience utilisateur\n- 🚀 Animation et effet de survol conservés sur le chemin pour un ressenti fluide et premium.\n- 🖱️ Possibilité de cliquer pour copier le chemin d'installation facilement.\n\n🛠️ Technique\n- 🔄 Mise à jour de la version de l'application à 1.0.8 dans tous les fichiers de configuration.",
+  "pub_date": "2024-06-07T00:00:00Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRUWUzVndYZWFUR0VIRkh3TmhPempmeWorYUNNbUlFN3QvOUZXeG1CM0kxbUpiMjVNRXNadFBmQ1FQZFZnUWFZV0YxT0JGNWVxd3V5QmRGMmdFZGlWOEQvMHliTkFZRUFRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzQ2ODM4MDcxCWZpbGU6VHJhZHVjdGlvbiBGcmFuw6dhaXNlIElyaWRpYW4gRm9yIFByb3NwZXJpdHlfMS4wLjhfeDY0X2ZyLUZSLm1zaS56aXAKNXNXQjA5czlNRGFoM1I0TDBQVlVRbnRVTTJtVXpZUFZCR1VKeW9pREU3S3Rxd0pVRDNZQXRFVHJXWFpyendCWHlNY1JKNEQvbWx1ak1pMy96aTdQQWc9PQo=",
+      "url": "https://github.com/drrakendu78/TradSC/releases/download/1.0.8/Traduction.Francaise.Iridian.For.Prosperity_1.0.8_x64_fr-FR.msi.zip"
+    }
+  }
+}

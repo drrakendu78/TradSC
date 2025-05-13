@@ -1,0 +1,71 @@
+name: Release
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  create-release:
+    permissions:
+      contents: write
+    runs-on: windows-latest
+    outputs:
+      release_id: ${{ steps.create-release.outputs.result }}
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        
+      - name: Install dependencies
+        run: npm install
+        
+      - name: Build
+        run: npm run build
+        
+      - name: Build Tauri
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "Traduction Française IFP v${{ github.ref_name }}"
+          releaseBody: "Voir les changements dans CHANGELOG.md"
+          releaseDraft: true
+          prerelease: false
+          
+      - name: Generate latest.json
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}" -replace '^v',''
+          $date = Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ"
+          $json = @{
+            version = $version
+            notes = "Voir les changements dans CHANGELOG.md"
+            pub_date = $date
+            platforms = @{
+              "windows-x86_64" = @{
+                url = "https://github.com/drrakendu78/MultiTool/releases/download/${{ github.ref_name }}/MultiTool_${version}_x64_fr-FR.msi"
+                signature = "${{ steps.build.outputs.signature }}"
+              }
+            }
+          }
+          $json | ConvertTo-Json -Depth 10 | Out-File -Encoding UTF8 latest.json
+          
+      - name: Upload latest.json
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create-release.outputs.upload_url }}
+          asset_path: ./latest.json
+          asset_name: latest.json
+          asset_content_type: application/json 
