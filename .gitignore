@@ -40,6 +40,8 @@ next-env.d.ts
 # tauri
 /src-tauri/target
 /src-tauri/Cargo.lock
+~/.tauri/
+.tauri/
 
 # ide
 .idea
