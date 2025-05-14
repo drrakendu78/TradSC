@@ -6,3 +6,4 @@ pub mod theme_preferences;
 pub mod patchnote;
 pub mod cache_functions;
 pub mod updater;
+pub mod bindings_functions;

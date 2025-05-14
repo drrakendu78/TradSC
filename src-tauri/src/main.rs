@@ -4,6 +4,7 @@
 mod events;
 mod scripts;
 
+use scripts::bindings_functions::{import_bindings_file, list_bindings_files, delete_bindings_file, open_bindings_folder, refresh_bindings};
 use scripts::cache_functions::{clear_cache, delete_folder, get_cache_informations, open_cache_folder};
 use scripts::patchnote::get_latest_commits;
 use scripts::pathfinder::get_star_citizen_versions;
@@ -77,6 +78,11 @@ fn main() {
             save_theme_selected,
             load_theme_selected,
             get_latest_commits,
+            import_bindings_file,
+            list_bindings_files,
+            delete_bindings_file,
+            open_bindings_folder,
+            refresh_bindings,
         ])
         .run(context)
         .expect("error while running tauri application");

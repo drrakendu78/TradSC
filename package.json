@@ -1,12 +1,13 @@
 {
     "name": "multitool",
-    "version": "1.0.5",
+    "version": "1.0.9",
     "private": true,
     "scripts": {
         "dev": "next dev",
         "build": "next build",
         "start": "next start",
-        "lint": "next lint"
+        "lint": "next lint",
+        "tauri": "tauri"
     },
     "dependencies": {
         "@lottiefiles/dotlottie-react": "^0.9.1",
@@ -38,7 +39,7 @@
     },
     "devDependencies": {
         "@tailwindcss/typography": "0.5.10",
-        "@tauri-apps/cli": "^1.6.0",
+        "@tauri-apps/cli": "^1.6.3",
         "@types/node": "^20",
         "@types/react": "^18",
         "@types/react-color": "^3.0.12",

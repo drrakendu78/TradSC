@@ -21,6 +21,7 @@ import {
     DatabaseZap,
     Globe,
     FileText,
+    Gamepad,
 } from "lucide-react";
 
 import appInfos from "@/utils/appInfos.json";
@@ -146,6 +147,24 @@ export const Sidebar = ({ setSidebarWidth }: { setSidebarWidth?: (w: number) => 
                                 </Tooltip>
                             </TooltipProvider>
                             {fullWidth && "Gestion du cache"}
+                        </Link>
+                        <Link
+                            href="/bindings"
+                            className={`flex items-center gap-3 rounded-md py-1.5 pl-2 transition-all ${
+                                fullWidth && isActive("/bindings") ? "bg-primary/5 text-primary" : !fullWidth && isActive("/bindings") ? "text-primary" : "text-muted-foreground hover:text-primary"
+                            } ${!fullWidth ? "justify-center pl-0" : ""}`}
+                        >
+                            <TooltipProvider delayDuration={50}>
+                                <Tooltip>
+                                    <TooltipTrigger>
+                                        <Gamepad className={`h-4 w-4 ${isActive("/bindings") ? "text-primary" : ""}`} />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="right">
+                                        <p>Importer des Bindings</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                            {fullWidth && "Importer des Bindings"}
                         </Link>
                         {fullWidth && (
                             <p className="text-primary font-medium mt-6">
