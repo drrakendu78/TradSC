@@ -5,8 +5,8 @@ Une application de bureau construite avec Tauri et React pour gérer les traduct
 ## 🚀 Installation simple
 
 1. Rendez-vous sur la page [Releases du projet](https://github.com/drrakendu78/TradSC/releases).
-2. Téléchargez le fichier `.msi` le plus récent (ex : `Traduction.Francaise.Iridian.For.Prosperity_1.2.0_x64_fr-FR.msi.zip`).
-3. Décompressez le fichier `.zip` si besoin, puis lancez le fichier `.msi` pour installer l'application.
+2. Téléchargez le fichier `.msi` le plus récent (ex : `Traduction.Francaise.Iridian.For.Prosperity_1.2.0_x64_fr-FR.msi`).
+3. Lancez le fichier `.msi` pour installer l'application.
 4. Suivez les instructions à l'écran.
 
 ### ⚠️ Message « Windows a protégé votre ordinateur » lors de l'installation
