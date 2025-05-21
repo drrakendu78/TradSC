@@ -35,6 +35,8 @@ Windows ouvrira alors le fichier et l'installation pourra continuer normalement.
 - 🎨 Interface utilisateur moderne et personnalisable
 - 🌓 Mode sombre/clair
 - 📰 Flux RSS des actualités
+- ⌨️ Importez vos configurations de touches rapidement et facilement
+- 💾 Créez des sauvegardes de vos personnages pour ne jamais perdre vos progrès
 
 ## 📋 Prérequis
 
