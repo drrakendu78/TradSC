@@ -16,7 +16,7 @@ Si Windows affiche un message bleu « Windows a protégé votre ordinateur » lo
 1. Double-cliquez sur le fichier que vous souhaitez ouvrir.
 2. Sur la fenêtre bleue, cliquez sur **Informations complémentaires** (voir image ci-dessous) :
 
-![SmartScreen Informations complémentaires]([https://github.com/drrakendu78/TradSC-docs/blob/main/public/smartscreen_info.png?raw=true)
+![SmartScreen Informations complémentaires](https://github.com/drrakendu78/TradSC-docs/blob/main/public/smartscreen_info.png?raw=true)
 
 3. Puis cliquez sur **Exécuter quand même** en bas de la fenêtre (voir image ci-dessous) :
 
