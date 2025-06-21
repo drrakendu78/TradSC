@@ -1,3 +1,11 @@
+### ⚠️ Important : Désinstallation de l'ancienne version
+
+Suite au changement de nom pour **StarTrad**, cette mise à jour s'installera comme une nouvelle application et ne remplacera pas l'ancienne automatiquement.
+
+Après avoir installé cette nouvelle version, pensez à **désinstaller manuellement l'ancienne application** ("Traduction Française Iridian For Prosperity") depuis les paramètres de Windows pour éviter d'avoir des doublons.
+
+Merci de votre compréhension !
+
 # StarTrad FR
 
 Une application de bureau construite avec Tauri et React pour gérer les traductions françaises de Star Citizen.
