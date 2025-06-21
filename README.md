@@ -1,4 +1,4 @@
-# Traduction Française Iridian For Prosperity
+# StarTrad FR
 
 Une application de bureau construite avec Tauri et React pour gérer les traductions françaises de Star Citizen.
 
