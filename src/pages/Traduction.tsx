@@ -1,0 +1,750 @@
+import { motion } from "framer-motion";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import {
+    GamePaths,
+    isGamePaths,
+    TranslationsChoosen,
+    LocalizationConfig,
+    isLocalizationConfig,
+    Link,
+} from "@/types/translation";
+import { Button } from "@/components/ui/button";
+import logger from "@/utils/logger";
+import { Loader2, XCircle, CheckCircle, AlertCircle, HelpCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+
+export default function Traduction() {
+    const [paths, setPaths] = useState<GamePaths | null>();
+    const [earlyChecked, setEarlyChecked] = useState<boolean>(false);
+    const [translationsSelected, setTranslationsSelected] = useState<TranslationsChoosen | null>(null);
+    const [translations, setTranslations] = useState<LocalizationConfig | null>(null);
+    const [loadingButtonId, setLoadingButtonId] = useState<string | null>(null);
+    const [dataFetched, setDataFetched] = useState<boolean>(false);
+    const [isAdmin, setIsAdmin] = useState<boolean>(true); // Supposer admin par défaut pour éviter flash de toast
+
+    const defaultLanguage = "fr";
+    const { toast } = useToast();
+
+    const isProtectedPath = (p: string) => /:\\Program Files( \(x86\))?\\/i.test(p);
+    const toFriendlyFsError = (err: unknown) => {
+        const msg = String(err ?? "");
+        if (/Accès refusé|Access is denied|os error 5|Permission denied/i.test(msg)) {
+            return "Accès refusé. Essayez de lancer l'application en tant qu'administrateur ou installez le jeu en dehors de 'Program Files'.";
+        }
+        return msg;
+    };
+
+    const getDefaultTranslationsState = (): TranslationsChoosen => {
+        if (!paths) return {};
+
+        const defaults: TranslationsChoosen = {};
+
+        Object.keys(paths.versions).forEach(version => {
+            defaults[version] = { link: null, settingsEN: false };
+        });
+
+        return defaults;
+    };
+
+    useEffect(() => {
+        const fetchData = async () => {
+            if (dataFetched) return;
+            try {
+                const versions = await invoke("get_star_citizen_versions");
+                if (isGamePaths(versions)) {
+                    logger.log("Versions du jeu reçues:", versions);
+                    setPaths(versions);
+                }
+
+                logger.log("Récupération des traductions...");
+                const translationsData = await invoke("get_translations");
+                logger.log("Données de traduction reçues:", translationsData);
+                
+                if (isLocalizationConfig(translationsData)) {
+                    setTranslations(translationsData);
+                }
+
+                const savedPrefs: TranslationsChoosen = await invoke("load_translations_selected");
+                if (savedPrefs && typeof savedPrefs === "object") {
+                    logger.log("Préférences de traduction chargées:", savedPrefs);
+                    setTranslationsSelected(savedPrefs);
+                } else {
+                    logger.log("Initialisation avec les préférences par défaut");
+                    setTranslationsSelected(getDefaultTranslationsState());
+                }
+
+                return true;
+            } catch (error) {
+                console.error("Erreur lors du chargement des données:", error);
+                setTranslationsSelected(getDefaultTranslationsState());
+                return false;
+            }
+        };
+
+        const checkAdminStatus = async () => {
+            try {
+                const adminStatus = await invoke<boolean>("is_running_as_admin");
+                setIsAdmin(adminStatus);
+            } catch (error) {
+                console.error("Erreur lors de la vérification du statut admin:", error);
+                setIsAdmin(false);
+            }
+        };
+
+        if (!dataFetched) {
+            setDataFetched(true);
+            Promise.all([fetchData(), checkAdminStatus()]).then(([dataStatus]) => {
+                dataStatus
+                    ? toast({
+                        title: "Données chargées",
+                        description: "Les données de traduction ont été chargées avec succès.",
+                        success: "true",
+                        duration: 3000,
+                    })
+                    : toast({
+                        title: "Erreur lors du chargement des données",
+                        description: `Une erreur est survenue lors du chargement des données.`,
+                        success: "false",
+                        duration: 3000,
+                    });
+            });
+        }
+
+        // Vérification périodique du statut admin (toutes les 5 secondes)
+        const adminCheckInterval = setInterval(checkAdminStatus, 5000);
+        return () => clearInterval(adminCheckInterval);
+    }, []);
+
+    const saveSelectedTranslations = useCallback(
+        async (newTranslationsSelected: TranslationsChoosen) => {
+            try {
+                await invoke("save_translations_selected", {
+                    data: newTranslationsSelected,
+                });
+                toast({
+                    title: "Préférences de traduction sauvegardées",
+                    description: `Les préférences de traduction ont été sauvegardées avec succès.`,
+                    success: "true",
+                    duration: 3000,
+                });
+            } catch (error) {
+                toast({
+                    title: "Erreur lors de la sauvegarde des données",
+                    description: `Une erreur est survenue lors de la sauvegarde des données : ${error}`,
+                    success: "false",
+                    duration: 3000,
+                });
+            }
+        },
+        [toast],
+    );
+
+    const CheckTranslationsState = useCallback(
+        async (paths: GamePaths) => {
+            if (!translationsSelected) return;
+
+            const updatedPaths = { ...paths };
+            await Promise.all(
+                Object.entries(paths.versions).map(async ([key, value]) => {
+                    const versionSettings = translationsSelected[key as keyof TranslationsChoosen];
+
+                    const translated: boolean = await invoke(
+                        "is_game_translated",
+                        {
+                            path: value.path,
+                            lang: defaultLanguage,
+                        },
+                    );
+
+                    const upToDate: boolean = (versionSettings && versionSettings.link)
+                        ? await invoke("is_translation_up_to_date", {
+                            path: value.path,
+                            translationLink: versionSettings.link,
+                            lang: defaultLanguage,
+                        })
+                        : value.up_to_date;
+
+                    const versionInfo = {
+                        path: value.path,
+                        translated: translated,
+                        up_to_date: upToDate,
+                    };
+
+                    updatedPaths.versions[key as keyof GamePaths["versions"]] = versionInfo;
+                }),
+            );
+
+            setPaths(updatedPaths);
+            setLoadingButtonId(null);
+        },
+        [translationsSelected, defaultLanguage],
+    );
+
+    const handleTranslationSelect = useCallback(
+        async (version: string, linkUrl: string) => {
+            if (!translationsSelected) return;
+            
+            const currentSetting = translationsSelected[version as keyof TranslationsChoosen];
+            const updatedTranslations: TranslationsChoosen = {
+                ...translationsSelected,
+                [version]: {
+                    link: linkUrl,
+                    settingsEN: currentSetting?.settingsEN ?? false,
+                },
+            };
+
+            setTranslationsSelected(updatedTranslations);
+            await saveSelectedTranslations(updatedTranslations);
+        },
+        [translationsSelected, saveSelectedTranslations],
+    );
+
+    const handleInstallTranslation = useCallback(
+        async (versionPath: string, version: string) => {
+            logger.log("Installation de la traduction pour la version:", version);
+            if (!translationsSelected) return;
+
+            setLoadingButtonId(`install-${version}`);
+            if (isProtectedPath(versionPath) && !isAdmin) {
+                toast({
+                    title: "Chemin protégé",
+                    description: "Dossier sous Program Files: relance en admin recommandée (bouclier en bas à droite).",
+                    success: "false",
+                    duration: 5000,
+                });
+            }
+
+            const versionSettings = translationsSelected[version as keyof TranslationsChoosen];
+            if (!versionSettings || !versionSettings.link) {
+                        toast({
+                    title: "Traduction non sélectionnée",
+                    description: "Veuillez sélectionner une traduction dans le menu déroulant avant d'installer.",
+                            success: "false",
+                            duration: 3000,
+                        });
+                        setLoadingButtonId(null);
+                return;
+            } else {
+                try {
+                    logger.log("Installation avec le lien existant:", versionSettings.link);
+
+                    await invoke("init_translation_files", {
+                        path: versionPath,
+                        translationLink: versionSettings.link,
+                        lang: defaultLanguage,
+                    });
+
+                    toast({
+                        title: "Traduction installée",
+                        description: "La traduction a été installée avec succès.",
+                        variant: "success",
+                        duration: 3000,
+                    });
+
+                    if (paths) CheckTranslationsState(paths);
+                } catch (error) {
+                    logger.error("Erreur d'installation:", error);
+                    toast({
+                        title: "Erreur d'installation",
+                        description: `Erreur: ${toFriendlyFsError(error)}`,
+                        variant: "destructive",
+                        duration: 4000,
+                    });
+                    setLoadingButtonId(null);
+                }
+            }
+        },
+        [toast, paths, CheckTranslationsState, translationsSelected, saveSelectedTranslations, defaultLanguage, isAdmin],
+    );
+
+    const handleUpdateTranslation = useCallback(
+        async (
+            versionPath: string,
+            translationLink: string,
+            buttonId: string,
+        ) => {
+            setLoadingButtonId(`update-${buttonId}`);
+            if (isProtectedPath(versionPath) && !isAdmin) {
+                toast({
+                    title: "Chemin protégé",
+                    description: "Dossier sous Program Files: relance en admin recommandée (bouclier en bas à droite).",
+                    success: "false",
+                    duration: 5000,
+                });
+            }
+            try {
+                await invoke("update_translation", {
+                    path: versionPath,
+                    translationLink: translationLink,
+                    lang: defaultLanguage,
+                });
+                toast({
+                    title: "Traduction mise à jour",
+                    description: "La traduction a été mise à jour avec succès.",
+                    variant: "success",
+                    duration: 3000,
+                });
+                if (paths) CheckTranslationsState(paths);
+            } catch (error) {
+                toast({
+                    title: "Erreur de mise à jour",
+                    description: `Erreur: ${toFriendlyFsError(error)}`,
+                    variant: "destructive",
+                    duration: 4000,
+                });
+            } finally {
+                setLoadingButtonId(null);
+            }
+        },
+        [toast, paths, CheckTranslationsState, isAdmin],
+    );
+
+    const handleSettingsToggle = useCallback(
+        async (version: string, settingsEN: boolean) => {
+            if (!translationsSelected || !translations) return;
+
+            try {
+                setLoadingButtonId(`switch-${version}`);
+
+                // Chercher la traduction correspondante dans la liste
+                const currentLink = translationsSelected[version as keyof TranslationsChoosen]?.link;
+                if (!currentLink) {
+                    toast({
+                        title: "Traduction non sélectionnée",
+                        description: "Veuillez d'abord sélectionner une traduction.",
+                        success: "false",
+                        duration: 3000,
+                    });
+                    setLoadingButtonId(null);
+                    return;
+                }
+
+                // Trouver le lien actuel dans la liste
+                const currentTranslation = translations.fr.links.find((link: Link) => link.url === currentLink);
+                if (!currentTranslation) {
+                    toast({
+                        title: "Traduction introuvable",
+                        description: "Impossible de trouver la traduction correspondante.",
+                        success: "false",
+                        duration: 3000,
+                    });
+                    setLoadingButtonId(null);
+                    return;
+                }
+
+                // Chercher la version avec le setting opposé
+                let newLink = currentLink;
+                const currentName = currentTranslation.name;
+                
+                if (settingsEN) {
+                    // Chercher la version Settings EN correspondante
+                    // Si c'est "SCEFRA (Settings FR)", chercher "SCEFRA (Settings EN)"
+                    const baseName = currentName.replace(/\(Settings FR\)/i, "").replace(/\(Settings EN\)/i, "").trim();
+                    const enVersion = translations.fr.links.find((link: Link) => 
+                        link.name.includes(baseName) && (link.name.includes("Settings EN") || link.name.includes("EN"))
+                    );
+                    if (enVersion) {
+                        newLink = enVersion.url;
+                    } else {
+                        // Fallback : chercher n'importe quelle version EN
+                        const anyEnVersion = translations.fr.links.find((link: Link) => 
+                            link.name.includes("Settings EN") || (link.name.includes("EN") && !link.name.includes("FR"))
+                        );
+                        if (anyEnVersion) {
+                            newLink = anyEnVersion.url;
+                        }
+                    }
+                } else {
+                    // Chercher la version Settings FR correspondante
+                    const baseName = currentName.replace(/\(Settings FR\)/i, "").replace(/\(Settings EN\)/i, "").trim();
+                    const frVersion = translations.fr.links.find((link: Link) => 
+                        link.name.includes(baseName) && (link.name.includes("Settings FR") || (link.name.includes("FR") && !link.name.includes("EN")))
+                    );
+                    if (frVersion) {
+                        newLink = frVersion.url;
+                    } else {
+                        // Fallback : chercher n'importe quelle version FR
+                        const anyFrVersion = translations.fr.links.find((link: Link) => 
+                            link.name.includes("Settings FR") || (link.name.includes("FR") && !link.name.includes("EN"))
+                        );
+                        if (anyFrVersion) {
+                            newLink = anyFrVersion.url;
+                        }
+                    }
+                }
+
+                logger.log("Nouveau lien sélectionné:", newLink);
+
+                    const updatedTranslations = {
+                        ...translationsSelected,
+                        [version]: {
+                            ...translationsSelected[version as keyof TranslationsChoosen],
+                        link: newLink,
+                            settingsEN: settingsEN,
+                        },
+                    };
+
+                    setTranslationsSelected(updatedTranslations);
+                    await saveSelectedTranslations(updatedTranslations);
+
+                    const versionPath = paths?.versions[version as keyof GamePaths["versions"]]?.path;
+                    if (versionPath && paths?.versions[version as keyof GamePaths["versions"]]?.translated) {
+                        const isUpToDate = await invoke("is_translation_up_to_date", {
+                            path: versionPath,
+                        translationLink: newLink,
+                            lang: defaultLanguage,
+                        });
+
+                        if (paths) {
+                            const updatedPaths = { ...paths };
+                            const currentVersion = updatedPaths.versions[version as keyof GamePaths["versions"]];
+                            if (currentVersion) {
+                                updatedPaths.versions[version as keyof GamePaths["versions"]] = {
+                                    ...currentVersion,
+                                    up_to_date: isUpToDate as boolean
+                                };
+                                setPaths(updatedPaths);
+                            }
+                        }
+
+                        if (!isUpToDate) {
+                            toast({
+                                title: "Traduction obsolète",
+                                description: "La traduction doit être mise à jour pour correspondre à cette configuration.",
+                                success: "false",
+                                duration: 5000,
+                            });
+                        } else {
+                            toast({
+                                title: "Paramètres modifiés",
+                                description: "Vous pouvez mettre à jour la traduction pour appliquer les nouveaux paramètres.",
+                                success: "true",
+                                duration: 5000,
+                            });
+                        }
+                }
+
+                setLoadingButtonId(null);
+            } catch (error) {
+                logger.error("Erreur lors du changement de paramètres:", error);
+                toast({
+                    title: "Erreur de configuration",
+                    description: `Une erreur est survenue: ${error}`,
+                    success: "false",
+                    duration: 3000,
+                });
+                setLoadingButtonId(null);
+            }
+        },
+        [translationsSelected, translations, paths, saveSelectedTranslations, toast, defaultLanguage],
+    );
+
+    useEffect(() => {
+        const checkState = async () => {
+            if (!paths) return;
+            await CheckTranslationsState(paths);
+            setEarlyChecked(true);
+        };
+
+        if (!earlyChecked) checkState();
+
+        const interval = setInterval(() => {
+            if (paths) {
+                CheckTranslationsState(paths);
+            }
+        }, 60000);
+
+        return () => clearInterval(interval);
+    }, [paths]);
+
+    useEffect(() => {
+        if (translationsSelected && paths) {
+            CheckTranslationsState(paths);
+        }
+    }, [translationsSelected]);
+
+
+    const handleUninstallTranslation = useCallback(
+        async (versionPath: string) => {
+            try {
+                await invoke("uninstall_translation", { path: versionPath });
+                toast({
+                    title: "Traduction désinstallée",
+                    description: "La traduction a été désinstallée avec succès.",
+                    variant: "success",
+                    duration: 3000,
+                });
+                if (paths) CheckTranslationsState(paths);
+            } catch (error) {
+                toast({
+                    title: "Erreur de désinstallation",
+                    description: `Erreur: ${toFriendlyFsError(error)}`,
+                    success: "false",
+                    duration: 4000,
+                });
+            }
+        },
+        [toast, paths, CheckTranslationsState],
+    );
+
+    const renderCard = useMemo(() => {
+        if (!paths || !translationsSelected) return null;
+
+        return Object.entries(paths.versions).map(([key, value], index) => (
+            <motion.div
+                key={key}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{
+                    duration: 0.3,
+                    delay: 0.4 + index * 0.2
+                }}
+                className="w-full"
+            >
+                <div className="w-full rounded-lg border border-primary/50 bg-card/50 hover:bg-card/60 shadow-sm p-2 duration-150 ease-in-out">
+                    <div className="grid grid-cols-12 gap-2">
+                        {/* Nom */}
+                        <div className="flex justify-start items-center col-span-1">
+                            <p className="font-medium text-sm">
+                                {key}
+                            </p>
+                        </div>
+
+                        {/* Chemin */}
+                        <div className="flex justify-start items-center col-span-2 truncate">
+                            <Tooltip>
+                                <TooltipTrigger className="hover:cursor-default">
+                                    <p className="text-sm text-muted-foreground">
+                                        {value.path}...
+                                    </p>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p className="text-sm text-muted-foreground">
+                                        {value.path}
+                                    </p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </div>
+
+                        {/* Switch pour settings FR/EN */}
+                        <div className="flex justify-center items-center gap-2 col-span-3">
+                            <span className="text-sm">Français</span>
+                            {loadingButtonId === `switch-${key}` ? (
+                                <Loader2 className="h-5 w-5 animate-spin" />
+                            ) : (
+                                <Switch
+                                    checked={translationsSelected[key as keyof TranslationsChoosen]?.settingsEN === true}
+                                    onCheckedChange={(checked) => handleSettingsToggle(key, checked)}
+                                    disabled={loadingButtonId !== null || !translationsSelected[key as keyof TranslationsChoosen]?.link}
+                                />
+                            )}
+                            <span className="text-sm">Anglais</span>
+                        </div>
+
+                        {/* État de la traduction */}
+                        <div className="flex items-center justify-start col-span-1">
+                            {value.up_to_date ? (
+                                <Badge variant="default" className="gap-1">
+                                    <CheckCircle className="h-3.5 w-3.5" />
+                                    À jour
+                                </Badge>
+                            ) : value.translated ? (
+                                <Badge variant="default" className="gap-1">
+                                    <AlertCircle className="h-3.5 w-3.5" />
+                                    Obsolète
+                                </Badge>
+                            ) : (
+                                <Badge variant="outline" className="gap-1">
+                                    <XCircle className="h-3.5 w-3.5" />
+                                    Non installé
+                                </Badge>
+                            )}
+                        </div>
+
+                        {/* Dropdown pour choisir la traduction */}
+                        <div className="flex justify-center items-center col-span-3">
+                            {translations && translations.fr && translations.fr.links && translations.fr.links.length > 0 && (
+                                <Select
+                                    value={translationsSelected[key as keyof TranslationsChoosen]?.link || ""}
+                                    onValueChange={(value) => handleTranslationSelect(key, value)}
+                                    disabled={loadingButtonId !== null}
+                                >
+                                    <SelectTrigger className="w-[150px] h-8 text-xs">
+                                        <SelectValue placeholder="Choisir une traduction" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {translations.fr.links.map((link: Link) => (
+                                            <SelectItem key={link.id} value={link.url}>
+                                                {link.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            )}
+                        </div>
+
+                        {/* Boutons d'action */}
+                        <div className="flex justify-end items-center gap-2 col-span-2">
+                            {!value.translated && (
+                                <Button
+                                    size="sm"
+                                    disabled={loadingButtonId === `install-${key}`}
+                                    onClick={() => handleInstallTranslation(value.path, key)}
+                                >
+                                    {loadingButtonId === `install-${key}` ? (
+                                        <>
+                                            <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                                            Installation...
+                                        </>
+                                    ) : (
+                                        "Installer"
+                                    )}
+                                </Button>
+                            )}
+                            {value.translated && !value.up_to_date && translationsSelected[key as keyof TranslationsChoosen]?.link && (
+                                <Button
+                                    variant={"secondary"}
+                                    size="sm"
+                                    disabled={loadingButtonId === `update-${key}`}
+                                    onClick={() =>
+                                        handleUpdateTranslation(
+                                            value.path,
+                                            translationsSelected[key as keyof TranslationsChoosen]!.link!,
+                                            key
+                                        )
+                                    }
+                                >
+                                    {loadingButtonId === `update-${key}` ? (
+                                        <>
+                                            <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                                            Mise à jour...
+                                        </>
+                                    ) : (
+                                        "Mettre à jour"
+                                    )}
+                                </Button>
+                            )}
+                            {value.translated && (
+                                <Button
+                                    variant={"destructive"}
+                                    size="sm"
+                                    disabled={loadingButtonId === `uninstall-${key}`}
+                                    onClick={async () => {
+                                        setLoadingButtonId(`uninstall-${key}`);
+                                        try {
+                                            await handleUninstallTranslation(value.path);
+                                        } finally {
+                                            setLoadingButtonId(null);
+                                        }
+                                    }}
+                                >
+                                    {loadingButtonId === `uninstall-${key}` ? (
+                                        <>
+                                            <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                                            Désinstallation...
+                                        </>
+                                    ) : (
+                                        "Désinstaller"
+                                    )}
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </motion.div>
+        ));
+    }, [
+        paths,
+        translationsSelected,
+        translations,
+        loadingButtonId,
+        handleSettingsToggle,
+        handleInstallTranslation,
+        handleUpdateTranslation,
+        handleUninstallTranslation,
+        handleTranslationSelect
+    ]);
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, x: 100 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{
+                duration: 0.8,
+                delay: 0.2,
+                ease: [0, 0.71, 0.2, 1.01],
+            }}
+            className="flex flex-col w-full max-h-[calc(100vh-50px)]"
+        >
+            {paths && Object.entries(paths?.versions)[0] ? (
+                <div
+                    className="w-full max-w-full flex flex-col
+                    gap-2 mt-5 overflow-y-scroll overflow-x-hidden pr-3 pb-3"
+                >
+                    {/* Description d'en-tête */}
+                    <div className="mb-4 p-4 bg-muted/30 rounded-lg border border-muted">
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                            Installez et gérez la traduction française de Star Citizen. La traduction vous est fournie par la communauté de SCEFRA et inclut la traduction de circuspes de la communauté de Hugo Lisoir.
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-12 pr-4 gap-5">
+                        <p className="col-span-1 font-bold">
+                            Version
+                        </p>
+                        <p className="col-span-2 text-center font-bold">
+                            Chemin
+                        </p>
+                        <p className="col-span-3 text-center font-bold flex items-center justify-center gap-1">
+                            Paramètres
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Langue des paramètres du jeu</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </p>
+                        <p className="col-span-1 text-center font-bold">
+                            État
+                        </p>
+                        <p className="col-span-3 text-center font-bold">
+                            Traduction
+                        </p>
+                        <p className="col-span-2 text-end font-bold">
+                            Action
+                        </p>
+                    </div>
+                    {renderCard}
+                </div>
+            ) : (
+                <div className="flex flex-col items-center justify-center w-full h-screen">
+                    <h2 className="text-3xl font-bold mb-2">
+                        Aucune version du jeu n{"'"}a été trouvée
+                    </h2>
+                    <p className="max-w-[500px] text-center leading-7">
+                        Pour régler ce problème, lancez Star Citizen, puis
+                        rechargez cette page en faisant la manipulation suivante
+                        :
+                        <span className="bg-gray-500 px-2 py-1 ml-2">
+                            CRTL + R
+                        </span>
+                    </p>
+                </div>
+            )}
+        </motion.div>
+    );
+}
