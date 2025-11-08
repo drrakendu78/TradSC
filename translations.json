@@ -1,0 +1,61 @@
+{
+  "fr": {
+    "folder": "french_(france)",
+    "enabled": true,
+    "links": [
+      {
+        "id": 0,
+        "name": "SCEFRA (Settings FR)",
+        "url": "https://raw.githubusercontent.com/SPEED0U/Scefra/main/french_(france)/global.ini"
+      },
+      {
+        "id": 2,
+        "name": "SCEFRA (Settings EN)",
+        "url": "https://raw.githubusercontent.com/SPEED0U/Scefra/refs/heads/settings-en/french_(france)/global.ini"
+      },
+      {
+        "id": 1,
+        "name": "Circuspes",
+        "url": "https://traduction.circuspes.fr/download/global.ini"
+      }
+    ]
+  },
+  "de": {
+    "folder": "german_(germany)",
+    "enabled": true,
+    "links": [
+      {
+        "id": 0,
+        "name": "default",
+        "url": "https://raw.githubusercontent.com/Dymerz/StarCitizen-Localization/main/data/Localization/german_(germany)/global.ini"
+      }
+    ]
+  },
+  "ita": {
+    "folder": "italian_(italy)",
+    "enabled": true,
+    "links": [
+      {
+        "id": 0,
+        "name": "default",
+        "url": "https://raw.githubusercontent.com/Dymerz/StarCitizen-Localization/main/data/Localization/italian_(italy)/global.ini"
+      }
+    ]
+  },
+  "es": {
+    "folder": "spanish_(spain)",
+    "enabled": true,
+    "links": [
+      {
+        "id": 0,
+        "name": "default",
+        "url": "https://raw.githubusercontent.com/Dymerz/StarCitizen-Localization/main/data/Localization/spanish_(spain)/global.ini"
+      }
+    ]
+  },
+  "en": {
+    "folder": "english",
+    "enabled": false,
+    "links": ""
+  }
+}
