@@ -13,6 +13,8 @@ _Traduction française pour Star Citizen - Version 2
 
 **StarTrad FR** est une application desktop moderne et gratuite pour gérer la traduction française de Star Citizen. Développée avec Tauri 2, React et TypeScript, elle offre une interface intuitive et de nombreuses fonctionnalités pour améliorer votre expérience de jeu.
 
+> 💡 **Note** : StarTrad FR est basé sur [MultitoolV2](https://github.com/Onivoid/MultitoolV2) développé par [Onivoid](https://github.com/Onivoid), adapté et spécialisé pour la traduction française de Star Citizen.
+
 </div>
 
 ## ✨ Fonctionnalités
@@ -289,7 +291,13 @@ Ce projet est sous licence **MIT** - voir le fichier [LICENSE](LICENSE) pour plu
 
 **Développé avec 💜 par [Drrakendu78](https://github.com/drrakendu78)**
 
-_Un grand merci à la communauté Star Citizen française et aux contributeurs qui participent à ce projet !_
+### 🙏 Crédits
+
+**StarTrad FR** est basé sur **[MultitoolV2](https://github.com/Onivoid/MultitoolV2)** développé par **[Onivoid](https://github.com/Onivoid)**.
+
+Un grand merci à **Onivoid** pour avoir créé cette base solide et open-source qui a permis le développement de StarTrad FR !
+
+_Un grand merci également à la communauté Star Citizen française et aux contributeurs qui participent à ce projet !_
 
 [![Contributors](https://img.shields.io/github/contributors/drrakendu78/TradSC?style=for-the-badge)](https://github.com/drrakendu78/TradSC/graphs/contributors)
 
