@@ -26,7 +26,7 @@ export function getAppVersionSync(): string {
  */
 export function formatVersion(version: string): string {
     if (!version || version === "dev") return "Dev";
-    return `v${version}`;
+    return version;
 }
 
 /**

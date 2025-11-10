@@ -127,4 +127,40 @@
         background-color: rgb(185, 185, 185);
         border-radius: 0.75rem;
     }
+    /* Scrollbar moderne pour persos en ligne */
+    .modern-scrollbar::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    .modern-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+        border-radius: 10px;
+    }
+    .modern-scrollbar::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, hsl(var(--primary) / 0.9) 0%, hsl(var(--primary) / 0.7) 100%);
+        border-radius: 10px;
+        border: 2px solid transparent;
+        background-clip: padding-box;
+        transition: background 0.2s ease;
+    }
+    .modern-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(180deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.9) 100%);
+        background-clip: padding-box;
+    }
+    .dark .modern-scrollbar::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, hsl(var(--primary) / 0.8) 0%, hsl(var(--primary) / 0.6) 100%);
+        background-clip: padding-box;
+    }
+    .dark .modern-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(180deg, hsl(var(--primary) / 0.9) 0%, hsl(var(--primary) / 0.7) 100%);
+        background-clip: padding-box;
+    }
+    /* Support Firefox */
+    .modern-scrollbar {
+        scrollbar-width: thin;
+        scrollbar-color: hsl(var(--primary) / 0.8) transparent;
+    }
+    .dark .modern-scrollbar {
+        scrollbar-color: hsl(var(--primary) / 0.6) transparent;
+    }
 }

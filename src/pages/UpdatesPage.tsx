@@ -68,7 +68,7 @@ export default function UpdatesPage() {
     const distInfo = getDistributionInfo();
 
     return (
-        <div className="flex flex-col w-full h-full p-6 space-y-6 overflow-y-auto">
+        <div className="flex flex-col w-full h-full p-2 pr-3 space-y-4 overflow-y-auto">
             <div className="space-y-2">
                 <h1 className="text-3xl font-bold">Mises à jour</h1>
                 <p className="text-muted-foreground">

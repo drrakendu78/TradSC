@@ -120,7 +120,7 @@ function CharactersPresetsList() {
                 delay: 0.2,
                 ease: [0, 0.71, 0.2, 1.01],
             }}
-            className="flex w-full flex-col"
+            className="flex w-full flex-col p-2 pr-3"
         >
             {/* Description d'en-tête */}
             <div className="my-4 p-4 bg-muted/30 rounded-lg border border-muted">
@@ -164,7 +164,7 @@ function CharactersPresetsList() {
             </div>
             <div
                 ref={gridRef}
-                className="grid grid-cols-3 xl:grid-cols-5 gap-4 max-h-[calc(100vh-115px)] overflow-x-hidden overflow-y-auto"
+                className="grid grid-cols-3 xl:grid-cols-5 gap-4 max-h-[calc(100vh-115px)] overflow-x-hidden overflow-y-auto modern-scrollbar"
             >
                 {charactersPresets.length === 0 && isLoading && Array.from({ length: 12 }).map((_, i) => (
                     <div key={`skeleton-${i}`} className="h-64 rounded bg-background/30 animate-pulse" />

@@ -88,7 +88,7 @@ _Traduction française pour Star Citizen - Version 2
 _Aucune installation, aucun avertissement Windows_
 
 ```bash
-1. Téléchargez StarTrad_FR-Portable_2.0.2.exe
+1. Téléchargez StarTrad_FR-Portable_2.0.3.exe
 2. Lancez directement le fichier
 3. Profitez ! ✨
 ```
@@ -98,7 +98,7 @@ _Aucune installation, aucun avertissement Windows_
 _Installation système classique - Recommandé pour les mises à jour automatiques_
 
 ```bash
-1. Téléchargez StarTrad FR_2.0.2_x64_fr-FR.msi
+1. Téléchargez StarTrad FR_2.0.3_x64_fr-FR.msi
 2. Si SmartScreen : "Plus d'infos" → "Exécuter quand même"
 3. Suivez l'assistant d'installation
 ```
@@ -137,13 +137,13 @@ Cette application est **100% gratuite et open-source**. Les certificats de signa
 
 ```powershell
 # Vérifier l'intégrité du fichier téléchargé
-Get-FileHash "StarTrad FR_2.0.2_x64_fr-FR.msi" -Algorithm SHA256
-Get-FileHash "StarTrad_FR-Portable_2.0.2.exe" -Algorithm SHA256
+Get-FileHash "StarTrad FR_2.0.3_x64_fr-FR.msi" -Algorithm SHA256
+Get-FileHash "StarTrad_FR-Portable_2.0.3.exe" -Algorithm SHA256
 
 # Comparer avec le checksum fourni dans la release
 ```
 
-**Checksums SHA256 pour la version 2.0.2 :**
+**Checksums SHA256 pour la version 2.0.3 :**
 
 - **MSI** : `495662aa563a14a9db8a03037c01236a91d4edcd57152d72e15cc08334d58518`
 - **EXE Setup** : `2c9e6b98eaf4e22b80eaa15757713b982aa80a689080b43c0991ad140d12170a`
@@ -183,7 +183,7 @@ Get-FileHash "StarTrad_FR-Portable_2.0.2.exe" -Algorithm SHA256
 https://github.com/drrakendu78/TradSC/releases/latest
 
 # Ou télécharger directement le portable
-curl -L -o StarTrad_FR-Portable.exe https://github.com/drrakendu78/TradSC/releases/latest/download/StarTrad_FR-Portable_2.0.2.exe
+curl -L -o StarTrad_FR-Portable.exe https://github.com/drrakendu78/TradSC/releases/latest/download/StarTrad_FR-Portable_2.0.3.exe
 .\StarTrad_FR-Portable.exe
 ```
 
@@ -273,7 +273,7 @@ Ce projet est sous licence **MIT** - voir le fichier [LICENSE](LICENSE) pour plu
 
 ## 📝 Changelog
 
-### Version 2.0.2
+### Version 2.0.3
 
 -   ✨ Vérification automatique des mises à jour au démarrage
 -   📥 Téléchargement direct du fichier .msi depuis GitHub
@@ -281,7 +281,7 @@ Ce projet est sous licence **MIT** - voir le fichier [LICENSE](LICENSE) pour plu
 -   🔧 Corrections de bugs et améliorations techniques
 
 📖 **Voir le changelog complet :** [CHANGELOG_V2.md](CHANGELOG_V2.md)  
-📋 **Notes de version détaillées :** [PATCHNOTES_2.0.2.md](PATCHNOTES_2.0.2.md)
+📋 **Notes de version détaillées :** [PATCHNOTES_2.0.3.md](PATCHNOTES_2.0.3.md)
 
 ---
 

@@ -58,7 +58,7 @@ pnpm tauri build --config src-tauri/tauri.portable.conf.json
 # Copier l'executable portable
 $portableExe = Get-ChildItem -Path "src-tauri/target/release" -Filter "startradfr.exe" | Select-Object -First 1
 if ($portableExe) { 
-    Copy-Item $portableExe.FullName "$buildsDir/StarTrad_FR-Portable_2.0.2.exe" -Force
+    Copy-Item $portableExe.FullName "$buildsDir/StarTrad_FR-Portable_2.0.4.exe" -Force
     Write-Host "[OK] Executable portable copie" -ForegroundColor Green 
 }
 
@@ -69,7 +69,7 @@ Write-Host "===========================" -ForegroundColor Magenta
 $checksumsFile = "$buildsDir/checksums.txt"
 $content = @()
 $content += "StarTrad FR - Checksums SHA256"
-$content += "Version: 2.0.2"
+$content += "Version: 2.0.4"
 $content += "Date: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
 $content += ""
 $content += "========================================"

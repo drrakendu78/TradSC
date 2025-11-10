@@ -52,7 +52,7 @@ export default function ClearCache() {
                 delay: 0.2,
                 ease: [0, 0.71, 0.2, 1.01],
             }}
-            className="flex flex-col w-full max-h-[calc(100vh-50px)]"
+            className="flex flex-col w-full max-h-[calc(100vh-50px)] p-2 pr-3"
         >
             <div className="flex items-center gap-2">
                 <h1 className="text-2xl my-5">Gestionnaire du cache</h1>

@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { XMLParser } from "fast-xml-parser";
 import { Card, CardContent } from "@/components/ui/card";
@@ -97,10 +97,15 @@ function extractImageFromHtml(html: string): string | null {
 }
 
 export default function Actualites() {
-    const [items, setItems] = useState<RssItem[]>([]);
+    const [allItems, setAllItems] = useState<RssItem[]>([]);
+    const [displayedItems, setDisplayedItems] = useState<RssItem[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [rawXml, setRawXml] = useState<string>("");
+    const [hasMore, setHasMore] = useState(true);
+    const itemsPerPage = 10;
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     const fetchRss = async () => {
         try {
@@ -119,7 +124,12 @@ export default function Actualites() {
                 throw new Error('Invalid RSS feed format');
             }
             const entries = Array.isArray(xml.feed.entry) ? xml.feed.entry : [xml.feed.entry];
-            setItems(entries);
+            // Limiter à 20 items maximum
+            const limitedEntries = entries.slice(0, 20);
+            setAllItems(limitedEntries);
+            // Afficher seulement les premiers items
+            setDisplayedItems(limitedEntries.slice(0, itemsPerPage));
+            setHasMore(limitedEntries.length > itemsPerPage);
         } catch (err) {
             console.error('RSS fetch error:', err);
             setError(err instanceof Error ? err.message : "Failed to load RSS feed");
@@ -128,9 +138,51 @@ export default function Actualites() {
         }
     };
 
+    const loadMoreItems = useCallback(() => {
+        if (isLoadingMore || !hasMore) {
+            return;
+        }
+        
+        setIsLoadingMore(true);
+        // Simuler un petit délai pour une meilleure UX
+        setTimeout(() => {
+            const currentLength = displayedItems.length;
+            const nextItems = allItems.slice(currentLength, currentLength + itemsPerPage);
+            if (nextItems.length > 0) {
+                setDisplayedItems(prev => [...prev, ...nextItems]);
+                const newHasMore = currentLength + itemsPerPage < allItems.length;
+                setHasMore(newHasMore);
+            } else {
+                setHasMore(false);
+            }
+            setIsLoadingMore(false);
+        }, 300);
+    }, [allItems, displayedItems.length, hasMore, isLoadingMore]);
+
     useEffect(() => {
         fetchRss();
     }, []);
+
+    // Gestion du scroll infini
+    useEffect(() => {
+        const handleScroll = () => {
+            const el = scrollContainerRef.current;
+            if (!el || isLoadingMore || loading) return;
+            // Charger plus d'items quand on approche du bas
+            if (el.scrollTop + el.clientHeight >= el.scrollHeight - 200) {
+                if (hasMore) {
+                    loadMoreItems();
+                }
+            }
+        };
+        const el = scrollContainerRef.current;
+        if (el) {
+            el.addEventListener("scroll", handleScroll);
+        }
+        return () => {
+            if (el) el.removeEventListener("scroll", handleScroll);
+        };
+    }, [loadMoreItems, hasMore, isLoadingMore, loading]);
 
     const handleClick = async (item: RssItem, e: React.MouseEvent, url?: string) => {
         console.log('handleClick called with URL:', url);
@@ -261,15 +313,18 @@ export default function Actualites() {
                 </Button>
             </div>
             
-            <div className="space-y-4 max-h-[calc(100vh-130px)] overflow-y-auto pr-3">
-                {items.length === 0 ? (
+            <div 
+                ref={scrollContainerRef}
+                className="space-y-4 max-h-[calc(100vh-130px)] overflow-y-auto pr-3 modern-scrollbar"
+            >
+                {displayedItems.length === 0 ? (
                     <Card className="bg-background/40 p-4">
                         <CardContent>
                             <p className="text-muted-foreground">Aucune actualité disponible.</p>
                         </CardContent>
                     </Card>
                 ) : (
-                    items.map((item, i) => {
+                    displayedItems.map((item, i) => {
                         // Extraire le XML brut de l'item pour le fallback
                         let itemXml = undefined;
                         const title = typeof item.title === 'string' ? item.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '';
@@ -358,6 +413,14 @@ export default function Actualites() {
                             </motion.div>
                         );
                     })
+                )}
+                {isLoadingMore && (
+                    <div className="flex justify-center py-4">
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                            <RefreshCw className="h-4 w-4 animate-spin" />
+                            <span>Chargement...</span>
+                        </div>
+                    </div>
                 )}
             </div>
         </motion.div>

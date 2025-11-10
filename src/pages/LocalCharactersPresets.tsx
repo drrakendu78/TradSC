@@ -324,7 +324,7 @@ function LocalCharactersPresets() {
                 delay: 0.2,
                 ease: [0, 0.71, 0.2, 1.01],
             }}
-            className="flex flex-col w-full max-h-[calc(100vh-50px)]"
+            className="flex flex-col w-full max-h-[calc(100vh-50px)] p-2 pr-3"
         >
             <div className="flex items-center gap-2 mb-4">
                 <h1 className="text-2xl mt-5">Gestionnaire de presets de Personnages</h1>
