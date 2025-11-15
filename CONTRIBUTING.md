@@ -1,6 +1,6 @@
-# 🤝 Guide de Contribution - MultitoolV2
+# 🤝 Guide de Contribution - StarTrad FR
 
-*Merci de votre intérêt pour contribuer à MultitoolV2 ! Ce guide vous aidera à commencer.*
+*Merci de votre intérêt pour contribuer à StarTrad FR ! Ce guide vous aidera à commencer.*
 
 ---
 
@@ -32,11 +32,11 @@
 ```bash
 # Fork le projet sur GitHub
 # Puis cloner votre fork
-git clone https://github.com/VOTRE-USERNAME/MultitoolV2.git
-cd MultitoolV2
+git clone https://github.com/VOTRE-USERNAME/TradSC.git
+cd TradSC
 
 # Ajouter le repository original comme remote
-git remote add upstream https://github.com/Onivoid/MultitoolV2.git
+git remote add upstream https://github.com/drrakendu78/TradSC.git
 
 # Installer les dépendances
 pnpm install
@@ -108,7 +108,7 @@ Suivez le guide [BUILD.md](BUILD.md) pour installer tous les outils nécessaires
 
 ### Structure du Projet
 ```
-MultitoolV2/
+TradSC/
 ├── src/                          # Frontend React
 │   ├── components/               # Composants React
 │   │   ├── custom/              # Composants spécifiques
@@ -405,7 +405,7 @@ Si applicable, ajoutez des captures d'écran.
 ## 🖥️ Environnement
 
 - OS: [ex. Windows 11]
-- Version MultitoolV2: [ex. 2.0.0]
+- Version StarTrad FR: [ex. 2.0.5]
 - Version Star Citizen: [ex. 3.21.0]
 
 ## ℹ️ Informations Supplémentaires
@@ -551,7 +551,7 @@ Les contributeurs sont reconnus dans :
 - 🐦 **Réseaux sociaux** - Mentions publiques
 
 ### Badges GitHub
-![Contributeur](https://img.shields.io/badge/Contributeur-MultitoolV2-blue?style=for-the-badge)
+![Contributeur](https://img.shields.io/badge/Contributeur-StarTrad_FR-blue?style=for-the-badge)
 
 ---
 
@@ -569,7 +569,7 @@ Les contributeurs sont reconnus dans :
 - **[Tailwind CSS IntelliSense](https://marketplace.visualstudio.com/items?itemName=bradlc.vscode-tailwindcss)** - Autocomplétion Tailwind
 
 ### Communauté
-- **[Discord Onisoft](https://discord.com/invite/aUEEdMdS6j)** - Support et discussions
+- **[Discord StarTrad FR](https://discord.gg/gr2Y2gQbnh)** - Support et discussions
 - **[Discord Tauri](https://discord.com/invite/tauri)** - Support technique Tauri
 
 ---
@@ -592,10 +592,10 @@ C'est normal ! Utilisez les commentaires pour améliorer et resoumettez. Chaque 
 
 ## 💌 Remerciements
 
-**Merci de contribuer à MultitoolV2 !** 🎉
+**Merci de contribuer à StarTrad FR !** 🎉
 
 Chaque contribution, petite ou grande, fait la différence. Ensemble, participons à créer le meilleur outil pour la communauté Star Citizen française !
 
 ---
 
-*Des questions ? Rejoignez le [Discord](https://discord.com/invite/aUEEdMdS6j) ou ouvrez une issue !* 💬 
+*Des questions ? Rejoignez le [Discord](https://discord.gg/gr2Y2gQbnh) ou ouvrez une issue !* 💬 
