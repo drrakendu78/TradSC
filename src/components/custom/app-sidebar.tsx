@@ -3,8 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { 
     Menu, 
     X, 
-    Settings,
-    ChevronLeft
+    Settings
 } from 'lucide-react';
 import { IconHome, IconBrandDiscord, IconCloud, IconBrandGithub, IconLanguage, IconUsers, IconNews, IconKeyboard } from "@tabler/icons-react";
 import { BrushCleaning, Download } from "lucide-react";
@@ -21,6 +20,7 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useSidebarStore } from "@/stores/sidebar-store";
 
 interface NavigationItem {
     id: string;
@@ -121,8 +121,7 @@ const externalServices: NavigationItem[] = [
 
 export function AppSidebar() {
     const [isOpen, setIsOpen] = useState(false);
-    const [isCollapsed, setIsCollapsed] = useState(true); // Collapsed par défaut sur desktop
-    const [isLocked, setIsLocked] = useState(false); // État verrouillé
+    const { isLocked, isCollapsed, setCollapsed } = useSidebarStore(); // État depuis le store
     const [activeItem, setActiveItem] = useState<string>("");
     const [buildInfo, setBuildInfo] = useState<BuildInfo | null>(null);
     const location = useLocation();
@@ -164,21 +163,14 @@ export function AppSidebar() {
     // Handlers pour le hover (seulement si non verrouillé)
     const handleMouseEnter = () => {
         if (window.innerWidth >= 768 && !isLocked) {
-            setIsCollapsed(false);
+            setCollapsed(false);
         }
     };
     
     const handleMouseLeave = () => {
         if (window.innerWidth >= 768 && !isLocked) {
-            setIsCollapsed(true);
+            setCollapsed(true);
         }
-    };
-
-    // Toggle lock
-    const toggleLock = () => {
-        setIsLocked(!isLocked);
-        // Garder l'état actuel (ouvert ou fermé) que ce soit pour verrouiller ou déverrouiller
-        // Ne pas changer isCollapsed pour éviter le rechargement
     };
 
     const handleItemClick = (itemId: string, href: string, isExternal: boolean = false) => {
@@ -577,27 +569,6 @@ export function AppSidebar() {
 
                 {/* Bottom section with settings */}
                 <div className="mt-auto border-t border-border">
-                    {/* Flèche de verrouillage */}
-                    {!isCollapsed && (
-                        <div className="px-3 py-2 flex justify-end">
-                            <button
-                                onClick={toggleLock}
-                                className={`
-                                    p-2 rounded-lg transition-all duration-200
-                                    ${isLocked 
-                                        ? 'bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 hover:border-primary/40' 
-                                        : 'text-foreground bg-accent/30 border border-border hover:bg-accent/50 hover:border-accent'
-                                    }
-                                    hover:scale-110 active:scale-95
-                                    flex items-center justify-center
-                                    group shadow-sm
-                                `}
-                                title={isLocked ? "Déverrouiller la sidebar" : "Verrouiller la sidebar"}
-                            >
-                                <ChevronLeft className={`h-5 w-5 transition-transform duration-200 ${isLocked ? 'rotate-0' : 'group-hover:translate-x-0.5'}`} />
-                            </button>
-                        </div>
-                    )}
                     <div className="p-3">
                         <Dialog>
                             <DialogTrigger asChild>

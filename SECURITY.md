@@ -1,4 +1,4 @@
-# 🛡️ Politique de Sécurité - MultitoolV2
+# 🛡️ Politique de Sécurité - StarTrad FR
 
 *Votre sécurité est la priorité. Ce document explique l'approche transparente de la sécurité.*
 
@@ -19,7 +19,7 @@
 
 ## 🔓 Modèle de Sécurité Open-Source
 
-MultitoolV2 adopte un modèle de sécurité basé sur la **transparence totale** plutôt que sur la signature numérique traditionnelle.
+StarTrad FR adopte un modèle de sécurité basé sur la **transparence totale** plutôt que sur la signature numérique traditionnelle.
 
 ### 💡 Philosophie : Sécurité par Transparence
 
@@ -52,8 +52,8 @@ Les certificats de signature coûtent **300-500€/an** et nécessitent une stru
 
 ```bash
 # Cloner et examiner le code
-git clone https://github.com/Onivoid/MultitoolV2.git
-cd MultitoolV2
+git clone https://github.com/drrakendu78/TradSC.git
+cd TradSC
 
 # Historique complet des modifications
 git log --oneline --graph --all
@@ -78,11 +78,11 @@ tree -I "target|node_modules|dist"
 
 #### Reproduire un Build Localement
 ```bash
-# Installer les prérequis (voir BUILD.md)
+# Installer les prérequis
 pnpm install
 
 # Build identique à la production
-.\scripts\build-release.ps1 public
+pnpm tauri build
 
 # Comparer vos checksums avec ceux de la release
 ```
@@ -94,7 +94,7 @@ pnpm install
 #### Windows (PowerShell)
 ```powershell
 # Calculer le checksum
-Get-FileHash .\MultitoolV2-Portable.exe -Algorithm SHA256
+Get-FileHash .\StarTrad_FR-Portable_2.0.5.exe -Algorithm SHA256
 
 # Comparer avec celui fourni dans la release GitHub
 # Le checksum doit correspondre EXACTEMENT
@@ -153,7 +153,8 @@ Cela pourrait exposer d'autres utilisateurs au risque.
 #### 2. **Contact en privé**
 
 ```
-💬 Discord : Message privé à @Onivoid ou via le Discord Onisoft
+💬 Discord : Message privé à @drrakendu78 ou via le Discord StarTrad FR
+💬 Discord : https://discord.gg/gr2Y2gQbnh
 ```
 
 #### 3. **Informations à inclure**
@@ -205,8 +206,8 @@ Je reconnais publiquement les chercheurs en sécurité responsables :
 ### 📥 **Installation Sécurisée**
 
 #### ✅ **Téléchargement Sûr**
-1. **Source unique :** Uniquement depuis [GitHub Releases officiel](https://github.com/Onivoid/MultitoolV2/releases)
-2. **Vérification URL :** Confirmer `https://github.com/Onivoid/MultitoolV2`
+1. **Source unique :** Uniquement depuis [GitHub Releases officiel](https://github.com/drrakendu78/TradSC/releases)
+2. **Vérification URL :** Confirmer `https://github.com/drrakendu78/TradSC`
 3. **Latest Release :** Préférer la version la plus récente
 4. **Checksums :** Toujours vérifier l'intégrité
 
@@ -219,10 +220,10 @@ Je reconnais publiquement les chercheurs en sécurité responsables :
 #### 🔐 **Vérification Post-Téléchargement**
 ```powershell
 # 1. Vérifier la signature (si disponible un jour)
-Get-AuthenticodeSignature .\MultitoolV2-Portable.exe
+Get-AuthenticodeSignature .\StarTrad_FR-Portable_2.0.5.exe
 
 # 2. Calculer et vérifier le checksum
-$hash = Get-FileHash .\MultitoolV2-Portable.exe -Algorithm SHA256
+$hash = Get-FileHash .\StarTrad_FR-Portable_2.0.5.exe -Algorithm SHA256
 Write-Host "Votre checksum : $($hash.Hash)"
 Write-Host "Comparez avec celui de la release GitHub"
 
@@ -246,7 +247,7 @@ Write-Host "Comparez avec celui de la release GitHub"
 Pour les environnements critiques :
 ```bash
 # Surveiller l'activité réseau
-netstat -an | findstr MultitoolV2
+netstat -an | findstr StarTrad
 
 # Monitoring des fichiers modifiés
 # (utilisez des outils comme Process Monitor)
@@ -333,7 +334,7 @@ pnpm lint --max-warnings 0
 
 ### 🔍 **Matrice de Sécurité**
 
-| Aspect | MultitoolV2 | App Signée Fermée | App Open-Source Signée | App Fermée Gratuite |
+| Aspect | StarTrad FR | App Signée Fermée | App Open-Source Signée | App Fermée Gratuite |
 |--------|-------------|-------------------|------------------------|---------------------|
 | **Code Source** | ✅ 100% Public | ❌ Fermé | ✅ Public | ❌ Fermé |
 | **Build Process** | ✅ 100% Public | ❌ Opaque | ⚠️ Partiellement | ❌ Opaque |
@@ -346,7 +347,7 @@ pnpm lint --max-warnings 0
 
 ### 💭 **Analyse de Risque**
 
-#### MultitoolV2 (Non-signé, Open-Source)
+#### StarTrad FR (Non-signé, Open-Source)
 ```
 ✅ Avantages Sécurité
 ├─ Code 100% auditable
@@ -415,7 +416,7 @@ Get-FileHash .\fichier.exe -Algorithm SHA256
 
 #### 🔍 **Niveau 1 : Vérification Rapide (5 min)**
 ```bash
-✅ Source officielle (GitHub Onivoid/MultitoolV2)
+✅ Source officielle (GitHub drrakendu78/TradSC)
 ✅ Checksum SHA256 correspond
 ✅ Pas de rapports de malware communautaires
 ✅ Activité GitHub récente et cohérente
@@ -483,14 +484,15 @@ Ce budget et ce temps, je préfère l'investir dans :
 
 ### 🚨 **Urgence Sécurité**
 ```
-💬 Message privé Discord : Message privé à @Onivoid
-💬 Discord : https://discord.com/invite/aUEEdMdS6j
+💬 Message privé Discord : Message privé à @drrakendu78
+💬 Discord : https://discord.gg/gr2Y2gQbnh
+```
 
 ### 💬 **Questions Générales**
 ```
 🐛 GitHub Issues : Questions publiques de sécurité
-💬 Discord : https://discord.com/invite/aUEEdMdS6j
-📝 Discussions : https://github.com/Onivoid/MultitoolV2/discussions
+💬 Discord : https://discord.gg/gr2Y2gQbnh
+📝 Discussions : https://github.com/drrakendu78/TradSC/discussions
 ```
 
 ### 📚 **Ressources Supplémentaires**
@@ -510,8 +512,8 @@ Ce budget et ce temps, je préfère l'investir dans :
 
 ---
 
-[![Open Source](https://img.shields.io/badge/Open%20Source-100%25-brightgreen?style=for-the-badge)](https://github.com/Onivoid/MultitoolV2)
-[![Auditable](https://img.shields.io/badge/Code-Auditable-blue?style=for-the-badge)](https://github.com/Onivoid/MultitoolV2)
-[![Community](https://img.shields.io/badge/Community-Driven-orange?style=for-the-badge)](https://discord.com/invite/aUEEdMdS6j)
+[![Open Source](https://img.shields.io/badge/Open%20Source-100%25-brightgreen?style=for-the-badge)](https://github.com/drrakendu78/TradSC)
+[![Auditable](https://img.shields.io/badge/Code-Auditable-blue?style=for-the-badge)](https://github.com/drrakendu78/TradSC)
+[![Community](https://img.shields.io/badge/Community-Driven-orange?style=for-the-badge)](https://discord.gg/gr2Y2gQbnh)
 
 </div> 
