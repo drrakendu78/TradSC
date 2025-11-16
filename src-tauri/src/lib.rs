@@ -1,6 +1,11 @@
 mod scripts;
 
 use is_elevated::is_elevated;
+use scripts::background_service::{
+    get_background_service_config, load_background_service_config, save_background_service_config,
+    set_background_service_config, start_background_service, start_background_service_internal,
+    stop_background_service, BackgroundServiceState,
+};
 use scripts::bindings_functions::{
     delete_bindings_file, import_bindings_file, list_bindings_files, open_bindings_folder,
     refresh_bindings,
@@ -20,6 +25,10 @@ use scripts::local_characters_functions::{
 };
 use scripts::patchnote::get_latest_commits;
 use scripts::presets_list_functions::get_characters;
+use scripts::startup_manager::{
+    disable_auto_startup, enable_auto_startup, is_auto_startup_enabled,
+};
+use scripts::system_tray::setup_system_tray;
 use scripts::theme_preferences::{load_theme_selected, save_theme_selected};
 use scripts::translation_functions::{
     init_translation_files, is_game_translated, is_translation_up_to_date, uninstall_translation,
@@ -94,6 +103,19 @@ fn is_running_as_admin() -> bool {
 }
 
 #[command]
+fn can_elevate_privileges() -> bool {
+    #[cfg(target_os = "windows")]
+    {
+        // Pour les installations (portable, MSI), l'élévation est possible
+        true
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        false
+    }
+}
+
+#[command]
 async fn fetch_rss() -> Result<String, String> {
     let client = reqwest::Client::new();
     let response = client
@@ -114,6 +136,7 @@ async fn fetch_rss() -> Result<String, String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
@@ -125,7 +148,64 @@ pub fn run() {
             apply_acrylic(&window, Some((18, 18, 18, 125)))
                 .expect("Impossible d'appliquer l'effet de blur sur Windows");
 
+            // Initialiser l'état du service de fond
+            let background_state = BackgroundServiceState::default();
+
+            // Charger la configuration sauvegardée et l'appliquer
+            match load_background_service_config(app.handle().clone()) {
+                Ok(config) => {
+                    // Mettre à jour l'état avec la config chargée
+                    if let Ok(mut state_config) = background_state.config.lock() {
+                        *state_config = config.clone();
+                    }
+
+                    // Démarrer le service de fond si activé
+                    if config.enabled {
+                        let app_handle_clone = app.handle().clone();
+                        let state_clone = background_state.clone();
+
+                        // Utiliser le runtime async de Tauri
+                        tauri::async_runtime::spawn(async move {
+                            if let Err(e) =
+                                start_background_service_internal(state_clone, app_handle_clone)
+                                    .await
+                            {
+                                eprintln!("Échec du démarrage du service de fond: {}", e);
+                            }
+                        });
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Échec du chargement de la config du service de fond: {}", e);
+                }
+            }
+
+            app.manage(background_state);
+
+            // Configurer le system tray
+            if let Err(e) = setup_system_tray(&app.handle()) {
+                eprintln!("Échec de la configuration du system tray: {}", e);
+            }
+
+            // Vérifier si l'app a été lancée avec le flag --minimized (depuis le démarrage)
+            let args: Vec<String> = std::env::args().collect();
+            if args.contains(&"--minimized".to_string()) {
+                if let Err(e) = window.hide() {
+                    eprintln!("Échec de la minimisation de la fenêtre au démarrage: {}", e);
+                }
+            }
+
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                // Empêcher la fermeture par défaut
+                api.prevent_close();
+                // Cacher la fenêtre dans le tray au lieu de la fermer
+                if let Err(e) = window.hide() {
+                    eprintln!("Échec de la minimisation dans le tray: {}", e);
+                }
+            }
         })
         .invoke_handler(tauri::generate_handler![
             save_theme_selected,
@@ -151,6 +231,7 @@ pub fn run() {
             get_characters,
             open_external,
             is_running_as_admin,
+            can_elevate_privileges,
             restart_as_admin,
             clear_cache,
             open_cache_folder,
@@ -167,6 +248,15 @@ pub fn run() {
             delete_bindings_file,
             open_bindings_folder,
             refresh_bindings,
+            get_background_service_config,
+            set_background_service_config,
+            start_background_service,
+            stop_background_service,
+            save_background_service_config,
+            load_background_service_config,
+            enable_auto_startup,
+            disable_auto_startup,
+            is_auto_startup_enabled,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
