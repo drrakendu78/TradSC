@@ -1,6 +1,5 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { Trash2, RotateCw } from "lucide-react";
-import { invoke } from "@tauri-apps/api/core";
 import { Button } from "@/components/ui/button";
 import {
     DropdownMenu,
@@ -9,6 +8,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import { invokeWithToast, invokeDeleteWithToast } from "@/utils/invoke-helpers";
 
 export type Backup = {
     name: string;
@@ -38,45 +38,34 @@ export const columns = (
             const backup = row.original;
 
             const restoreTo = async (version: string) => {
-                try {
-                    await invoke("restore_character_backup_to_version", {
+                await invokeWithToast(
+                    "restore_character_backup_to_version",
+                    {
                         backupPath: backup.path,
                         version,
-                    });
-                    toast({
+                    },
+                    toast,
+                    {
                         title: "Succès",
                         description: `Sauvegarde restaurée vers ${version}.`,
-                        variant: "default",
-                    });
-                    // Rafraîchir la liste des presets locaux si la fonction est fournie
-                    if (refreshLocalCharacters) {
-                        refreshLocalCharacters();
+                    },
+                    () => {
+                        // Rafraîchir la liste des presets locaux si la fonction est fournie
+                        if (refreshLocalCharacters) {
+                            refreshLocalCharacters();
+                        }
                     }
-                } catch (e: unknown) {
-                    toast({
-                        title: "Erreur",
-                        description: e instanceof Error ? e.message : "Erreur lors de la restauration",
-                        variant: "destructive",
-                    });
-                }
+                );
             };
 
             const remove = async () => {
-                try {
-                    await invoke("delete_character_backup", { backupPath: backup.path });
-                    toast({
-                        title: "Succès",
-                        description: "Sauvegarde supprimée.",
-                        variant: "default",
-                    });
-                    refresh();
-                } catch (e: unknown) {
-                    toast({
-                        title: "Erreur",
-                        description: e instanceof Error ? e.message : "Erreur lors de la suppression",
-                        variant: "destructive",
-                    });
-                }
+                await invokeDeleteWithToast(
+                    "delete_character_backup",
+                    { backupPath: backup.path },
+                    toast,
+                    "Sauvegarde",
+                    refresh
+                );
             };
 
             return (

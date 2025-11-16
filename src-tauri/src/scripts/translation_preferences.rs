@@ -4,20 +4,10 @@ use std::path::PathBuf;
 use tauri::path::PathResolver;
 use tauri::Runtime;
 use tauri::{command, Manager};
+use crate::scripts::config_paths::get_config_file_path as get_config_path;
 
 fn get_config_file_path(path: &PathResolver<impl Runtime>) -> Result<PathBuf, String> {
-    let config_dir = path.app_config_dir().map_err(|_| {
-        "Impossible d'obtenir le répertoire de configuration de l'application".to_string()
-    })?;
-
-    // Créer le répertoire s'il n'existe pas
-    if !config_dir.exists() {
-        fs::create_dir_all(&config_dir).map_err(|e| e.to_string())?;
-    }
-
-    // Nom du fichier de configuration
-    let config_file = config_dir.join("translations_selected.json");
-    Ok(config_file)
+    get_config_path(path, "translations_selected.json")
 }
 
 // Dans translation_preferences.rs

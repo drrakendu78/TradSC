@@ -1,9 +1,12 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useToast } from "./use-toast";
 import { getBuildInfo } from "@/utils/buildInfo";
 import { compareVersions, getAppVersion } from "@/utils/version";
 import openExternal from "@/utils/external";
 import logger from "@/utils/logger";
+import { invoke } from "@tauri-apps/api/core";
+import React from "react";
+import { ToastAction } from "@/components/ui/toast";
 
 interface UpdateInfo {
     version: string;
@@ -38,7 +41,7 @@ export function useUpdater(config: UseUpdaterConfig = {}) {
         githubRepo = DEFAULT_GITHUB_REPO,
     } = config;
 
-    const { toast } = useToast();
+    const { toast, dismiss: dismissToast } = useToast();
 
     const [state, setState] = useState<UseUpdaterState>({
         isChecking: false,
@@ -53,6 +56,9 @@ export function useUpdater(config: UseUpdaterConfig = {}) {
     const [buildInfo, setBuildInfo] = useState<any>(null);
     const [latestVersion, setLatestVersion] = useState<string | null>(null);
     const [currentVersion, setCurrentVersion] = useState<string>("");
+    const [countdown, setCountdown] = useState<number | null>(null);
+    const countdownRef = useRef<NodeJS.Timeout | null>(null);
+    const toastIdRef = useRef<string | null>(null);
 
     // Charger les infos de build au démarrage
     useEffect(() => {
@@ -134,6 +140,7 @@ export function useUpdater(config: UseUpdaterConfig = {}) {
             setState((prev) => ({ ...prev, isChecking: true, error: null }));
 
             try {
+                // Utiliser directement l'API GitHub (plus simple et pratique)
                 const res = await fetch(
                     `https://api.github.com/repos/${githubRepo}/releases/latest`,
                     {
@@ -157,31 +164,32 @@ export function useUpdater(config: UseUpdaterConfig = {}) {
                         json.published_at || new Date().toISOString();
                     
                     // Trouver l'URL de téléchargement direct depuis les assets
+                    // Prioriser le fichier NSIS (setup.exe ou -setup.exe)
                     let downloadUrl: string | undefined;
                     if (json.assets && Array.isArray(json.assets) && json.assets.length > 0) {
-                        // Prioriser le fichier .msi, puis .exe, puis les autres
+                        // 1. Chercher d'abord le fichier NSIS (setup.exe ou -setup.exe)
+                        const nsisAsset = json.assets.find((asset: any) => 
+                            asset.name && (
+                                asset.name.includes('-setup.exe') ||
+                                (asset.name.includes('setup') && asset.name.endsWith('.exe'))
+                            )
+                        );
+                        if (nsisAsset && nsisAsset.browser_download_url) {
+                            downloadUrl = nsisAsset.browser_download_url;
+                        } else {
+                            // 2. Si pas de NSIS, chercher un .msi
                         const msiAsset = json.assets.find((asset: any) => 
                             asset.name && asset.name.endsWith('.msi')
                         );
                         if (msiAsset && msiAsset.browser_download_url) {
                             downloadUrl = msiAsset.browser_download_url;
                         } else {
-                            // Si pas de .msi, chercher un .exe
+                                // 3. Si pas de .msi, chercher un autre .exe
                             const exeAsset = json.assets.find((asset: any) => 
                                 asset.name && asset.name.endsWith('.exe')
                             );
                             if (exeAsset && exeAsset.browser_download_url) {
                                 downloadUrl = exeAsset.browser_download_url;
-                            } else {
-                                // Sinon, chercher setup ou installer
-                                const setupAsset = json.assets.find((asset: any) => 
-                                    asset.name && (
-                                        asset.name.includes('setup') ||
-                                        asset.name.includes('installer')
-                                    )
-                                );
-                                if (setupAsset && setupAsset.browser_download_url) {
-                                    downloadUrl = setupAsset.browser_download_url;
                                 } else if (json.assets[0]?.browser_download_url) {
                                     // En dernier recours, prendre le premier asset disponible
                                     downloadUrl = json.assets[0].browser_download_url;
@@ -201,14 +209,120 @@ export function useUpdater(config: UseUpdaterConfig = {}) {
                         },
                     }));
 
+                    // Afficher le toast seulement si ce n'est pas en mode silencieux
                     if (!silent) {
                         toast({
                             title: `Mise à jour disponible: v${remoteVersion}`,
-                            description:
-                                "Ouvrez la page GitHub pour télécharger la nouvelle version.",
+                            description: "Le téléchargement du fichier d'installation va commencer.",
                             variant: "default",
                         });
                     }
+                    
+                    // Déclencher automatiquement le téléchargement et l'installation (même en mode silencieux)
+                    setTimeout(async () => {
+                        if (downloadUrl) {
+                            logger.info("Déclenchement du téléchargement et de l'installation:", downloadUrl);
+                            setState((prev) => ({ ...prev, isDownloading: true }));
+                            
+                            // Démarrer le décompte
+                            setCountdown(30);
+                            
+                            // Fonction pour lancer l'installation immédiatement
+                            const launchImmediate = async () => {
+                                if (countdownRef.current) {
+                                    clearInterval(countdownRef.current);
+                                    countdownRef.current = null;
+                                }
+                                setCountdown(null);
+                                if (toastIdRef.current) {
+                                    dismissToast(toastIdRef.current);
+                                }
+                                
+                                try {
+                                    await invoke<string>("download_and_install_update_immediate", {
+                                        url: downloadUrl,
+                                    });
+                                    logger.info("Installation lancée immédiatement");
+                                } catch (error) {
+                                    logger.error("Erreur lors du lancement immédiat:", error);
+                                    toast({
+                                        title: "Erreur",
+                                        description: `Impossible de lancer l'installation: ${error}`,
+                                        variant: "destructive",
+                                    });
+                                }
+                            };
+                            
+                            try {
+                                // Télécharger et lancer l'installer automatiquement via Rust
+                                const filePath = await invoke<string>("download_and_install_update", {
+                                    url: downloadUrl,
+                                });
+                                logger.info("Fichier téléchargé et installer lancé:", filePath);
+                                setState((prev) => ({ ...prev, isDownloading: false, isInstalling: true }));
+                                
+                                // Afficher un toast persistant avec décompte et bouton
+                                const toastResult = toast({
+                                    title: "Mise à jour disponible",
+                                    description: `Installation dans ${countdown} secondes...`,
+                                    variant: "default",
+                                    duration: Infinity, // Toast persistant
+                                    action: React.createElement(ToastAction, {
+                                        altText: "Installer maintenant",
+                                        onClick: launchImmediate,
+                                    }, "Installer maintenant") as any,
+                                });
+                                
+                                toastIdRef.current = toastResult.id;
+                                
+                                // Mettre à jour le décompte toutes les secondes
+                                countdownRef.current = setInterval(() => {
+                                    setCountdown((prev) => {
+                                        if (prev === null || prev <= 1) {
+                                            if (countdownRef.current) {
+                                                clearInterval(countdownRef.current);
+                                                countdownRef.current = null;
+                                            }
+                                            return null;
+                                        }
+                                        const newCountdown = prev - 1;
+                                        
+                                        // Mettre à jour le toast
+                                        if (toastIdRef.current) {
+                                            toastResult.update({
+                                                id: toastIdRef.current,
+                                                description: `Installation dans ${newCountdown} secondes...`,
+                                            } as any);
+                                        }
+                                        
+                                        return newCountdown;
+                                    });
+                                }, 1000);
+                            } catch (error) {
+                                logger.error("Erreur lors du téléchargement/installation:", error);
+                                setState((prev) => ({ ...prev, isDownloading: false, isInstalling: false }));
+                                setCountdown(null);
+                                if (countdownRef.current) {
+                                    clearInterval(countdownRef.current);
+                                    countdownRef.current = null;
+                                }
+                                
+                                // Afficher l'erreur
+                                toast({
+                                    title: "Erreur de téléchargement",
+                                    description: `Impossible de télécharger ou installer: ${error}`,
+                                    variant: "destructive",
+                                });
+                            }
+                        } else {
+                            logger.warn("Aucune URL de téléchargement disponible");
+                            toast({
+                                title: "Erreur",
+                                description: "Aucune URL de téléchargement trouvée.",
+                                variant: "destructive",
+                            });
+                        }
+                    }, 1500);
                 } else {
                     setState((prev) => ({
                         ...prev,
@@ -239,7 +353,7 @@ export function useUpdater(config: UseUpdaterConfig = {}) {
                 setState((prev) => ({ ...prev, isChecking: false }));
             }
         },
-        [enableAutoUpdater, canUpdate, buildInfo, toast, githubRepo]
+        [canUpdate, buildInfo, toast, githubRepo]
     );
 
     // Télécharger la mise à jour
@@ -301,35 +415,63 @@ export function useUpdater(config: UseUpdaterConfig = {}) {
         }
     }, [canUpdate, toast]);
 
-    // Ouvrir GitHub pour téléchargement manuel
+    // Télécharger directement le fichier NSIS depuis GitHub
     const openGitHubReleases = useCallback(async () => {
         try {
-            await openExternal(getGitHubReleaseUrl(state.updateInfo?.version));
-        } catch (error) {
+            // Si on a une URL de téléchargement direct (NSIS), l'utiliser
+            if (state.updateInfo?.downloadUrl) {
+                await openExternal(state.updateInfo.downloadUrl);
             toast({
-                title: "Erreur",
-                description: "Impossible d'ouvrir le navigateur",
-                variant: "destructive",
+                    title: "Téléchargement lancé",
+                    description: "Le téléchargement du fichier d'installation devrait commencer dans votre navigateur.",
+                    variant: "default",
             });
-        }
-    }, [getGitHubReleaseUrl, state.updateInfo?.version, toast]);
-
-    // Télécharger directement la mise à jour
-    const downloadUpdateDirectly = useCallback(async () => {
-        if (!state.updateInfo?.downloadUrl) {
-            // Si pas d'URL de téléchargement, ouvrir GitHub
-            await openGitHubReleases();
+            } else {
+                // Sinon, récupérer la release pour trouver le fichier NSIS
+                try {
+                    const version = state.updateInfo?.version || "latest";
+                    const apiUrl = version === "latest" 
+                        ? `https://api.github.com/repos/${githubRepo}/releases/latest`
+                        : `https://api.github.com/repos/${githubRepo}/releases/tags/v${version}`;
+                    
+                    const res = await fetch(apiUrl, {
+                        headers: { Accept: "application/vnd.github+json" },
+                    });
+                    
+                    if (res.ok) {
+                        const json = await res.json();
+                        // Chercher le fichier NSIS
+                        if (json.assets && Array.isArray(json.assets)) {
+                            const nsisAsset = json.assets.find((asset: any) => 
+                                asset.name && (
+                                    asset.name.includes('-setup.exe') ||
+                                    (asset.name.includes('setup') && asset.name.endsWith('.exe'))
+                                )
+                            );
+                            
+                            if (nsisAsset && nsisAsset.browser_download_url) {
+                                await openExternal(nsisAsset.browser_download_url);
+                                toast({
+                                    title: "Téléchargement lancé",
+                                    description: "Le téléchargement du fichier d'installation devrait commencer dans votre navigateur.",
+                                    variant: "default",
+                                });
             return;
+                            }
+                        }
+                    }
+                } catch (fetchError) {
+                    logger.error("Erreur lors de la récupération de l'URL de téléchargement:", fetchError);
         }
 
-        try {
-            // Ouvrir l'URL de téléchargement direct dans le navigateur
-            await openExternal(state.updateInfo.downloadUrl);
+                // En dernier recours, ouvrir la page GitHub
+                await openExternal(getGitHubReleaseUrl(state.updateInfo?.version));
             toast({
-                title: "Téléchargement lancé",
-                description: "Le téléchargement devrait commencer dans votre navigateur.",
+                    title: "Page GitHub ouverte",
+                    description: "Le fichier NSIS n'a pas été trouvé. Veuillez télécharger manuellement depuis la page de release.",
                 variant: "default",
             });
+            }
         } catch (error) {
             toast({
                 title: "Erreur",
@@ -337,7 +479,22 @@ export function useUpdater(config: UseUpdaterConfig = {}) {
                 variant: "destructive",
             });
         }
-    }, [state.updateInfo?.downloadUrl, openGitHubReleases, toast]);
+    }, [getGitHubReleaseUrl, state.updateInfo?.version, state.updateInfo?.downloadUrl, githubRepo, toast]);
+
+    // Télécharger directement la mise à jour (même logique que openGitHubReleases)
+    const downloadUpdateDirectly = useCallback(async () => {
+        // Utiliser la même fonction que openGitHubReleases pour télécharger le NSIS
+        await openGitHubReleases();
+    }, [openGitHubReleases]);
+
+    // Nettoyer les intervalles au démontage
+    useEffect(() => {
+        return () => {
+            if (countdownRef.current) {
+                clearInterval(countdownRef.current);
+            }
+        };
+    }, []);
 
     // Vérification au démarrage
     useEffect(() => {

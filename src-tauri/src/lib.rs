@@ -36,6 +36,7 @@ use scripts::translation_functions::{
 };
 use scripts::translation_preferences::{load_translations_selected, save_translations_selected};
 use scripts::translations_links::{get_translation_by_setting, get_translations};
+use scripts::updater_functions::{download_and_install_update, download_and_install_update_immediate};
 use tauri::{command, Manager};
 use tauri_plugin_shell::ShellExt;
 use window_vibrancy::apply_acrylic;
@@ -257,6 +258,8 @@ pub fn run() {
             enable_auto_startup,
             disable_auto_startup,
             is_auto_startup_enabled,
+                    download_and_install_update,
+                    download_and_install_update_immediate,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -9,7 +9,6 @@ import { getAppVersionSync, formatVersion } from '@/utils/version';
 import { useUpdater } from '@/hooks/useUpdater';
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useSidebarStore } from '@/stores/sidebar-store';
-import { useTheme } from '@/components/utils/theme-provider';
 
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
@@ -18,8 +17,6 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     const [path, setPath] = useState<string>('');
     const version = formatVersion(getAppVersionSync());
     const { isLocked, toggleLock } = useSidebarStore();
-    const { theme } = useTheme();
-    const [buttonBgColor, setButtonBgColor] = useState<string>("#111f2c");
     
     // Vérification automatique des mises à jour au démarrage
     useUpdater({
@@ -27,24 +24,6 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         enableAutoUpdater: true,
         githubRepo: 'drrakendu78/TradSC'
     });
-    
-    // Met à jour la couleur du bouton quand le thème change
-    useEffect(() => {
-        const updateButtonColor = () => {
-            const isDark = theme === "dark" || 
-                          (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-            setButtonBgColor(isDark ? "#111f2c" : "#dde7f2");
-        };
-        
-        updateButtonColor();
-        
-        // Écoute les changements du thème système si le mode est "system"
-        if (theme === "system") {
-            const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-            mediaQuery.addEventListener("change", updateButtonColor);
-            return () => mediaQuery.removeEventListener("change", updateButtonColor);
-        }
-    }, [theme]);
     
     useEffect(() => {
         if (location.pathname === '/') {
@@ -67,19 +46,18 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                                 relative overflow-hidden
                                 p-2 rounded-lg
                                 transition-all duration-300 ease-out
-                                backdrop-blur-md backdrop-saturate-150
+                                bg-background/70 backdrop-blur-xl backdrop-saturate-150
                                 ${isLocked 
-                                    ? 'bg-primary/15 text-primary border border-primary/30 shadow-md shadow-primary/10 hover:bg-primary/20' 
-                                    : 'text-muted-foreground border border-border/60 shadow-md hover:text-foreground'
+                                    ? 'text-primary border border-primary/30 shadow-md shadow-primary/10 hover:bg-primary/20' 
+                                    : 'text-muted-foreground border border-border/50 shadow-md hover:text-foreground hover:bg-background/80'
                                 }
                                 hover:scale-105 active:scale-95
                                 flex items-center justify-center
                                 group
                             `}
                             style={{
-                                backdropFilter: 'blur(12px) saturate(150%)',
-                                WebkitBackdropFilter: 'blur(12px) saturate(150%)',
-                                backgroundColor: isLocked ? undefined : buttonBgColor,
+                                backdropFilter: 'blur(20px) saturate(180%)',
+                                WebkitBackdropFilter: 'blur(20px) saturate(180%)',
                             }}
                             title={isLocked ? "Déverrouiller la sidebar" : "Verrouiller la sidebar"}
                         >

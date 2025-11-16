@@ -19,8 +19,10 @@ pub fn setup_system_tray(app: &AppHandle) -> Result<(), String> {
         Menu::with_items(app, &[&show_item, &hide_item, &quit_item]).map_err(|e| e.to_string())?;
 
     // Créer le tray icon avec l'icône par défaut de l'application
+    let default_icon = app.default_window_icon()
+        .ok_or_else(|| "Impossible de récupérer l'icône par défaut".to_string())?;
     let _tray = TrayIconBuilder::new()
-        .icon(app.default_window_icon().unwrap().clone())
+        .icon(default_icon.clone())
         .menu(&menu)
         .tooltip("StarTrad FR")
         .on_menu_event(|app, event| match event.id.as_ref() {

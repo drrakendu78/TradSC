@@ -1,7 +1,7 @@
 "use client";
 import { ColumnDef } from "@tanstack/react-table";
 import { Trash } from "lucide-react";
-import { invoke } from "@tauri-apps/api/core";
+import { invokeDeleteWithToast } from "@/utils/invoke-helpers";
 
 export type Folder = {
     name: string;
@@ -18,25 +18,13 @@ const deleteFolder = async (
     toast: any,
     updateCacheInfos: (path: string) => void,
 ) => {
-    const res = await invoke("delete_folder", { path });
-    if (res) {
-        toast({
-            title: "Dossier supprimé",
-            description: `Le dossier ${path} a bien été supprimé.`,
-            success: "true",
-            duration: 3000,
-            isClosable: true,
-        });
-        updateCacheInfos(path);
-    } else {
-        toast({
-            title: "Erreur lors de la suppression",
-            description: `Une erreur est survenue lors de la suppression du dossier ${path}.`,
-            success: "true",
-            duration: 3000,
-            isClosable: true,
-        });
-    }
+    await invokeDeleteWithToast(
+        "delete_folder",
+        { path },
+        toast,
+        `Le dossier ${path}`,
+        () => updateCacheInfos(path)
+    );
 };
 
 export const columns = (

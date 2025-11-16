@@ -1,7 +1,7 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { Trash2 } from "lucide-react";
-import { invoke } from "@tauri-apps/api/core";
 import { useToast } from "@/hooks/use-toast";
+import { invokeDeleteWithToast } from "@/utils/invoke-helpers";
 
 export type Binding = {
     name: string;
@@ -23,21 +23,13 @@ export const columns = (
             const binding = row.original;
 
             const handleDelete = async () => {
-                try {
-                    await invoke("delete_bindings_file", { filePath: binding.path });
-                    toast({
-                        title: "Succès",
-                        description: `Le fichier ${binding.name} a été supprimé avec succès !`,
-                        variant: "default",
-                    });
-                    updateBindings();
-                } catch (error: unknown) {
-                    toast({
-                        title: "Erreur",
-                        description: `Impossible de supprimer le fichier ${binding.name}`,
-                        variant: "destructive",
-                    });
-                }
+                await invokeDeleteWithToast(
+                    "delete_bindings_file",
+                    { filePath: binding.path },
+                    toast,
+                    `Le fichier ${binding.name}`,
+                    updateBindings
+                );
             };
 
             return (

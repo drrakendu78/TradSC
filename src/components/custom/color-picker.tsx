@@ -121,6 +121,8 @@ export function GradientPicker({
                                 onChange={handleCustomColorChange}
                             />
                             <Input
+                                id="custom-color-input"
+                                name="custom-color"
                                 maxLength={7}
                                 value={customColor}
                                 onChange={handleInputChange}

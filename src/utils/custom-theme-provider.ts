@@ -135,9 +135,30 @@ function generateShadcnTheme(primaryColor: string): string {
     return theme;
 }
 
+// Fonction pour valider que le CSS ne contient pas de contenu malveillant
+function validateCSS(css: string): boolean {
+    // Vérifier qu'il n'y a pas de balises HTML ou de scripts
+    const dangerousPatterns = [
+        /<script/i,
+        /javascript:/i,
+        /on\w+\s*=/i, // Attributs d'événements
+        /<iframe/i,
+        /<object/i,
+        /<embed/i,
+    ];
+    
+    return !dangerousPatterns.some(pattern => pattern.test(css));
+}
+
 // Fonction exportée pour appliquer le thème au HTML
 export function applyTheme(primaryColor: string): void {
     const themeCSS = generateShadcnTheme(primaryColor);
+
+    // Valider le CSS avant injection
+    if (!validateCSS(themeCSS)) {
+        logger.error("CSS invalide détecté, injection annulée");
+        return;
+    }
 
     // Créer ou réutiliser un élément <style> avec un ID spécifique
     let styleElement = document.getElementById(
@@ -150,7 +171,9 @@ export function applyTheme(primaryColor: string): void {
         document.head.appendChild(styleElement);
     }
 
-    styleElement.innerHTML = themeCSS;
+    // Utiliser textContent pour plus de sécurité (fonctionne pour les éléments <style>)
+    // Le contenu CSS a été validé avant d'arriver ici
+    styleElement.textContent = themeCSS;
 
     invoke("save_theme_selected", { data: { primary_color: primaryColor } })
         .then(() => logger.log("Thème enregistré avec succès"))

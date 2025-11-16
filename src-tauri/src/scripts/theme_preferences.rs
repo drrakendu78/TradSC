@@ -5,17 +5,11 @@ use tauri::command;
 use tauri::path::PathResolver;
 use tauri::Manager;
 use tauri::Runtime;
+use crate::scripts::config_paths::get_config_file_path as get_config_path;
 
 #[command]
 fn get_theme_config_file_path(path: &PathResolver<impl Runtime>) -> Result<PathBuf, String> {
-    let config_dir = path.app_config_dir().map_err(|_| {
-        "Impossible d'obtenir le répertoire de configuration de l'application".to_string()
-    })?;
-    if !config_dir.exists() {
-        fs::create_dir_all(&config_dir).map_err(|e| e.to_string())?;
-    }
-    let config_file = config_dir.join("theme_selected.json");
-    Ok(config_file)
+    get_config_path(path, "theme_selected.json")
 }
 
 #[derive(Serialize, Deserialize, Debug)]

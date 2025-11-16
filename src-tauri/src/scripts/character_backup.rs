@@ -6,6 +6,7 @@ use tauri::command;
 use tauri::Manager;
 
 use crate::scripts::gamepath::get_star_citizen_versions;
+use crate::scripts::config_paths::get_config_file_path as get_config_path;
 
 const SUBFOLDER_NAME: &str = "Backup de personnages";
 
@@ -17,14 +18,7 @@ pub struct BackupEntry {
 }
 
 fn get_backup_config_file_path(app_handle: &tauri::AppHandle) -> Result<PathBuf, String> {
-    let config_dir = app_handle
-        .path()
-        .app_config_dir()
-        .map_err(|_| "Impossible d'obtenir le répertoire de configuration de l'application".to_string())?;
-    if !config_dir.exists() {
-        fs::create_dir_all(&config_dir).map_err(|e| e.to_string())?;
-    }
-    Ok(config_dir.join("characters_backup_dir.txt"))
+    get_config_path(app_handle.path(), "characters_backup_dir.txt")
 }
 
 fn read_backup_dir_from_config(app_handle: &tauri::AppHandle) -> Result<Option<String>, String> {

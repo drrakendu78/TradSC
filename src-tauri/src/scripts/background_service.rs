@@ -151,13 +151,28 @@ async fn run_background_service(
     app: AppHandle,
     mut cancel_rx: tokio::sync::oneshot::Receiver<()>,
 ) {
-    println!("[Background Service] Démarrage du service de tâche de fond");
+    // Récupérer la configuration initiale
+    let initial_config = {
+        match state.config.lock() {
+            Ok(config_lock) => config_lock.clone(),
+            Err(e) => {
+                eprintln!("[Background Service] Erreur lors de la récupération de la configuration: {}", e);
+                return;
+            }
+        }
+    };
+    println!("[Background Service] Démarrage du service de tâche de fond avec un intervalle de {} minute(s)", initial_config.check_interval_minutes);
 
     loop {
         // Récupérer la configuration
         let config = {
-            let config_lock = state.config.lock().unwrap();
-            config_lock.clone()
+            match state.config.lock() {
+                Ok(config_lock) => config_lock.clone(),
+                Err(e) => {
+                    eprintln!("[Background Service] Erreur lors de la récupération de la configuration: {}", e);
+                    break;
+                }
+            }
         };
 
         if !config.enabled {
@@ -171,11 +186,14 @@ async fn run_background_service(
         }
 
         // Attendre l'intervalle configuré ou le signal d'annulation
-        let interval = Duration::from_secs(config.check_interval_minutes * 60);
+        let interval_seconds = config.check_interval_minutes * 60;
+        let interval = Duration::from_secs(interval_seconds);
+        println!("[Background Service] Attente de {} minute(s) ({} secondes) avant la prochaine vérification...", config.check_interval_minutes, interval_seconds);
         
         tokio::select! {
             _ = sleep(interval) => {
                 // Continue la boucle après l'attente
+                println!("[Background Service] Intervalle écoulé, nouvelle vérification...");
             }
             _ = &mut cancel_rx => {
                 println!("[Background Service] Signal d'arrêt reçu");
@@ -186,8 +204,11 @@ async fn run_background_service(
 
     // Marquer le service comme arrêté
     {
-        let mut is_running = state.is_running.lock().unwrap();
-        *is_running = false;
+        if let Ok(mut is_running) = state.is_running.lock() {
+            *is_running = false;
+        } else {
+            eprintln!("[Background Service] Erreur lors de la mise à jour de l'état");
+        }
     }
 
     println!("[Background Service] Service arrêté");

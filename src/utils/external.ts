@@ -1,24 +1,58 @@
 import { invoke } from "@tauri-apps/api/core";
 
+// Whitelist des domaines autorisés pour plus de sécurité
+const ALLOWED_DOMAINS = [
+    "github.com",
+    "drrakendu78.github.io",
+    "discord.gg",
+    "discord.com",
+    "star-citizen-characters.com",
+    "www.star-citizen-characters.com",
+    "leonick.se",
+    "api.github.com",
+    "api.allorigins.win",
+    "multitool.onivoid.fr",
+];
+
 // Autorise https, http (si besoin), et schémas ms-windows-store
 function isAllowedUrl(url: string): boolean {
     try {
-        const u = new URL(url);
-        if (
-            u.protocol === "https:" ||
-            u.protocol === "http:" ||
-            url.startsWith("ms-windows-store://")
-        ) {
+        // Autoriser les schémas spéciaux
+        if (url.startsWith("ms-windows-store://")) {
             return true;
         }
-        return false;
+
+        const u = new URL(url);
+        
+        // Vérifier le protocole
+        if (u.protocol !== "https:" && u.protocol !== "http:") {
+            return false;
+        }
+
+        // Pour les URLs HTTP, être plus strict (seulement localhost en dev)
+        if (u.protocol === "http:") {
+            return u.hostname === "localhost" || u.hostname === "127.0.0.1";
+        }
+
+        // Pour HTTPS, vérifier le domaine
+        const hostname = u.hostname.toLowerCase();
+        
+        // Vérifier si le domaine est dans la whitelist ou un sous-domaine autorisé
+        const isAllowed = ALLOWED_DOMAINS.some(domain => {
+            return hostname === domain || hostname.endsWith(`.${domain}`);
+        });
+
+        return isAllowed;
     } catch {
         return false;
     }
 }
 
 export async function openExternal(url: string): Promise<void> {
-    if (!isAllowedUrl(url)) return;
+    if (!isAllowedUrl(url)) {
+        console.warn(`Tentative d'ouverture d'une URL non autorisée: ${url}`);
+        return;
+    }
     await invoke("open_external", { url });
 }
 

@@ -188,7 +188,12 @@ pub fn download_character(dna_url: String, title: String) -> Result<bool, String
         })?;
     }
 
-    let re = Regex::new(r#"[<>:"/\\|?*]"#).unwrap();
+    let re = match Regex::new(r#"[<>:"/\\|?*]"#) {
+        Ok(re) => re,
+        Err(e) => {
+            return Err(format!("Erreur lors de la compilation de la regex: {}", e));
+        }
+    };
     let sanitized = re.replace_all(&title, "_");
     let file_path = dest_dir.join(format!("{}.chf", sanitized));
 

@@ -14,19 +14,10 @@ pub struct Commit {
     date: String,
 }
 
+use crate::scripts::config_paths::get_config_file_path as get_config_path;
+
 fn get_commit_cache_file_path(path: &PathResolver<impl Runtime>) -> Result<PathBuf, String> {
-    let config_dir = path.app_config_dir().map_err(|_| {
-        "Impossible d'obtenir le répertoire de configuration de l'application".to_string()
-    })?;
-
-    // Créer le répertoire s'il n'existe pas
-    if !config_dir.exists() {
-        fs::create_dir_all(&config_dir).map_err(|e| e.to_string())?;
-    }
-
-    // Nom du fichier de cache
-    let cache_file = config_dir.join("commit_cache.json");
-    Ok(cache_file)
+    get_config_path(path, "commit_cache.json")
 }
 
 fn save_commit_cache(app: tauri::AppHandle, data: &Vec<Commit>) -> Result<(), String> {

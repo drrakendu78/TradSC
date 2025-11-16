@@ -133,6 +133,8 @@ function CharactersPresetsList() {
             {/* Barre de recherche + Tri */}
             <div className="w-full flex flex-col md:flex-row md:items-center md:justify-between gap-3 my-4">
                 <input
+                    id="character-search-input"
+                    name="character-search"
                     type="text"
                     placeholder="Rechercher un personnage..."
                     value={searchTerm}

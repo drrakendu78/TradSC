@@ -12,3 +12,5 @@ pub mod theme_preferences;
 pub mod translation_functions;
 pub mod translation_preferences;
 pub mod translations_links;
+pub mod updater_functions;
+pub mod config_paths;

@@ -6,7 +6,7 @@ import {
     Settings
 } from 'lucide-react';
 import { IconHome, IconBrandDiscord, IconCloud, IconBrandGithub, IconLanguage, IconUsers, IconNews, IconKeyboard } from "@tabler/icons-react";
-import { BrushCleaning, Download, Power, PowerOff, Loader2 } from "lucide-react";
+import { BrushCleaning, Download, Power, PowerOff, Loader2, RotateCcw } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { ColorPicker } from "@/components/custom/color-picker";
 import openExternal from "@/utils/external";
@@ -24,6 +24,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -748,13 +749,13 @@ function SettingsContent() {
     };
 
     const handleIntervalChange = async (value: number) => {
-        if (value < 5) {
+        if (value < 1) {
             toast({
                 title: 'Intervalle invalide',
-                description: 'L\'intervalle minimum est de 5 minutes',
+                description: 'L\'intervalle minimum est de 1 minute',
                 variant: 'destructive',
             });
-            setConfig({ ...config, check_interval_minutes: 5 });
+            setConfig({ ...config, check_interval_minutes: 1 });
             return;
         }
 
@@ -765,10 +766,35 @@ function SettingsContent() {
             await invoke('save_background_service_config', { config: newConfig });
             await invoke('set_background_service_config', { config: newConfig });
 
-            toast({
-                title: 'Configuration mise à jour',
-                description: `Intervalle de vérification: ${value} minute(s)`,
-            });
+            // Redémarrer le service si il est actif pour appliquer le nouvel intervalle immédiatement
+            if (serviceRunning) {
+                try {
+                    await invoke('stop_background_service');
+                    // Petit délai pour s'assurer que le service est bien arrêté
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    await invoke('start_background_service');
+                } catch (restartError) {
+                    console.error('Erreur lors du redémarrage du service:', restartError);
+                    toast({
+                        title: 'Avertissement',
+                        description: 'La configuration a été sauvegardée mais le service n\'a pas pu être redémarré. Redémarrez-le manuellement.',
+                        variant: 'default',
+                    });
+                }
+            }
+
+            if (value < 5) {
+                toast({
+                    title: 'Configuration mise à jour',
+                    description: `Intervalle de vérification: ${value} minute(s). 5 minutes sont recommandées pour éviter une charge excessive.`,
+                    variant: 'default',
+                });
+            } else {
+                toast({
+                    title: 'Configuration mise à jour',
+                    description: `Intervalle de vérification: ${value} minute(s)`,
+                });
+            }
         } catch (error) {
             toast({
                 title: 'Erreur',
@@ -784,7 +810,7 @@ function SettingsContent() {
             <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Apparence</h3>
                 <div className="flex items-center justify-between">
-                    <Label htmlFor="color-picker">Couleur du thème</Label>
+                    <span className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Couleur du thème</span>
                     <ColorPicker />
                 </div>
             </div>
@@ -796,13 +822,14 @@ function SettingsContent() {
                 <h3 className="text-lg font-semibold">Démarrage automatique</h3>
                 <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
-                        <Label htmlFor="auto-startup">Lancer au démarrage de Windows</Label>
+                        <span className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Lancer au démarrage de Windows</span>
                         <p className="text-sm text-muted-foreground">
                             L'application se lancera minimisée dans la barre système
                         </p>
                     </div>
                     <Switch
                         id="auto-startup"
+                        aria-label="Lancer au démarrage de Windows"
                         checked={autoStartupEnabled}
                         onCheckedChange={handleAutoStartupToggle}
                         disabled={loading || checkingAutoStartup}
@@ -819,7 +846,7 @@ function SettingsContent() {
                 {/* Toggle du service */}
                 <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
-                        <Label htmlFor="background-service">Service de fond</Label>
+                        <span className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Service de fond</span>
                         <p className="text-sm text-muted-foreground">
                             Vérifie périodiquement les mises à jour de traduction
                         </p>
@@ -845,6 +872,7 @@ function SettingsContent() {
                         )}
                         <Switch
                             id="background-service"
+                            aria-label="Service de fond"
                             checked={config.enabled}
                             onCheckedChange={handleServiceToggle}
                             disabled={loading}
@@ -859,7 +887,7 @@ function SettingsContent() {
                         <Input
                             id="check-interval"
                             type="number"
-                            min="5"
+                            min="1"
                             max="1440"
                             value={config.check_interval_minutes}
                             onChange={(e) => {
@@ -870,7 +898,7 @@ function SettingsContent() {
                             }}
                             onBlur={(e) => {
                                 const value = parseInt(e.target.value);
-                                if (!isNaN(value) && value >= 5) {
+                                if (!isNaN(value) && value >= 1) {
                                     handleIntervalChange(value);
                                 }
                             }}
@@ -882,7 +910,7 @@ function SettingsContent() {
                         </span>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                        Minimum: 5 minutes • Recommandé: 5-10 minutes
+                        Minimum: 1 minute • Recommandé: 5 minutes ou plus
                     </p>
                 </div>
 
@@ -895,6 +923,44 @@ function SettingsContent() {
                         <li>Seules les versions du jeu avec traduction installée sont mises à jour</li>
                         <li>Le service fonctionne en arrière-plan sans ralentir votre système</li>
                     </ul>
+                </div>
+            </div>
+
+            <Separator />
+
+            {/* Réinitialisation */}
+            <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Réinitialisation</h3>
+                <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                            <span className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Popup du premier lancement</span>
+                            <p className="text-sm text-muted-foreground">
+                                Réafficher la popup de bienvenue et d'information de sécurité
+                            </p>
+                        </div>
+                        <Button
+                            id="reset-warning"
+                            aria-label="Réinitialiser la popup du premier lancement"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                                localStorage.removeItem('security-warning-seen');
+                                toast({
+                                    title: 'Popup réinitialisée',
+                                    description: 'Redémarrage de l\'application...',
+                                });
+                                // Recharger l'application pour afficher immédiatement la popup
+                                setTimeout(() => {
+                                    window.location.reload();
+                                }, 500);
+                            }}
+                            className="flex items-center gap-2"
+                        >
+                            <RotateCcw className="h-4 w-4" />
+                            Réinitialiser
+                        </Button>
+                    </div>
                 </div>
             </div>
         </div>

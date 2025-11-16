@@ -53,7 +53,13 @@ fn get_game_install_path(list_data: Vec<String>, check_exists: bool) -> Vec<Stri
 
     // Expression régulière pour détecter les chemins avec des versions dynamiques
     let pattern = r"([a-zA-Z]:\\\\(?:[^\\\\]+\\\\)*StarCitizen\\\\[A-Za-z0-9_\\.\\@\\-]+)";
-    let re = Regex::new(pattern).unwrap();
+    let re = match Regex::new(pattern) {
+        Ok(re) => re,
+        Err(e) => {
+            println!("Erreur lors de la compilation de la regex: {}", e);
+            return sc_install_paths;
+        }
+    };
 
     for line in list_data.iter().rev() {
         for cap in re.captures_iter(line) {
@@ -68,7 +74,14 @@ fn get_game_install_path(list_data: Vec<String>, check_exists: bool) -> Vec<Stri
 
 fn get_game_channel_id(install_path: &str) -> String {
     // Expression régulière pour capturer la version à la fin du chemin après "StarCitizen\\"
-    let re = Regex::new(r"StarCitizen\\([A-Za-z0-9_\\.\\@-]+)\\?$").unwrap();
+    let re = match Regex::new(r"StarCitizen\\([A-Za-z0-9_\\.\\@-]+)\\?$") {
+        Ok(re) => re,
+        Err(e) => {
+            println!("Erreur lors de la compilation de la regex: {}", e);
+            return "UNKNOWN".to_string();
+        }
+    };
+    
     if let Some(cap) = re.captures(install_path) {
         if let Some(version) = cap.get(1) {
             let version_str = version.as_str();

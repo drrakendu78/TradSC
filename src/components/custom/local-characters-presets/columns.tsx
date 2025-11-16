@@ -1,66 +1,44 @@
 "use client";
 import { ColumnDef } from "@tanstack/react-table";
 import { Trash, Folder, FolderSync, Check, X } from "lucide-react";
-import { invoke } from "@tauri-apps/api/core";
 import { LocalCharacter as Character } from "@/types/charactersList";
 import { useState } from "react";
 import { PresetActionModal } from "./PresetActionModal";
 import logger from "@/utils/logger";
-import { toFriendlyFsError } from "@/utils/fs-permissions";
+import { invokeWithToast, invokeDeleteWithToast } from "@/utils/invoke-helpers";
 export type { Character };
 
 const deleteCharacter = async (
     path: string,
     toast: any
 ) => {
-    try {
-        const res = await invoke("delete_character", { path });
-        if (res) {
-            toast({
-                title: "Personnage supprimé",
-                description: `Le personnage a bien été supprimé.`,
-                variant: "success",
-                duration: 3000,
-            });
-        } else {
-            throw new Error("Suppression échouée");
-        }
-    } catch (error) {
-        const description = toFriendlyFsError(error);
-        toast({
-            title: "Erreur lors de la suppression",
-            description,
-            variant: "destructive",
-            duration: 4000,
-        });
-    }
+    await invokeDeleteWithToast(
+        "delete_character",
+        { path },
+        toast,
+        "Le personnage",
+        undefined,
+        true // Utiliser toFriendlyFsError
+    );
 };
 
 const duplicateCharacter = async (
     path: string,
     toast: any,
-    onSuccess?: () => void // Ajouter un callback optionnel
+    onSuccess?: () => void
 ) => {
-    try {
-        const res = await invoke("duplicate_character", { characterPath: path });
-        if (res) {
-            toast({
-                title: "Preset dupliqué",
-                description: "Le preset a été copié sur toutes les versions.",
-                variant: "success",
-                duration: 3000,
-            });
-            // Appeler le callback de succès
-            onSuccess?.();
-        }
-    } catch (error) {
-        toast({
-            title: "Erreur lors de la duplication",
-            description: toFriendlyFsError(error),
-            variant: "destructive",
-            duration: 3000,
-        });
-    }
+    await invokeWithToast(
+        "duplicate_character",
+        { characterPath: path },
+        toast,
+        {
+            title: "Preset dupliqué",
+            description: "Le preset a été copié sur toutes les versions.",
+        },
+        onSuccess,
+        undefined,
+        true // Utiliser toFriendlyFsError
+    );
 };
 
 const handleOpenCharactersFolder = async (
@@ -68,25 +46,19 @@ const handleOpenCharactersFolder = async (
     toast: any
 ) => {
     const folderPath = path.split('\\').slice(0, -1).join('\\');
-    try {
-        logger.log("Chemin du dossier des personnages :", folderPath);
-        const res = await invoke("open_characters_folder", { path: folderPath });
-        if (res) {
-            toast({
-                title: "Dossier ouvert",
-                description: "Le dossier des personnages a bien été ouvert.",
-                variant: "success",
-                duration: 3000,
-            });
-        }
-    } catch (error) {
-        toast({
-            title: "Erreur lors de l'ouverture",
-            description: toFriendlyFsError(error),
-            variant: "destructive",
-            duration: 3000,
-        });
-    }
+    logger.log("Chemin du dossier des personnages :", folderPath);
+    await invokeWithToast(
+        "open_characters_folder",
+        { path: folderPath },
+        toast,
+        {
+            title: "Dossier ouvert",
+            description: "Le dossier des personnages a bien été ouvert.",
+        },
+        undefined,
+        undefined,
+        true // Utiliser toFriendlyFsError
+    );
 };
 
 export const columns = (
