@@ -97,7 +97,7 @@ function Home() {
                     <CardContent>
                         <p className="text-sm text-muted-foreground">
                             Toute l'équipe StarTrad FR vous souhaite de joyeuses fêtes ! 🎅🎁
-                            Merci de votre soutien et rendez-vous en 2025 pour de nouvelles aventures dans le verse !
+                            Merci de votre soutien et rendez-vous en 2026 pour de nouvelles aventures dans le verse !
                         </p>
                     </CardContent>
                 </Card>
