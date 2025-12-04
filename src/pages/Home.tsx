@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Link } from 'react-router-dom';
-import { Download, Brush, Users, Globe2, FileText, AlertTriangle, Newspaper, Keyboard, Monitor } from 'lucide-react';
+import { Download, Brush, Users, Globe2, FileText, Newspaper, Keyboard, Monitor } from 'lucide-react';
 import RecentPatchNotes from '@/components/custom/recent-patchnotes';
 import RecentActualites from '@/components/custom/recent-actualites';
 
@@ -88,17 +88,16 @@ function Home() {
                     </CardContent>
                 </Card>
 
-                <Card className="bg-background/40">
+                <Card className="bg-background/40 border-red-500/50">
                     <CardHeader>
                         <CardTitle className="text-base flex items-center gap-2">
-                            <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                            Information pour les utilisateurs V1
+                            🎄 Joyeux Noël !
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
                         <p className="text-sm text-muted-foreground">
-                            Si vous venez de StarTrad FR V1, les préférences de traduction V1 ne sont pas compatibles avec la V2.
-                            Pour repartir proprement, désinstallez puis réinstallez la traduction via l'onglet de Traductions.
+                            Toute l'équipe StarTrad FR vous souhaite de joyeuses fêtes ! 🎅🎁
+                            Merci de votre soutien et rendez-vous en 2025 pour de nouvelles aventures dans le verse !
                         </p>
                     </CardContent>
                 </Card>
