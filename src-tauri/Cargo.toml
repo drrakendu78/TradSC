@@ -1,6 +1,6 @@
 [package]
 name = "startradfr"
-version = "2.1.3"
+version = "3.0.0"
 description = "StarTrad FR - Traduction française pour Star Citizen"
 authors = ["Drrakendu78"]
 edition = "2021"

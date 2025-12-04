@@ -1,11 +1,11 @@
 {
     "$schema": "https://schema.tauri.app/config/2",
     "productName": "StarTrad FR",
-    "version": "2.1.3",
+    "version": "3.0.0",
     "identifier": "com.drrakendu78.startradfr",
     "build": {
-        "beforeDevCommand": "npm run dev",
-        "devUrl": "http://localhost:1420",
+        "beforeDevCommand": "",
+        "devUrl": "https://startradfr.vercel.app",
         "beforeBuildCommand": "",
         "frontendDist": "https://startradfr.vercel.app"
     },
