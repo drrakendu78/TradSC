@@ -1,12 +1,11 @@
 import React, { useEffect, useRef } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
-interface DragRegionProps {
+interface DragRegionProps extends React.HTMLAttributes<HTMLElement> {
   children: React.ReactNode;
-  className?: string;
 }
 
-export function DragRegion({ children, className = '' }: DragRegionProps) {
+export function DragRegion({ children, className = '', style, ...props }: DragRegionProps) {
   const appWindow = getCurrentWindow();
   const containerRef = useRef<HTMLDivElement>(null);
   const startPosRef = useRef<{ x: number; y: number } | null>(null);
@@ -59,7 +58,7 @@ export function DragRegion({ children, className = '' }: DragRegionProps) {
   }, []);
 
   return (
-    <main ref={containerRef} className={className}>
+    <main ref={containerRef} className={className} style={style} {...props}>
       {children}
     </main>
   );

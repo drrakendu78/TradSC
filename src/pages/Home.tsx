@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Link } from 'react-router-dom';
-import { Download, Brush, Users, Globe2, FileText, AlertTriangle, Newspaper, Keyboard } from 'lucide-react';
+import { Download, Brush, Users, Globe2, FileText, AlertTriangle, Newspaper, Keyboard, Monitor } from 'lucide-react';
 import RecentPatchNotes from '@/components/custom/recent-patchnotes';
 import RecentActualites from '@/components/custom/recent-actualites';
 
@@ -66,6 +66,11 @@ function Home() {
                             <Link to="/bindings" className="block">
                                 <Button variant="secondary" className="w-full justify-start gap-2 hover:scale-[1.01] transition">
                                     <Keyboard className="h-4 w-4" /> Bindings
+                                </Button>
+                            </Link>
+                            <Link to="/graphics-settings" className="block">
+                                <Button variant="secondary" className="w-full justify-start gap-2 hover:scale-[1.01] transition">
+                                    <Monitor className="h-4 w-4" /> Paramètres Graphiques
                                 </Button>
                             </Link>
                         </div>

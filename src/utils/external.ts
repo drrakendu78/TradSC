@@ -12,6 +12,11 @@ const ALLOWED_DOMAINS = [
     "api.github.com",
     "api.allorigins.win",
     "multitool.onivoid.fr",
+    "erkul.games",
+    "www.erkul.games",
+    "uexcorp.space",
+    "maps.adi.sc",
+    "adi.sc",
 ];
 
 // Autorise https, http (si besoin), et schémas ms-windows-store

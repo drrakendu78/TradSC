@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import AppRouter from "./components/utils/routes";
 import './index.css';
@@ -10,8 +10,33 @@ import AdminElevateButton from "@/components/custom/AdminElevateButton";
 import { ErrorBoundary } from "@/components/custom/ErrorBoundary";
 import { SplashScreen } from "@/components/custom/SplashScreen";
 
+// Helper pour détecter si on est dans Tauri ou dans un navigateur web
+export const isTauri = (): boolean => {
+  return typeof window !== 'undefined' && '__TAURI__' in window;
+};
+
+// Helper pour détecter si on est sur Vercel (navigateur web direct)
+export const isVercelWeb = (): boolean => {
+  return import.meta.env.VITE_IS_VERCEL === true || import.meta.env.VITE_IS_VERCEL === 'true';
+};
+
 function App() {
   const [showSplash, setShowSplash] = useState(true);
+
+  // Détecter et traiter les tokens OAuth dans l'URL au démarrage
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash && (hash.includes('access_token') || hash.includes('error=') || hash.includes('code='))) {
+      // Laisser Supabase détecter automatiquement le token (avec detectSessionInUrl: true)
+      // Attendre un peu pour que Supabase traite le token, puis nettoyer l'URL
+      setTimeout(() => {
+        // Nettoyer le hash après que Supabase ait traité le token
+        if (window.location.hash.includes('access_token') || window.location.hash.includes('code=')) {
+          window.location.hash = '#/';
+        }
+      }, 1000); // Attendre 1 seconde pour que Supabase traite le token
+    }
+  }, []);
 
   return (
     <>

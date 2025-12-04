@@ -1,21 +1,29 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
-import { readFileSync } from "fs";
+import { readFileSync, existsSync } from "fs";
 
 const host = process.env.TAURI_DEV_HOST;
 
-// Lire la version depuis tauri.conf.json pour la cohérence
-const tauriConfig = JSON.parse(
-    readFileSync("./src-tauri/tauri.conf.json", "utf8")
-);
-const appVersion = tauriConfig.version;
+// Détecter l'environnement
+const isVercel = process.env.VERCEL === '1';
+
+// Lire la version depuis tauri.conf.json (si disponible)
+let appVersion = "0.0.0";
+if (existsSync("./src-tauri/tauri.conf.json")) {
+    const tauriConfig = JSON.parse(
+        readFileSync("./src-tauri/tauri.conf.json", "utf8")
+    );
+    appVersion = tauriConfig.version;
+}
 
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
     plugins: [react()],
+    base: '/',
     define: {
         "import.meta.env.VITE_APP_VERSION": JSON.stringify(appVersion),
+        "import.meta.env.VITE_IS_VERCEL": JSON.stringify(isVercel),
         // Injecter les variables d'environnement Tauri pour la détection de distribution
         "process.env.TAURI_ENV_MS_STORE": JSON.stringify(
             process.env.TAURI_ENV_MS_STORE

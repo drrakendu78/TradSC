@@ -3,10 +3,12 @@ import React, { useState, useEffect } from 'react';
 import { 
     Menu, 
     X, 
-    Settings
+    Settings,
+    ChevronDown,
+    ChevronRight
 } from 'lucide-react';
-import { IconHome, IconBrandDiscord, IconCloud, IconBrandGithub, IconLanguage, IconUsers, IconNews, IconKeyboard } from "@tabler/icons-react";
-import { BrushCleaning, Download, Power, PowerOff, Loader2, RotateCcw } from "lucide-react";
+import { IconHome, IconBrandDiscord, IconCloud, IconBrandGithub, IconLanguage, IconUsers, IconNews, IconKeyboard, IconCalculator, IconMap2 } from "@tabler/icons-react";
+import { BrushCleaning, Download, Power, PowerOff, Loader2, RotateCcw, Monitor, Route } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { ColorPicker } from "@/components/custom/color-picker";
 import openExternal from "@/utils/external";
@@ -74,11 +76,18 @@ const menuItems: NavigationItem[] = [
         tooltip: "Persos en ligne"
     },
     {
-        id: "updates",
-        name: "Mises à jour",
-        icon: <Download size={18} />,
-        href: "/updates",
-        tooltip: "Mises à jour"
+        id: "bindings",
+        name: "Bindings",
+        icon: <IconKeyboard size={18} />,
+        href: "/bindings",
+        tooltip: "Gestion des bindings"
+    },
+    {
+        id: "graphics-settings",
+        name: "Paramètres Graphiques",
+        icon: <Monitor size={18} />,
+        href: "/graphics-settings",
+        tooltip: "Paramètres graphiques"
     },
     {
         id: "patchnotes",
@@ -88,11 +97,11 @@ const menuItems: NavigationItem[] = [
         tooltip: "Patchnotes"
     },
     {
-        id: "bindings",
-        name: "Bindings",
-        icon: <IconKeyboard size={18} />,
-        href: "/bindings",
-        tooltip: "Gestion des bindings"
+        id: "updates",
+        name: "Mises à jour",
+        icon: <Download size={18} />,
+        href: "/updates",
+        tooltip: "Mises à jour"
     }
 ];
 
@@ -111,6 +120,13 @@ const socialLinks: NavigationItem[] = [
         icon: <IconCloud size={18} />,
         href: "https://drrakendu78.github.io/TradSC-docs/",
         tooltip: "Site web"
+    },
+    {
+        id: "uexcorp",
+        name: "Routes de trading",
+        icon: <Route size={18} />,
+        href: "https://uexcorp.space/",
+        tooltip: "Routes de trading (UEX Corp)"
     }
 ];
 
@@ -131,6 +147,9 @@ export function AppSidebar() {
     const [activeItem, setActiveItem] = useState<string>("");
     const [buildInfo, setBuildInfo] = useState<BuildInfo | null>(null);
     const location = useLocation();
+    const [isToolsExpanded, setIsToolsExpanded] = useState(true);
+    const [isNetworksExpanded, setIsNetworksExpanded] = useState(true);
+    const [isExternalServicesExpanded, setIsExternalServicesExpanded] = useState(true);
 
     useEffect(() => {
         getBuildInfo()
@@ -146,6 +165,10 @@ export function AppSidebar() {
             setActiveItem(currentItem.id);
         } else if (currentPath === '/actualites') {
             setActiveItem('actualites');
+        } else if (currentPath === '/dps-calculator') {
+            setActiveItem('dps-calculator');
+        } else if (currentPath === '/ship-maps') {
+            setActiveItem('ship-maps');
         }
     }, [location.pathname]);
 
@@ -238,6 +261,12 @@ export function AppSidebar() {
                     backdropFilter: 'blur(20px) saturate(180%)',
                     WebkitBackdropFilter: 'blur(20px) saturate(180%)',
                     transition: 'width 0.5s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    height: '100vh',
+                    maxHeight: '100vh',
+                    minHeight: '100vh',
+                    top: 0,
+                    bottom: 0,
+                    alignSelf: 'stretch',
                 }}
             >
                 {/* Header */}
@@ -246,20 +275,22 @@ export function AppSidebar() {
 
                 {/* Navigation */}
                 <nav 
-                    className={`flex-1 py-1 overflow-y-auto [&::-webkit-scrollbar]:hidden ${isCollapsed ? "px-2.5" : "px-3"}`} 
+                    className={`flex-1 py-0.5 overflow-y-auto [&::-webkit-scrollbar]:hidden ${isCollapsed ? "px-2.5" : "px-3"}`} 
                     style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 >
                     {/* Outils */}
-                    <div className="mb-2">
-                        {!isCollapsed && (
-                            <div className="px-3 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider animate-in fade-in slide-in-from-left-2 duration-300 whitespace-nowrap">
-                                Outils
-                            </div>
-                        )}
+                    <div className="mb-1">
                         {isCollapsed && (
-                            <div className="h-8"></div>
+                            <button
+                                onClick={() => setIsToolsExpanded(!isToolsExpanded)}
+                                className="w-full px-2.5 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors duration-200 flex items-center justify-center"
+                                title="Outils"
+                            >
+                                <span className="text-[10px]">Outils</span>
+                            </button>
                         )}
-                        <ul className="space-y-0.5">
+                        {isToolsExpanded && (
+                            <ul className="space-y-0">
                             {filteredMenuItems.map((item) => {
                                 const isActive = activeItem === item.id;
                                 const isInternal = item.href.startsWith('/');
@@ -274,7 +305,7 @@ export function AppSidebar() {
                                                     flex items-center space-x-2.5 rounded-md text-left group relative
                                                     transition-all duration-300 ease-out
                                                     hover:scale-[1.02] active:scale-[0.98]
-                                                    ${isCollapsed ? "py-1.5 h-[32px] w-auto mx-auto justify-center px-2.5" : "py-2.5 min-h-[40px] w-full px-3"}
+                                                    ${isCollapsed ? "py-1.5 h-[32px] w-auto mx-auto justify-center px-2.5" : "py-2 min-h-[36px] w-full px-3"}
                                                     ${isActive
                                                         ? "bg-primary/10 text-primary shadow-sm"
                                                         : "text-muted-foreground hover:bg-accent hover:text-foreground hover:shadow-md"
@@ -326,7 +357,7 @@ export function AppSidebar() {
                                                     flex items-center space-x-2.5 rounded-md text-left group relative
                                                     transition-all duration-300 ease-out
                                                     hover:scale-[1.02] active:scale-[0.98]
-                                                    ${isCollapsed ? "py-1.5 h-[32px] w-auto mx-auto justify-center px-2.5" : "py-2.5 min-h-[40px] w-full px-3"}
+                                                    ${isCollapsed ? "py-1.5 h-[32px] w-auto mx-auto justify-center px-2.5" : "py-2 min-h-[36px] w-full px-3"}
                                                     ${isActive
                                                         ? "bg-primary/10 text-primary shadow-sm"
                                                         : "text-muted-foreground hover:bg-accent hover:text-foreground hover:shadow-md"
@@ -376,24 +407,39 @@ export function AppSidebar() {
                                 );
                             })}
                         </ul>
+                        )}
                     </div>
 
                     {/* Séparateur */}
-                    <div className="px-3 my-2">
+                    <div className="px-3 my-1">
                         <hr className="border-border" />
                     </div>
 
                     {/* Réseaux / actu SC */}
-                    <div className="mb-2">
-                        {!isCollapsed && (
-                            <div className="px-3 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider animate-in fade-in slide-in-from-left-2 duration-300 whitespace-nowrap">
-                                Réseaux / actu SC
-                            </div>
+                    <div className="mb-1">
+                        <button
+                            onClick={() => setIsNetworksExpanded(!isNetworksExpanded)}
+                            className={`
+                                w-full text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors duration-200 flex items-center justify-between group
+                                ${isCollapsed ? "px-2.5 py-1.5 justify-center" : "px-3 py-1"}
+                            `}
+                            title={isCollapsed ? "Réseaux / actu SC" : undefined}
+                        >
+                            {isCollapsed ? (
+                                <span className="text-[10px]">Réseaux</span>
+                            ) : (
+                                <>
+                                    <span>Réseaux / actu SC</span>
+                                    {isNetworksExpanded ? (
+                                        <ChevronDown size={14} className="transition-transform duration-200" />
+                                    ) : (
+                                        <ChevronRight size={14} className="transition-transform duration-200" />
+                                    )}
+                                </>
                         )}
-                        {isCollapsed && (
-                            <div className="h-8"></div>
-                        )}
-                        <ul className="space-y-0.5">
+                        </button>
+                        {isNetworksExpanded && (
+                            <ul className="space-y-0">
                             {/* Actualités */}
                             <li>
                                 <Link
@@ -439,6 +485,108 @@ export function AppSidebar() {
                                     {isCollapsed && (
                                         <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 ease-out whitespace-nowrap z-50 border border-border shadow-lg group-hover:scale-100 scale-95 animate-in fade-in slide-in-from-left-2">
                                             Actualités Star Citizen
+                                            <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-1.5 h-1.5 bg-popover border-l border-b border-border rotate-45" />
+                                        </div>
+                                    )}
+                                </Link>
+                            </li>
+
+                            {/* DPS Calculator */}
+                            <li>
+                                <Link
+                                    to="/dps-calculator"
+                                    onClick={() => handleItemClick('dps-calculator', '/dps-calculator')}
+                                    className={`
+                                        flex items-center space-x-2.5 rounded-md text-left group relative
+                                        transition-all duration-300 ease-out
+                                        hover:scale-[1.02] active:scale-[0.98]
+                                        ${isCollapsed ? "py-1.5 h-[32px] w-auto mx-auto justify-center px-2.5" : "py-2.5 min-h-[40px] w-full px-3"}
+                                        ${activeItem === 'dps-calculator'
+                                            ? "bg-primary/10 text-primary shadow-sm"
+                                            : "text-muted-foreground hover:bg-accent hover:text-foreground hover:shadow-md"
+                                        }
+                                    `}
+                                    title={isCollapsed ? "DPS Calculator" : undefined}
+                                >
+                                    <div className="flex items-center justify-center min-w-[24px] h-[24px] flex-shrink-0 group-hover:scale-110">
+                                        <IconCalculator size={18} className={`
+                                            flex items-center justify-center
+                                            transition-all duration-300
+                                            ${activeItem === 'dps-calculator' 
+                                                ? "text-primary scale-110" 
+                                                : "text-muted-foreground group-hover:text-foreground"
+                                            }
+                                        `} />
+                                    </div>
+                                    <span 
+                                        className={`text-sm whitespace-nowrap ${activeItem === 'dps-calculator' ? "font-medium" : "font-normal"}`}
+                                        style={{
+                                            opacity: isCollapsed ? 0 : 1,
+                                            maxWidth: isCollapsed ? '0px' : '200px',
+                                            overflow: 'hidden',
+                                            transition: 'opacity 0.5s ease-out, max-width 0.5s ease-out',
+                                            willChange: 'opacity, max-width',
+                                            display: 'inline-block',
+                                            lineHeight: '1.5',
+                                            pointerEvents: isCollapsed ? 'none' : 'auto',
+                                        }}
+                                    >
+                                        DPS Calculator
+                                    </span>
+                                    {isCollapsed && (
+                                        <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 ease-out whitespace-nowrap z-50 border border-border shadow-lg group-hover:scale-100 scale-95 animate-in fade-in slide-in-from-left-2">
+                                            DPS Calculator
+                                            <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-1.5 h-1.5 bg-popover border-l border-b border-border rotate-45" />
+                                        </div>
+                                    )}
+                                </Link>
+                            </li>
+
+                            {/* Ship Maps (ADI) */}
+                            <li>
+                                <Link
+                                    to="/ship-maps"
+                                    onClick={() => handleItemClick('ship-maps', '/ship-maps')}
+                                    className={`
+                                        flex items-center space-x-2.5 rounded-md text-left group relative
+                                        transition-all duration-300 ease-out
+                                        hover:scale-[1.02] active:scale-[0.98]
+                                        ${isCollapsed ? "py-1.5 h-[32px] w-auto mx-auto justify-center px-2.5" : "py-2.5 min-h-[40px] w-full px-3"}
+                                        ${activeItem === 'ship-maps'
+                                            ? "bg-primary/10 text-primary shadow-sm"
+                                            : "text-muted-foreground hover:bg-accent hover:text-foreground hover:shadow-md"
+                                        }
+                                    `}
+                                    title={isCollapsed ? "Cartes de vaisseaux (ADI)" : undefined}
+                                >
+                                    <div className="flex items-center justify-center min-w-[24px] h-[24px] flex-shrink-0 group-hover:scale-110">
+                                        <IconMap2 size={18} className={`
+                                            flex items-center justify-center
+                                            transition-all duration-300
+                                            ${activeItem === 'ship-maps' 
+                                                ? "text-primary scale-110" 
+                                                : "text-muted-foreground group-hover:text-foreground"
+                                            }
+                                        `} />
+                                    </div>
+                                    <span 
+                                        className={`text-sm whitespace-nowrap ${activeItem === 'ship-maps' ? "font-medium" : "font-normal"}`}
+                                        style={{
+                                            opacity: isCollapsed ? 0 : 1,
+                                            maxWidth: isCollapsed ? '0px' : '200px',
+                                            overflow: 'hidden',
+                                            transition: 'opacity 0.5s ease-out, max-width 0.5s ease-out',
+                                            willChange: 'opacity, max-width',
+                                            display: 'inline-block',
+                                            lineHeight: '1.5',
+                                            pointerEvents: isCollapsed ? 'none' : 'auto',
+                                        }}
+                                    >
+                                        Cartes vaisseaux
+                                    </span>
+                                    {isCollapsed && (
+                                        <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 ease-out whitespace-nowrap z-50 border border-border shadow-lg group-hover:scale-100 scale-95 animate-in fade-in slide-in-from-left-2">
+                                            Cartes de vaisseaux (ADI)
                                             <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-1.5 h-1.5 bg-popover border-l border-b border-border rotate-45" />
                                         </div>
                                     )}
@@ -499,24 +647,39 @@ export function AppSidebar() {
                                 </li>
                             ))}
                         </ul>
+                        )}
                     </div>
 
                     {/* Séparateur */}
-                    <div className="px-3 my-2">
+                    <div className="px-3 my-1">
                         <hr className="border-border" />
                     </div>
 
                     {/* Services externes */}
-                    <div className="mb-2">
-                        {!isCollapsed && (
-                            <div className="px-3 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider animate-in fade-in slide-in-from-left-2 duration-300 whitespace-nowrap">
-                                Services externes
-                            </div>
+                    <div className="mb-1">
+                        <button
+                            onClick={() => setIsExternalServicesExpanded(!isExternalServicesExpanded)}
+                            className={`
+                                w-full text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors duration-200 flex items-center justify-between group
+                                ${isCollapsed ? "px-2.5 py-1.5 justify-center" : "px-3 py-1"}
+                            `}
+                            title={isCollapsed ? "Services externes" : undefined}
+                        >
+                            {isCollapsed ? (
+                                <span className="text-[10px]">Services</span>
+                            ) : (
+                                <>
+                                    <span>Services externes</span>
+                                    {isExternalServicesExpanded ? (
+                                        <ChevronDown size={14} className="transition-transform duration-200" />
+                                    ) : (
+                                        <ChevronRight size={14} className="transition-transform duration-200" />
+                                    )}
+                                </>
                         )}
-                        {isCollapsed && (
-                            <div className="h-8"></div>
-                        )}
-                        <ul className="space-y-0.5">
+                        </button>
+                        {isExternalServicesExpanded && (
+                            <ul className="space-y-0">
                             {externalServices.map((service) => (
                                 <li key={service.id}>
                                     <button
@@ -570,6 +733,7 @@ export function AppSidebar() {
                                 </li>
                             ))}
                         </ul>
+                        )}
                     </div>
                 </nav>
 
