@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useUpdater } from '@/hooks/useUpdater';
-import { Download, Github, Store, AlertTriangle, RefreshCw, Loader2 } from 'lucide-react';
+import { Download, Github, Store, AlertTriangle } from 'lucide-react';
 import openExternal from '@/utils/external';
 import { formatVersion, getAppVersionSync } from '@/utils/version';
 

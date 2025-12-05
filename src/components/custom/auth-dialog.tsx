@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import CloudBackupContent from './cloud-backup-content';
-import { MessageCircle, Cloud, User as UserIcon, Save, LogIn } from 'lucide-react';
+import { MessageCircle, User as UserIcon, Save, LogIn } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
 

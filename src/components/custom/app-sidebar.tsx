@@ -1,11 +1,10 @@
 "use client";
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
     Menu, 
     X, 
     Settings,
-    ChevronDown,
-    ChevronRight
+    ChevronDown
 } from 'lucide-react';
 import { IconHome, IconBrandDiscord, IconCloud, IconBrandGithub, IconLanguage, IconUsers, IconNews, IconKeyboard, IconCalculator, IconMap2 } from "@tabler/icons-react";
 import { BrushCleaning, Download, Power, PowerOff, Loader2, RotateCcw, Monitor, Route } from "lucide-react";
@@ -19,7 +18,6 @@ import {
     DialogDescription,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from "@/components/ui/dialog";
 import { useSidebarStore } from "@/stores/sidebar-store";
 import { Switch } from "@/components/ui/switch";
@@ -161,7 +159,7 @@ function SidebarUserProfile({ isCollapsed, onMenuOpenChange }: { isCollapsed: bo
 
     useEffect(() => {
         checkSession();
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             setUser(session?.user ?? null);
         });
         return () => subscription.unsubscribe();
