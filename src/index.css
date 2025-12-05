@@ -170,12 +170,22 @@
         border-radius: 0.75rem;
     }
     *::-webkit-scrollbar {
-        width: 4px;
+        width: 6px;
         background-color: transparent;
     }
     *::-webkit-scrollbar-thumb {
-        background-color: rgb(185, 185, 185);
+        background: hsl(var(--primary) / 0.3);
         border-radius: 0.75rem;
+        transition: background 0.2s ease;
+    }
+    *::-webkit-scrollbar-thumb:hover {
+        background: hsl(var(--primary) / 0.5);
+    }
+    .dark *::-webkit-scrollbar-thumb {
+        background: hsl(var(--primary) / 0.25);
+    }
+    .dark *::-webkit-scrollbar-thumb:hover {
+        background: hsl(var(--primary) / 0.4);
     }
     /* Scrollbar moderne pour persos en ligne */
     .modern-scrollbar::-webkit-scrollbar {

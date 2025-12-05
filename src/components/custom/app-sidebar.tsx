@@ -574,8 +574,8 @@ export function AppSidebar() {
                                             
                                             {!isCollapsed && (
                                                 <span className={`text-sm ${isActive ? "font-medium" : "font-normal"}`}>
-                                                    {item.name}
-                                                </span>
+                                                {item.name}
+                                            </span>
                                             )}
 
                                                 {/* Tooltip for collapsed state */}
@@ -608,8 +608,8 @@ export function AppSidebar() {
                                                 
                                                 {!isCollapsed && (
                                                     <span className={`text-sm ${isActive ? "font-medium" : "font-normal"}`}>
-                                                        {item.name}
-                                                    </span>
+                                                    {item.name}
+                                                </span>
                                                 )}
 
                                                 {/* Tooltip for collapsed state */}
@@ -681,8 +681,8 @@ export function AppSidebar() {
                                     </div>
                                     {!isCollapsed && (
                                         <span className={`text-sm ${activeItem === 'actualites' ? "font-medium" : "font-normal"}`}>
-                                            Actualités
-                                        </span>
+                                        Actualités
+                                    </span>
                                     )}
                                     {isCollapsed && (
                                         <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">
@@ -716,8 +716,8 @@ export function AppSidebar() {
                                     </div>
                                     {!isCollapsed && (
                                         <span className={`text-sm ${activeItem === 'dps-calculator' ? "font-medium" : "font-normal"}`}>
-                                            DPS Calculator
-                                        </span>
+                                        DPS Calculator
+                                    </span>
                                     )}
                                     {isCollapsed && (
                                         <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">
@@ -783,11 +783,11 @@ export function AppSidebar() {
                                         )}
                                         <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === link.id ? '' : 'group-hover:scale-110'}`}>
                                                 {link.icon}
-                                        </div>
+                                            </div>
                                         {!isCollapsed && (
                                             <span className={`text-sm ${activeItem === link.id ? "font-medium" : "font-normal"}`}>
-                                                {link.name}
-                                            </span>
+                                            {link.name}
+                                        </span>
                                         )}
                                         {isCollapsed && (
                                             <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">
@@ -828,7 +828,7 @@ export function AppSidebar() {
                                         className={`transition-transform duration-300 ${isExternalServicesExpanded ? '' : '-rotate-90'}`} 
                                     />
                                 </>
-                            )}
+                        )}
                         </button>
                         {isExternalServicesExpanded && (
                             <ul className="space-y-0">
@@ -852,11 +852,11 @@ export function AppSidebar() {
                                         )}
                                         <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === service.id ? '' : 'group-hover:scale-110'}`}>
                                                 {service.icon}
-                                        </div>
+                                            </div>
                                         {!isCollapsed && (
                                             <span className={`text-sm ${activeItem === service.id ? "font-medium" : "font-normal"}`}>
-                                                {service.name}
-                                            </span>
+                                            {service.name}
+                                        </span>
                                         )}
                                         {isCollapsed && (
                                             <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">
@@ -877,8 +877,8 @@ export function AppSidebar() {
                     {/* Séparateur */}
                     <div className={`mb-2 ${isCollapsed ? 'px-2' : 'px-4'}`}>
                         <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
-                    </div>
-                    
+                                    </div>
+                                    
                     {/* User Profile */}
                     <div className={`${isCollapsed ? 'px-2' : 'px-3'} pb-3`}>
                         <SidebarUserProfile isCollapsed={isCollapsed} onMenuOpenChange={setUserMenuOpen} />
@@ -1201,11 +1201,21 @@ function SettingsContent() {
                             size="sm"
                             onClick={() => {
                                 localStorage.removeItem('security-warning-seen');
+                                // Supprimer aussi toutes les annonces (clés commençant par startradfr_)
+                                const keysToRemove: string[] = [];
+                                for (let i = 0; i < localStorage.length; i++) {
+                                    const key = localStorage.key(i);
+                                    if (key && key.startsWith('startradfr_')) {
+                                        keysToRemove.push(key);
+                                    }
+                                }
+                                keysToRemove.forEach(key => localStorage.removeItem(key));
+                                
                                 toast({
-                                    title: 'Popup réinitialisée',
+                                    title: 'Popups réinitialisées',
                                     description: 'Redémarrage de l\'application...',
                                 });
-                                // Recharger l'application pour afficher immédiatement la popup
+                                // Recharger l'application pour afficher immédiatement les popups
                                 setTimeout(() => {
                                     window.location.reload();
                                 }, 500);
