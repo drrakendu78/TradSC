@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import RecentPatchNotes from '@/components/custom/recent-patchnotes';
 import RecentActualites from '@/components/custom/recent-actualites';
+import { HolidayWishesDialog } from '@/components/custom/holiday-wishes-dialog';
 
 // Animation variants pour les cartes
 const cardVariants = {
@@ -76,6 +77,7 @@ function QuickAction({ to, icon, title, description, color, index }: QuickAction
 function Home() {
     return (
         <div className="flex w-full h-full flex-col gap-6 p-4 overflow-y-auto">
+            <HolidayWishesDialog />
             
             {/* Hero Section - Action principale */}
             <motion.div
