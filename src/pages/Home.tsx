@@ -26,16 +26,13 @@ import { AnnouncementDialog } from '@/components/custom/announcement-dialog';
 // Pour activer une annonce, modifie les valeurs ci-dessous
 // Pour désactiver, mets showAnnouncement à false
 const ANNOUNCEMENT_CONFIG = {
-    showAnnouncement: false, // Mettre à true pour afficher l'annonce
-    storageKey: "startradfr_annonce_2026", // Change cette clé pour chaque nouvelle annonce
-    title: "Joyeux Noël 2026 !",
-    message: "Toute l'équipe de StarTrad FR vous souhaite de merveilleuses fêtes ! 🎄✨",
-    secondaryMessage: "Merci de faire partie de notre communauté.",
-    buttonText: "Merci et bonne année !",
-    delay: 500, // Délai avant affichage en millisecondes
-    // Optionnel : décommente pour personnaliser
-    // gradientColors: "from-red-500/20 via-green-500/20 to-background/80",
-    // showDontShowAgain: true,
+    showAnnouncement: true,
+    storageKey: "startradfr_noel_2025",
+    title: "🎄 Joyeuses Fêtes !",
+    message: "Toute l'équipe de StarTrad FR vous souhaite un Joyeux Noël et une excellente année 2026 ! 🎅✨",
+    secondaryMessage: "Merci de faire partie de notre communauté de Citizens francophones. À l'année prochaine dans le 'verse ! 🚀",
+    buttonText: "Bonne année ! 🎉",
+    delay: 500,
 };
 // ============================================
 
