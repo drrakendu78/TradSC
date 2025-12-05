@@ -39,12 +39,20 @@ export default function AuthDialog({ open, onOpenChange, defaultTab }: AuthDialo
     useEffect(() => {
         if (open) {
             if (user) {
-                setActiveTab(defaultTab || 'backup');
+                // Si l'utilisateur est connecté, toujours afficher l'onglet backup
+                setActiveTab('backup');
             } else {
                 setActiveTab(defaultTab || 'login');
             }
         }
-    }, [open, user, defaultTab]);
+    }, [open, defaultTab]);
+
+    // S'assurer que l'onglet backup est sélectionné quand l'utilisateur se connecte
+    useEffect(() => {
+        if (user && open) {
+            setActiveTab('backup');
+        }
+    }, [user, open]);
 
     useEffect(() => {
         // Vérifier la session actuelle
