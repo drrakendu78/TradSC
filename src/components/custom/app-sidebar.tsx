@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
     Menu, 
     X, 
@@ -29,6 +29,16 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { invoke } from "@tauri-apps/api/core";
+import { supabase } from "@/lib/supabase";
+import { User as SupabaseUser } from "@supabase/supabase-js";
+import { LogIn, LogOut, User } from "lucide-react";
+import AuthDialog from "./auth-dialog";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface NavigationItem {
     id: string;
@@ -141,6 +151,249 @@ const externalServices: NavigationItem[] = [
     }
 ];
 
+// Composant profil utilisateur pour la sidebar
+function SidebarUserProfile({ isCollapsed, onMenuOpenChange }: { isCollapsed: boolean; onMenuOpenChange?: (open: boolean) => void }) {
+    const [user, setUser] = useState<SupabaseUser | null>(null);
+    const [authDialogOpen, setAuthDialogOpen] = useState(false);
+    const [authDefaultTab, setAuthDefaultTab] = useState<string>('login');
+    const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+    const { toast } = useToast();
+
+    useEffect(() => {
+        checkSession();
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            setUser(session?.user ?? null);
+        });
+        return () => subscription.unsubscribe();
+    }, []);
+
+    const checkSession = async () => {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            setUser(session?.user ?? null);
+        } catch (error) {
+            console.error('Erreur session:', error);
+        }
+    };
+
+    const handleSignOut = async () => {
+        try {
+            await supabase.auth.signOut();
+            setUser(null);
+            toast({
+                title: 'Déconnexion réussie',
+                description: 'À bientôt !',
+            });
+        } catch (error) {
+            console.error('Erreur déconnexion:', error);
+        }
+    };
+
+    const openCloudBackup = () => {
+        setAuthDefaultTab('backup');
+        setAuthDialogOpen(true);
+    };
+
+    // Récupérer l'avatar Discord
+    const getAvatarUrl = () => {
+        if (!user) return null;
+        const metadata = user.user_metadata;
+        if (metadata?.avatar_url) return metadata.avatar_url;
+        if (metadata?.picture) return metadata.picture;
+        return null;
+    };
+
+    const getDisplayName = () => {
+        if (!user) return null;
+        const metadata = user.user_metadata;
+        return metadata?.full_name || metadata?.name || metadata?.preferred_username || user.email?.split('@')[0] || 'Utilisateur';
+    };
+
+    const avatarUrl = getAvatarUrl();
+    const displayName = getDisplayName();
+
+    if (user) {
+        // Utilisateur connecté
+        return (
+            <>
+                <div className={`${isCollapsed ? 'px-2' : 'px-3'}`}>
+                    <DropdownMenu onOpenChange={(open) => onMenuOpenChange?.(open)}>
+                        <DropdownMenuTrigger asChild>
+                            <div 
+                                className={`
+                                    flex items-center gap-3 rounded-lg cursor-pointer group
+                                    transition-all duration-200 ease-out
+                                    hover:bg-white/5
+                                    ${isCollapsed ? "justify-center p-2 h-10 w-10 mx-auto" : "px-3 py-2.5 w-full"}
+                                `}
+                                title={isCollapsed ? displayName || 'Mon compte' : undefined}
+                            >
+                                {/* Avatar */}
+                                <div className="relative flex-shrink-0">
+                                    {avatarUrl ? (
+                                        <img 
+                                            src={avatarUrl} 
+                                            alt="Avatar" 
+                                            className="w-8 h-8 rounded-full object-cover ring-2 ring-primary/30"
+                                        />
+                                    ) : (
+                                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center ring-2 ring-primary/30">
+                                            <User className="w-4 h-4 text-primary" />
+                                        </div>
+                                    )}
+                                    {/* Indicateur en ligne */}
+                                    <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
+                                </div>
+                                
+                                {/* Nom et email */}
+                                {!isCollapsed && (
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
+                                        <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                                    </div>
+                                )}
+
+                                {/* Chevron */}
+                                {!isCollapsed && (
+                                    <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform duration-200" />
+                                )}
+
+                                {/* Tooltip collapsed */}
+                                {isCollapsed && (
+                                    <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl pointer-events-none">
+                                        {displayName}
+                                    </div>
+                                )}
+                            </div>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent 
+                            align={isCollapsed ? "start" : "end"} 
+                            side={isCollapsed ? "right" : "top"}
+                            className="w-56"
+                        >
+                            {user && (
+                                <DropdownMenuItem
+                                    onClick={openCloudBackup}
+                                    className="cursor-pointer"
+                                >
+                                    <IconCloud size={18} className="mr-2 text-blue-400" />
+                                    <span>Sauvegarde Cloud</span>
+                                </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem
+                                onClick={() => setSettingsDialogOpen(true)}
+                                className="cursor-pointer"
+                            >
+                                <Settings size={18} className="mr-2" />
+                                <span>Paramètres</span>
+                            </DropdownMenuItem>
+                            {user && (
+                                <>
+                                    <div className="h-px bg-border/50 mx-2 my-1" />
+                                    <DropdownMenuItem
+                                        onClick={handleSignOut}
+                                        className="cursor-pointer text-red-400 focus:text-red-400"
+                                    >
+                                        <LogOut size={18} className="mr-2" />
+                                        <span>Déconnexion</span>
+                                    </DropdownMenuItem>
+                                </>
+                            )}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+
+                <AuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} defaultTab={authDefaultTab} />
+                
+                {/* Dialog Paramètres */}
+                <Dialog open={settingsDialogOpen} onOpenChange={setSettingsDialogOpen}>
+                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                        <DialogHeader>
+                            <DialogTitle>Paramètres</DialogTitle>
+                            <DialogDescription>
+                                Gérez les paramètres de l'application
+                            </DialogDescription>
+                        </DialogHeader>
+                        <SettingsContent />
+                    </DialogContent>
+                </Dialog>
+            </>
+        );
+    }
+
+    // Non connecté
+    return (
+        <>
+            <DropdownMenu onOpenChange={(open) => onMenuOpenChange?.(open)}>
+                <DropdownMenuTrigger asChild>
+                    <div 
+                        className={`
+                            flex items-center gap-3 rounded-lg cursor-pointer group
+                            transition-all duration-200 ease-out
+                            bg-primary/10 hover:bg-primary/20 text-primary
+                            ${isCollapsed ? "justify-center p-2 h-10 w-10 mx-auto" : "px-3 py-2.5 w-full"}
+                        `}
+                        title={isCollapsed ? "Se connecter" : undefined}
+                    >
+                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/20 flex-shrink-0">
+                            <LogIn className="w-4 h-4" />
+                        </div>
+                        
+                        {!isCollapsed && (
+                            <div className="flex-1 text-left">
+                                <p className="text-sm font-medium">Se connecter</p>
+                                <p className="text-xs text-primary/70">Discord ou Email</p>
+                            </div>
+                        )}
+
+                        {/* Tooltip collapsed */}
+                        {isCollapsed && (
+                            <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl pointer-events-none">
+                                Se connecter
+                            </div>
+                        )}
+                    </div>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent 
+                    align={isCollapsed ? "start" : "end"} 
+                    side={isCollapsed ? "right" : "top"}
+                    className="w-56"
+                >
+                    <DropdownMenuItem
+                        onClick={() => { setAuthDefaultTab('login'); setAuthDialogOpen(true); }}
+                        className="cursor-pointer"
+                    >
+                        <LogIn size={18} className="mr-2" />
+                        <span>Se connecter</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                        onClick={() => setSettingsDialogOpen(true)}
+                        className="cursor-pointer"
+                    >
+                        <Settings size={18} className="mr-2" />
+                        <span>Paramètres</span>
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+            
+            <AuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} defaultTab={authDefaultTab} />
+            
+            {/* Dialog Paramètres */}
+            <Dialog open={settingsDialogOpen} onOpenChange={setSettingsDialogOpen}>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Paramètres</DialogTitle>
+                        <DialogDescription>
+                            Gérez les paramètres de l'application
+                        </DialogDescription>
+                    </DialogHeader>
+                    <SettingsContent />
+                </DialogContent>
+            </Dialog>
+        </>
+    );
+}
+
 export function AppSidebar() {
     const [isOpen, setIsOpen] = useState(false);
     const { isLocked, isCollapsed, setCollapsed } = useSidebarStore(); // État depuis le store
@@ -150,6 +403,7 @@ export function AppSidebar() {
     const [isToolsExpanded, setIsToolsExpanded] = useState(true);
     const [isNetworksExpanded, setIsNetworksExpanded] = useState(true);
     const [isExternalServicesExpanded, setIsExternalServicesExpanded] = useState(true);
+    const [userMenuOpen, setUserMenuOpen] = useState(false);
 
     useEffect(() => {
         getBuildInfo()
@@ -189,15 +443,15 @@ export function AppSidebar() {
 
     const toggleSidebar = () => setIsOpen(!isOpen);
     
-    // Handlers pour le hover (seulement si non verrouillé)
+    // Handlers pour le hover (seulement si non verrouillé et menu utilisateur fermé)
     const handleMouseEnter = () => {
-        if (window.innerWidth >= 768 && !isLocked) {
+        if (window.innerWidth >= 768 && !isLocked && !userMenuOpen) {
             setCollapsed(false);
         }
     };
     
     const handleMouseLeave = () => {
-        if (window.innerWidth >= 768 && !isLocked) {
+        if (window.innerWidth >= 768 && !isLocked && !userMenuOpen) {
             setCollapsed(true);
         }
     };
@@ -302,51 +556,34 @@ export function AppSidebar() {
                                                 to={item.href}
                                                 onClick={() => handleItemClick(item.id, item.href, false)}
                                                 className={`
-                                                    flex items-center space-x-2.5 rounded-md text-left group relative
-                                                    transition-all duration-300 ease-out
-                                                    hover:scale-[1.02] active:scale-[0.98]
-                                                    ${isCollapsed ? "py-1.5 h-[32px] w-auto mx-auto justify-center px-2.5" : "py-2 min-h-[36px] w-full px-3"}
+                                                    flex items-center gap-3 rounded-lg text-left group relative
+                                                    transition-all duration-200 ease-out
+                                                    ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"}
                                                     ${isActive
-                                                        ? "bg-primary/10 text-primary shadow-sm"
-                                                        : "text-muted-foreground hover:bg-accent hover:text-foreground hover:shadow-md"
+                                                        ? "bg-primary/15 text-primary"
+                                                        : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
                                                     }
                                                 `}
                                                 title={isCollapsed ? item.tooltip || item.name : undefined}
                                             >
-                                            <div className="flex items-center justify-center min-w-[24px] h-[24px] flex-shrink-0 group-hover:scale-110">
-                                                <div className={`
-                                                    flex items-center justify-center
-                                                    transition-all duration-300
-                                                    ${isActive 
-                                                        ? "text-primary scale-110" 
-                                                        : "text-muted-foreground group-hover:text-foreground"
-                                                    }
-                                                `}>
+                                                {/* Indicateur actif */}
+                                                {isActive && !isCollapsed && (
+                                                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />
+                                                )}
+                                            <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${isActive ? '' : 'group-hover:scale-110'}`}>
                                                     {item.icon}
-                                                </div>
                                             </div>
                                             
-                                            <span 
-                                                className={`text-sm whitespace-nowrap ${isActive ? "font-medium" : "font-normal"}`}
-                                                style={{
-                                                    opacity: isCollapsed ? 0 : 1,
-                                                    maxWidth: isCollapsed ? '0px' : '200px',
-                                                    overflow: 'hidden',
-                                                    transition: 'opacity 0.5s ease-out, max-width 0.5s ease-out',
-                                                    willChange: 'opacity, max-width',
-                                                    display: 'inline-block',
-                                                    lineHeight: '1.5',
-                                                    pointerEvents: isCollapsed ? 'none' : 'auto',
-                                                }}
-                                            >
-                                                {item.name}
-                                            </span>
+                                            {!isCollapsed && (
+                                                <span className={`text-sm ${isActive ? "font-medium" : "font-normal"}`}>
+                                                    {item.name}
+                                                </span>
+                                            )}
 
                                                 {/* Tooltip for collapsed state */}
                                                 {isCollapsed && (
-                                                    <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border shadow-lg">
+                                                    <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">
                                                         {item.tooltip || item.name}
-                                                        <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-1.5 h-1.5 bg-popover border-l border-b border-border rotate-45" />
                                                     </div>
                                                 )}
                                             </Link>
@@ -354,51 +591,33 @@ export function AppSidebar() {
                                             <button
                                                 onClick={() => handleItemClick(item.id, item.href, true)}
                                                 className={`
-                                                    flex items-center space-x-2.5 rounded-md text-left group relative
-                                                    transition-all duration-300 ease-out
-                                                    hover:scale-[1.02] active:scale-[0.98]
-                                                    ${isCollapsed ? "py-1.5 h-[32px] w-auto mx-auto justify-center px-2.5" : "py-2 min-h-[36px] w-full px-3"}
+                                                    flex items-center gap-3 rounded-lg text-left group relative
+                                                    transition-all duration-200 ease-out
+                                                    ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"}
                                                     ${isActive
-                                                        ? "bg-primary/10 text-primary shadow-sm"
-                                                        : "text-muted-foreground hover:bg-accent hover:text-foreground hover:shadow-md"
+                                                        ? "bg-primary/15 text-primary"
+                                                        : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
                                                     }
                                                 `}
                                                 title={isCollapsed ? item.tooltip || item.name : undefined}
                                             >
-                                                <div className="flex items-center justify-center min-w-[24px] h-[24px] flex-shrink-0 group-hover:scale-110">
-                                                    <div className={`
-                                                        flex items-center justify-center
-                                                        transition-all duration-300
-                                                        ${isActive 
-                                                            ? "text-primary scale-110" 
-                                                            : "text-muted-foreground group-hover:text-foreground"
-                                                        }
-                                                    `}>
+                                                {isActive && !isCollapsed && (
+                                                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />
+                                                )}
+                                                <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${isActive ? '' : 'group-hover:scale-110'}`}>
                                                         {item.icon}
-                                                    </div>
                                                 </div>
                                                 
-                                                <span 
-                                                    className={`text-sm whitespace-nowrap ${isActive ? "font-medium" : "font-normal"}`}
-                                                    style={{
-                                                        opacity: isCollapsed ? 0 : 1,
-                                                        maxWidth: isCollapsed ? '0px' : '200px',
-                                                        overflow: 'hidden',
-                                                        transition: 'opacity 0.5s ease-out, max-width 0.5s ease-out',
-                                                        willChange: 'opacity, max-width',
-                                                        display: 'inline-block',
-                                                        lineHeight: '1.5',
-                                                        pointerEvents: isCollapsed ? 'none' : 'auto',
-                                                    }}
-                                                >
-                                                    {item.name}
-                                                </span>
+                                                {!isCollapsed && (
+                                                    <span className={`text-sm ${isActive ? "font-medium" : "font-normal"}`}>
+                                                        {item.name}
+                                                    </span>
+                                                )}
 
                                                 {/* Tooltip for collapsed state */}
                                                 {isCollapsed && (
-                                                    <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 ease-out whitespace-nowrap z-50 border border-border shadow-lg group-hover:scale-100 scale-95 animate-in fade-in slide-in-from-left-2">
+                                                    <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">
                                                         {item.tooltip || item.name}
-                                                        <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-1.5 h-1.5 bg-popover border-l border-b border-border rotate-45" />
                                                     </div>
                                                 )}
                                             </button>
@@ -411,30 +630,30 @@ export function AppSidebar() {
                     </div>
 
                     {/* Séparateur */}
-                    <div className="px-3 my-1">
-                        <hr className="border-border" />
+                    <div className={`my-3 ${isCollapsed ? 'px-2' : 'px-4'}`}>
+                        <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
                     </div>
 
                     {/* Réseaux / actu SC */}
-                    <div className="mb-1">
+                    <div className="mb-2">
                         <button
                             onClick={() => setIsNetworksExpanded(!isNetworksExpanded)}
                             className={`
-                                w-full text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors duration-200 flex items-center justify-between group
-                                ${isCollapsed ? "px-2.5 py-1.5 justify-center" : "px-3 py-1"}
+                                w-full text-[10px] font-medium text-muted-foreground/70 uppercase tracking-widest 
+                                hover:text-muted-foreground transition-all duration-200 flex items-center gap-2 group
+                                ${isCollapsed ? "px-2 py-1 justify-center" : "px-3 py-1.5"}
                             `}
                             title={isCollapsed ? "Réseaux / actu SC" : undefined}
                         >
                             {isCollapsed ? (
-                                <span className="text-[10px]">Réseaux</span>
+                                <span className="text-[9px]">•••</span>
                             ) : (
                                 <>
-                                    <span>Réseaux / actu SC</span>
-                                    {isNetworksExpanded ? (
-                                        <ChevronDown size={14} className="transition-transform duration-200" />
-                                    ) : (
-                                        <ChevronRight size={14} className="transition-transform duration-200" />
-                                    )}
+                                    <span>Réseaux / Actu SC</span>
+                                    <ChevronDown 
+                                        size={12} 
+                                        className={`transition-transform duration-300 ${isNetworksExpanded ? '' : '-rotate-90'}`} 
+                                    />
                                 </>
                         )}
                         </button>
@@ -446,46 +665,30 @@ export function AppSidebar() {
                                     to="/actualites"
                                     onClick={() => handleItemClick('actualites', '/actualites')}
                                     className={`
-                                        flex items-center space-x-2.5 rounded-md text-left group relative
-                                        transition-all duration-300 ease-out
-                                        hover:scale-[1.02] active:scale-[0.98]
-                                        ${isCollapsed ? "py-1.5 h-[32px] w-auto mx-auto justify-center px-2.5" : "py-2.5 min-h-[40px] w-full px-3"}
+                                        flex items-center gap-3 rounded-lg text-left group relative
+                                        transition-all duration-200 ease-out
+                                        ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"}
                                         ${activeItem === 'actualites'
-                                            ? "bg-primary/10 text-primary shadow-sm"
-                                            : "text-muted-foreground hover:bg-accent hover:text-foreground hover:shadow-md"
+                                            ? "bg-primary/15 text-primary"
+                                            : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
                                         }
                                     `}
                                     title={isCollapsed ? "Actualités Star Citizen" : undefined}
                                 >
-                                    <div className="flex items-center justify-center min-w-[24px] h-[24px] flex-shrink-0 group-hover:scale-110">
-                                        <IconNews size={18} className={`
-                                            flex items-center justify-center
-                                            transition-all duration-300
-                                            ${activeItem === 'actualites' 
-                                                ? "text-primary scale-110" 
-                                                : "text-muted-foreground group-hover:text-foreground"
-                                            }
-                                        `} />
+                                    {activeItem === 'actualites' && !isCollapsed && (
+                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />
+                                    )}
+                                    <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === 'actualites' ? '' : 'group-hover:scale-110'}`}>
+                                        <IconNews size={18} />
                                     </div>
-                                    <span 
-                                        className={`text-sm whitespace-nowrap ${activeItem === 'actualites' ? "font-medium" : "font-normal"}`}
-                                        style={{
-                                            opacity: isCollapsed ? 0 : 1,
-                                            maxWidth: isCollapsed ? '0px' : '200px',
-                                            overflow: 'hidden',
-                                            transition: 'opacity 0.5s ease-out, max-width 0.5s ease-out',
-                                            willChange: 'opacity, max-width',
-                                            display: 'inline-block',
-                                            lineHeight: '1.5',
-                                            pointerEvents: isCollapsed ? 'none' : 'auto',
-                                        }}
-                                    >
-                                        Actualités
-                                    </span>
+                                    {!isCollapsed && (
+                                        <span className={`text-sm ${activeItem === 'actualites' ? "font-medium" : "font-normal"}`}>
+                                            Actualités
+                                        </span>
+                                    )}
                                     {isCollapsed && (
-                                        <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 ease-out whitespace-nowrap z-50 border border-border shadow-lg group-hover:scale-100 scale-95 animate-in fade-in slide-in-from-left-2">
+                                        <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">
                                             Actualités Star Citizen
-                                            <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-1.5 h-1.5 bg-popover border-l border-b border-border rotate-45" />
                                         </div>
                                     )}
                                 </Link>
@@ -497,46 +700,30 @@ export function AppSidebar() {
                                     to="/dps-calculator"
                                     onClick={() => handleItemClick('dps-calculator', '/dps-calculator')}
                                     className={`
-                                        flex items-center space-x-2.5 rounded-md text-left group relative
-                                        transition-all duration-300 ease-out
-                                        hover:scale-[1.02] active:scale-[0.98]
-                                        ${isCollapsed ? "py-1.5 h-[32px] w-auto mx-auto justify-center px-2.5" : "py-2.5 min-h-[40px] w-full px-3"}
+                                        flex items-center gap-3 rounded-lg text-left group relative
+                                        transition-all duration-200 ease-out
+                                        ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"}
                                         ${activeItem === 'dps-calculator'
-                                            ? "bg-primary/10 text-primary shadow-sm"
-                                            : "text-muted-foreground hover:bg-accent hover:text-foreground hover:shadow-md"
+                                            ? "bg-primary/15 text-primary"
+                                            : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
                                         }
                                     `}
                                     title={isCollapsed ? "DPS Calculator" : undefined}
                                 >
-                                    <div className="flex items-center justify-center min-w-[24px] h-[24px] flex-shrink-0 group-hover:scale-110">
-                                        <IconCalculator size={18} className={`
-                                            flex items-center justify-center
-                                            transition-all duration-300
-                                            ${activeItem === 'dps-calculator' 
-                                                ? "text-primary scale-110" 
-                                                : "text-muted-foreground group-hover:text-foreground"
-                                            }
-                                        `} />
+                                    {activeItem === 'dps-calculator' && !isCollapsed && (
+                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />
+                                    )}
+                                    <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === 'dps-calculator' ? '' : 'group-hover:scale-110'}`}>
+                                        <IconCalculator size={18} />
                                     </div>
-                                    <span 
-                                        className={`text-sm whitespace-nowrap ${activeItem === 'dps-calculator' ? "font-medium" : "font-normal"}`}
-                                        style={{
-                                            opacity: isCollapsed ? 0 : 1,
-                                            maxWidth: isCollapsed ? '0px' : '200px',
-                                            overflow: 'hidden',
-                                            transition: 'opacity 0.5s ease-out, max-width 0.5s ease-out',
-                                            willChange: 'opacity, max-width',
-                                            display: 'inline-block',
-                                            lineHeight: '1.5',
-                                            pointerEvents: isCollapsed ? 'none' : 'auto',
-                                        }}
-                                    >
-                                        DPS Calculator
-                                    </span>
-                                    {isCollapsed && (
-                                        <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 ease-out whitespace-nowrap z-50 border border-border shadow-lg group-hover:scale-100 scale-95 animate-in fade-in slide-in-from-left-2">
+                                    {!isCollapsed && (
+                                        <span className={`text-sm ${activeItem === 'dps-calculator' ? "font-medium" : "font-normal"}`}>
                                             DPS Calculator
-                                            <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-1.5 h-1.5 bg-popover border-l border-b border-border rotate-45" />
+                                        </span>
+                                    )}
+                                    {isCollapsed && (
+                                        <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">
+                                            DPS Calculator
                                         </div>
                                     )}
                                 </Link>
@@ -548,46 +735,30 @@ export function AppSidebar() {
                                     to="/ship-maps"
                                     onClick={() => handleItemClick('ship-maps', '/ship-maps')}
                                     className={`
-                                        flex items-center space-x-2.5 rounded-md text-left group relative
-                                        transition-all duration-300 ease-out
-                                        hover:scale-[1.02] active:scale-[0.98]
-                                        ${isCollapsed ? "py-1.5 h-[32px] w-auto mx-auto justify-center px-2.5" : "py-2.5 min-h-[40px] w-full px-3"}
+                                        flex items-center gap-3 rounded-lg text-left group relative
+                                        transition-all duration-200 ease-out
+                                        ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"}
                                         ${activeItem === 'ship-maps'
-                                            ? "bg-primary/10 text-primary shadow-sm"
-                                            : "text-muted-foreground hover:bg-accent hover:text-foreground hover:shadow-md"
+                                            ? "bg-primary/15 text-primary"
+                                            : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
                                         }
                                     `}
                                     title={isCollapsed ? "Cartes de vaisseaux (ADI)" : undefined}
                                 >
-                                    <div className="flex items-center justify-center min-w-[24px] h-[24px] flex-shrink-0 group-hover:scale-110">
-                                        <IconMap2 size={18} className={`
-                                            flex items-center justify-center
-                                            transition-all duration-300
-                                            ${activeItem === 'ship-maps' 
-                                                ? "text-primary scale-110" 
-                                                : "text-muted-foreground group-hover:text-foreground"
-                                            }
-                                        `} />
+                                    {activeItem === 'ship-maps' && !isCollapsed && (
+                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />
+                                    )}
+                                    <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === 'ship-maps' ? '' : 'group-hover:scale-110'}`}>
+                                        <IconMap2 size={18} />
                                     </div>
-                                    <span 
-                                        className={`text-sm whitespace-nowrap ${activeItem === 'ship-maps' ? "font-medium" : "font-normal"}`}
-                                        style={{
-                                            opacity: isCollapsed ? 0 : 1,
-                                            maxWidth: isCollapsed ? '0px' : '200px',
-                                            overflow: 'hidden',
-                                            transition: 'opacity 0.5s ease-out, max-width 0.5s ease-out',
-                                            willChange: 'opacity, max-width',
-                                            display: 'inline-block',
-                                            lineHeight: '1.5',
-                                            pointerEvents: isCollapsed ? 'none' : 'auto',
-                                        }}
-                                    >
-                                        Cartes vaisseaux
-                                    </span>
+                                    {!isCollapsed && (
+                                        <span className={`text-sm ${activeItem === 'ship-maps' ? "font-medium" : "font-normal"}`}>
+                                            Cartes vaisseaux
+                                        </span>
+                                    )}
                                     {isCollapsed && (
-                                        <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 ease-out whitespace-nowrap z-50 border border-border shadow-lg group-hover:scale-100 scale-95 animate-in fade-in slide-in-from-left-2">
+                                        <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">
                                             Cartes de vaisseaux (ADI)
-                                            <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-1.5 h-1.5 bg-popover border-l border-b border-border rotate-45" />
                                         </div>
                                     )}
                                 </Link>
@@ -599,46 +770,29 @@ export function AppSidebar() {
                                     <button
                                         onClick={() => handleItemClick(link.id, link.href, true)}
                                         className={`
-                                            flex items-center space-x-2.5 rounded-md text-left group relative
-                                            transition-all duration-300 ease-out
-                                            hover:scale-[1.02] active:scale-[0.98]
-                                            ${isCollapsed ? "py-1.5 h-[32px] w-auto mx-auto justify-center px-2.5" : "py-2.5 min-h-[40px] w-full px-3"}
+                                            flex items-center gap-3 rounded-lg text-left group relative
+                                            transition-all duration-200 ease-out
+                                            ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"}
                                             ${activeItem === link.id
-                                                ? "bg-primary/10 text-primary shadow-sm"
-                                                : "text-muted-foreground hover:bg-accent hover:text-foreground hover:shadow-md"
+                                                ? "bg-primary/15 text-primary"
+                                                : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
                                             }
                                         `}
                                         title={isCollapsed ? link.tooltip || link.name : undefined}
                                     >
-                                        <div className="flex items-center justify-center min-w-[24px] h-[24px] flex-shrink-0 group-hover:scale-110">
-                                            <div className={`
-                                                flex items-center justify-center
-                                                transition-all duration-300
-                                                ${activeItem === link.id 
-                                                    ? "text-primary scale-110" 
-                                                    : "text-muted-foreground group-hover:text-foreground"
-                                                }
-                                            `}>
+                                        {activeItem === link.id && !isCollapsed && (
+                                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />
+                                        )}
+                                        <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === link.id ? '' : 'group-hover:scale-110'}`}>
                                                 {link.icon}
-                                            </div>
                                         </div>
-                                        <span 
-                                            className={`text-sm whitespace-nowrap ${activeItem === link.id ? "font-medium" : "font-normal"}`}
-                                            style={{
-                                                opacity: isCollapsed ? 0 : 1,
-                                                maxWidth: isCollapsed ? '0px' : '200px',
-                                                overflow: 'hidden',
-                                                transition: 'opacity 0.5s ease-out, max-width 0.5s ease-out',
-                                                willChange: 'opacity, max-width',
-                                                display: 'inline-block',
-                                                lineHeight: '1.5',
-                                                pointerEvents: isCollapsed ? 'none' : 'auto',
-                                            }}
-                                        >
-                                            {link.name}
-                                        </span>
+                                        {!isCollapsed && (
+                                            <span className={`text-sm ${activeItem === link.id ? "font-medium" : "font-normal"}`}>
+                                                {link.name}
+                                            </span>
+                                        )}
                                         {isCollapsed && (
-                                            <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 ease-out whitespace-nowrap z-50 border border-border shadow-lg group-hover:scale-100 scale-95 animate-in fade-in slide-in-from-left-2">
+                                            <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">
                                                 {link.tooltip || link.name}
                                                 <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-1.5 h-1.5 bg-popover border-l border-b border-border rotate-45" />
                                             </div>
@@ -651,32 +805,32 @@ export function AppSidebar() {
                     </div>
 
                     {/* Séparateur */}
-                    <div className="px-3 my-1">
-                        <hr className="border-border" />
+                    <div className={`my-3 ${isCollapsed ? 'px-2' : 'px-4'}`}>
+                        <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
                     </div>
 
                     {/* Services externes */}
-                    <div className="mb-1">
+                    <div className="mb-2">
                         <button
                             onClick={() => setIsExternalServicesExpanded(!isExternalServicesExpanded)}
                             className={`
-                                w-full text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors duration-200 flex items-center justify-between group
-                                ${isCollapsed ? "px-2.5 py-1.5 justify-center" : "px-3 py-1"}
+                                w-full text-[10px] font-medium text-muted-foreground/70 uppercase tracking-widest 
+                                hover:text-muted-foreground transition-all duration-200 flex items-center gap-2 group
+                                ${isCollapsed ? "px-2 py-1 justify-center" : "px-3 py-1.5"}
                             `}
                             title={isCollapsed ? "Services externes" : undefined}
                         >
                             {isCollapsed ? (
-                                <span className="text-[10px]">Services</span>
+                                <span className="text-[9px]">•••</span>
                             ) : (
                                 <>
-                                    <span>Services externes</span>
-                                    {isExternalServicesExpanded ? (
-                                        <ChevronDown size={14} className="transition-transform duration-200" />
-                                    ) : (
-                                        <ChevronRight size={14} className="transition-transform duration-200" />
-                                    )}
+                                    <span>Services Externes</span>
+                                    <ChevronDown 
+                                        size={12} 
+                                        className={`transition-transform duration-300 ${isExternalServicesExpanded ? '' : '-rotate-90'}`} 
+                                    />
                                 </>
-                        )}
+                            )}
                         </button>
                         {isExternalServicesExpanded && (
                             <ul className="space-y-0">
@@ -685,46 +839,29 @@ export function AppSidebar() {
                                     <button
                                         onClick={() => handleItemClick(service.id, service.href, true)}
                                         className={`
-                                            flex items-center space-x-2.5 rounded-md text-left group relative
-                                            transition-all duration-300 ease-out
-                                            hover:scale-[1.02] active:scale-[0.98]
-                                            ${isCollapsed ? "py-1.5 h-[32px] w-auto mx-auto justify-center px-2.5" : "py-2.5 min-h-[40px] w-full px-3"}
+                                            flex items-center gap-3 rounded-lg text-left group relative
+                                            transition-all duration-200 ease-out
+                                            ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"}
                                             ${activeItem === service.id
-                                                ? "bg-primary/10 text-primary shadow-sm"
-                                                : "text-muted-foreground hover:bg-accent hover:text-foreground hover:shadow-md"
+                                                ? "bg-primary/15 text-primary"
+                                                : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
                                             }
                                         `}
                                         title={isCollapsed ? service.tooltip || service.name : undefined}
                                     >
-                                        <div className="flex items-center justify-center min-w-[24px] h-[24px] flex-shrink-0 group-hover:scale-110">
-                                            <div className={`
-                                                flex items-center justify-center
-                                                transition-all duration-300
-                                                ${activeItem === service.id 
-                                                    ? "text-primary scale-110" 
-                                                    : "text-muted-foreground group-hover:text-foreground"
-                                                }
-                                            `}>
+                                        {activeItem === service.id && !isCollapsed && (
+                                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />
+                                        )}
+                                        <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === service.id ? '' : 'group-hover:scale-110'}`}>
                                                 {service.icon}
-                                            </div>
                                         </div>
-                                        <span 
-                                            className={`text-sm whitespace-nowrap ${activeItem === service.id ? "font-medium" : "font-normal"}`}
-                                            style={{
-                                                opacity: isCollapsed ? 0 : 1,
-                                                maxWidth: isCollapsed ? '0px' : '200px',
-                                                overflow: 'hidden',
-                                                transition: 'opacity 0.5s ease-out, max-width 0.5s ease-out',
-                                                willChange: 'opacity, max-width',
-                                                display: 'inline-block',
-                                                lineHeight: '1.5',
-                                                pointerEvents: isCollapsed ? 'none' : 'auto',
-                                            }}
-                                        >
-                                            {service.name}
-                                        </span>
+                                        {!isCollapsed && (
+                                            <span className={`text-sm ${activeItem === service.id ? "font-medium" : "font-normal"}`}>
+                                                {service.name}
+                                            </span>
+                                        )}
                                         {isCollapsed && (
-                                            <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 ease-out whitespace-nowrap z-50 border border-border shadow-lg group-hover:scale-100 scale-95 animate-in fade-in slide-in-from-left-2">
+                                            <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">
                                                 {service.tooltip || service.name}
                                                 <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-1.5 h-1.5 bg-popover border-l border-b border-border rotate-45" />
                                             </div>
@@ -737,60 +874,16 @@ export function AppSidebar() {
                     </div>
                 </nav>
 
-                {/* Bottom section with settings */}
-                <div className="mt-auto border-t border-border">
-                    <div className="p-3">
-                        <Dialog>
-                            <DialogTrigger asChild>
-                                <button
-                                    className={`
-                                        w-full flex items-center rounded-md text-left group
-                                        transition-all duration-300 ease-out
-                                        hover:scale-[1.02] active:scale-[0.98]
-                                        text-muted-foreground hover:bg-accent hover:text-foreground
-                                        ${isCollapsed ? "justify-center p-2.5" : "space-x-2.5 px-3 py-2.5"}
-                                    `}
-                                    title={isCollapsed ? "Paramètres" : undefined}
-                                >
-                                    <div className="flex items-center justify-center min-w-[24px] h-[24px] flex-shrink-0">
-                                        <Settings className="h-4.5 w-4.5 flex items-center justify-center text-muted-foreground group-hover:text-foreground" />
-                                    </div>
-                                    
-                                    <span 
-                                        className="text-sm whitespace-nowrap"
-                                        style={{
-                                            opacity: isCollapsed ? 0 : 1,
-                                            maxWidth: isCollapsed ? '0px' : '200px',
-                                            overflow: 'hidden',
-                                            transition: 'opacity 0.5s ease-out, max-width 0.5s ease-out',
-                                            willChange: 'opacity, max-width',
-                                            display: 'inline-block',
-                                            lineHeight: '1.5',
-                                            pointerEvents: isCollapsed ? 'none' : 'auto',
-                                        }}
-                                    >
-                                        Paramètres
-                                    </span>
-                                    
-                                    {/* Tooltip for collapsed state */}
-                                    {isCollapsed && (
-                                        <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 ease-out whitespace-nowrap z-50 border border-border shadow-lg group-hover:scale-100 scale-95 animate-in fade-in slide-in-from-left-2">
-                                            Paramètres
-                                            <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-1.5 h-1.5 bg-popover border-l border-b border-border rotate-45" />
-                                        </div>
-                                    )}
-                                </button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                                <DialogHeader>
-                                    <DialogTitle>Paramètres</DialogTitle>
-                                    <DialogDescription>
-                                        Gérez les paramètres de l'application
-                                    </DialogDescription>
-                                </DialogHeader>
-                                <SettingsContent />
-                            </DialogContent>
-                        </Dialog>
+                {/* Bottom section with user profile */}
+                <div className="mt-auto">
+                    {/* Séparateur */}
+                    <div className={`mb-2 ${isCollapsed ? 'px-2' : 'px-4'}`}>
+                        <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+                    </div>
+                    
+                    {/* User Profile */}
+                    <div className={`${isCollapsed ? 'px-2' : 'px-3'} pb-3`}>
+                        <SidebarUserProfile isCollapsed={isCollapsed} onMenuOpenChange={setUserMenuOpen} />
                     </div>
                 </div>
             </div>

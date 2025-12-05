@@ -1,9 +1,9 @@
-
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useUpdater } from '@/hooks/useUpdater';
-import { Download, Github, Store, AlertTriangle } from 'lucide-react';
+import { Download, Github, Store, AlertTriangle, RefreshCw, Loader2 } from 'lucide-react';
 import openExternal from '@/utils/external';
 import { formatVersion, getAppVersionSync } from '@/utils/version';
 
@@ -68,13 +68,23 @@ export default function UpdatesPage() {
     const distInfo = getDistributionInfo();
 
     return (
-        <div className="flex flex-col w-full h-full p-2 pr-3 space-y-4 overflow-y-auto">
-            <div className="space-y-2">
-                <h1 className="text-3xl font-bold">Mises à jour</h1>
-                <p className="text-muted-foreground">
-                    Gérez les mises à jour selon votre version de StarTrad FR
-                </p>
-            </div>
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+            className="flex flex-col w-full h-full p-4 overflow-hidden"
+        >
+            <div className="flex flex-col gap-6 h-full overflow-y-auto pr-2">
+                {/* Header */}
+                <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-blue-500/10">
+                        <Download className="h-6 w-6 text-blue-500" />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight">Mises à jour</h1>
+                        <p className="text-sm text-muted-foreground">Gérez les mises à jour de StarTrad FR</p>
+                    </div>
+                </div>
 
             {/* Info Distribution */}
             <Card>
@@ -231,6 +241,7 @@ export default function UpdatesPage() {
                     </CardContent>
                 </Card>
             )}
-        </div>
+            </div>
+        </motion.div>
     );
 } 

@@ -4,6 +4,10 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { RemoteCharactersPresetsList, Row } from "@/types/charactersList";
 import { CharacterCard } from '@/components/custom/character-card';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Download, Search, TrendingUp, Clock, Loader2 } from 'lucide-react';
 import logger from "@/utils/logger";
 
 function CharactersPresetsList() {
@@ -113,99 +117,121 @@ function CharactersPresetsList() {
 
     return (
         <motion.div
-            initial={{ opacity: 0, x: 100 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{
-                duration: 0.8,
-                delay: 0.2,
-                ease: [0, 0.71, 0.2, 1.01],
-            }}
-            className="flex w-full flex-col p-2 pr-3"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+            className="flex flex-col w-full h-full p-4 overflow-hidden"
         >
-            {/* Description d'en-tête */}
-            <div className="my-4 p-4 bg-muted/30 rounded-lg border border-muted">
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                    Parcourez et téléchargez des presets de personnages partagés par la communauté SC Characters.
-                    Trouvez l'apparence parfaite pour votre personnage Star Citizen.
-                </p>
-            </div>
+            <div className="flex flex-col gap-4 h-full">
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-cyan-500/10">
+                            <Download className="h-6 w-6 text-cyan-500" />
+                        </div>
+                        <div>
+                            <h1 className="text-2xl font-bold tracking-tight">Presets en Ligne</h1>
+                            <p className="text-sm text-muted-foreground">Téléchargez des presets de la communauté SC Characters</p>
+                        </div>
+                    </div>
+                </div>
 
-            {/* Barre de recherche + Tri */}
-            <div className="w-full flex flex-col md:flex-row md:items-center md:justify-between gap-3 my-4">
-                <input
-                    id="character-search-input"
-                    name="character-search"
-                    type="text"
-                    placeholder="Rechercher un personnage..."
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    className="border rounded px-4 py-2 w-full md:max-w-md shadow bg-background/30"
-                />
-                <div className="flex items-center gap-2">
-                    {[
-                        { key: 'latest' as const, label: 'Récents' },
-                        { key: 'download' as const, label: 'Populaires' },
-                    ].map(opt => (
-                        <button
-                            key={opt.key}
+                {/* Search & Filter */}
+                <div className="flex flex-col md:flex-row md:items-center gap-3">
+                    <div className="relative flex-1 max-w-md">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            id="character-search-input"
+                            name="character-search"
+                            type="text"
+                            placeholder="Rechercher un personnage..."
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                            className="pl-10"
+                        />
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant={sort === 'latest' ? 'default' : 'outline'}
+                            size="sm"
                             onClick={() => {
-                                orderRef.current = opt.key;
-                                setSort(opt.key);
+                                orderRef.current = 'latest';
+                                setSort('latest');
                                 setCharactersPresets([]);
                                 setPage(1);
                                 setHasMore(true);
-                                // Forcer la requête même si un chargement était en cours
                                 getCharacters(1, debouncedSearch, true);
                             }}
-                            className={`px-3 py-1 rounded border text-sm ${sort === opt.key ? 'bg-primary text-primary-foreground' : 'bg-background/30'}`}
+                            className="gap-2"
                         >
-                            {opt.label}
-                        </button>
-                    ))}
-                </div>
-            </div>
-            <div
-                ref={gridRef}
-                className="grid grid-cols-3 xl:grid-cols-5 gap-4 max-h-[calc(100vh-115px)] overflow-x-hidden overflow-y-auto modern-scrollbar"
-            >
-                {charactersPresets.length === 0 && isLoading && Array.from({ length: 12 }).map((_, i) => (
-                    <div key={`skeleton-${i}`} className="h-64 rounded bg-background/30 animate-pulse" />
-                ))}
-                {charactersPresets.map((character, index) => {
-                    // On réinitialise le delay à chaque batch de 12
-                    const batchSize = 12;
-                    const batchIndex = index % batchSize;
-                    return (
-                        <motion.div
-                            initial={{ opacity: 0, x: 100 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{
-                                duration: 0.8,
-                                delay: 0.2 * batchIndex,
-                                ease: [0, 0.71, 0.2, 1.01],
+                            <Clock className="h-4 w-4" />
+                            Récents
+                        </Button>
+                        <Button
+                            variant={sort === 'download' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => {
+                                orderRef.current = 'download';
+                                setSort('download');
+                                setCharactersPresets([]);
+                                setPage(1);
+                                setHasMore(true);
+                                getCharacters(1, debouncedSearch, true);
                             }}
-                            className="flex w-full flex-col"
-                            key={index}
+                            className="gap-2"
                         >
-                            <CharacterCard
-                                url={character.previewUrl}
-                                name={character.title}
-                                owner={character.user.name}
-                                characterid={character.id}
-                                downloads={character._count.characterDownloads}
-                                likes={character._count.characterLikes}
-                                dnaurl={character.dnaUrl}
-                            />
-                        </motion.div>
-                    );
-                })}
+                            <TrendingUp className="h-4 w-4" />
+                            Populaires
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Grid */}
+                <div
+                    ref={gridRef}
+                    className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 flex-1 overflow-y-auto pr-2"
+                >
+                    {charactersPresets.length === 0 && isLoading && Array.from({ length: 10 }).map((_, i) => (
+                        <div key={`skeleton-${i}`} className="aspect-[3/4] rounded-xl bg-muted/30 animate-pulse" />
+                    ))}
+                    {charactersPresets.map((character, index) => {
+                        const batchSize = 10;
+                        const batchIndex = index % batchSize;
+                        return (
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ duration: 0.3, delay: 0.03 * batchIndex }}
+                                className="aspect-[3/4]"
+                                key={character.id}
+                            >
+                                <CharacterCard
+                                    url={character.previewUrl}
+                                    name={character.title}
+                                    owner={character.user.name}
+                                    characterid={character.id}
+                                    downloads={character._count.characterDownloads}
+                                    likes={character._count.characterLikes}
+                                    dnaurl={character.dnaUrl}
+                                />
+                            </motion.div>
+                        );
+                    })}
+                </div>
+
+                {/* Loading / End indicators */}
+                {isLoading && charactersPresets.length > 0 && (
+                    <div className="flex items-center justify-center py-4 gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Chargement...</span>
+                    </div>
+                )}
+                {!hasMore && charactersPresets.length > 0 && (
+                    <div className="text-center py-4">
+                        <span className="text-sm text-muted-foreground">🎉 Fin de la liste</span>
+                    </div>
+                )}
             </div>
-            {isLoading && (
-                <div className="w-full text-center py-4 text-gray-500">Chargement...</div>
-            )}
-            {!hasMore && (
-                <div className="w-full text-center py-4 text-gray-400">Fin de la liste</div>
-            )}
         </motion.div>
     );
 }

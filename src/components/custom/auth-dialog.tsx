@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import CloudBackupContent from './cloud-backup-content';
-import { MessageCircle } from 'lucide-react';
+import { MessageCircle, Cloud, User as UserIcon, Save, LogIn } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
 
@@ -55,14 +55,18 @@ export default function AuthDialog({ open, onOpenChange, defaultTab }: AuthDialo
             console.log('Auth state changed:', event, session?.user?.email);
             setUser(session?.user ?? null);
             
-            // Si on détecte une connexion et qu'on attend Discord, arrêter le loading
-            if (event === 'SIGNED_IN' && discordLoading && session?.user) {
-                setDiscordLoading(false);
+            // Si on détecte une connexion, basculer vers l'onglet backup
+            if (event === 'SIGNED_IN' && session?.user) {
                 setActiveTab('backup');
-                toast({
-                    title: 'Connexion réussie',
-                    description: 'Vous êtes maintenant connecté avec Discord',
-                });
+                
+                // Si on attend Discord, arrêter le loading
+                if (discordLoading) {
+                    setDiscordLoading(false);
+                    toast({
+                        title: 'Connexion réussie',
+                        description: 'Vous êtes maintenant connecté avec Discord',
+                    });
+                }
             }
         });
 
@@ -563,14 +567,26 @@ export default function AuthDialog({ open, onOpenChange, defaultTab }: AuthDialo
 
                 {user ? (
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                        <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="backup">Mes sauvegardes</TabsTrigger>
-                            <TabsTrigger value="account">Mon compte</TabsTrigger>
+                        <TabsList className="grid w-full grid-cols-2 bg-muted/50 p-1 rounded-lg">
+                            <TabsTrigger 
+                                value="backup" 
+                                className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md"
+                            >
+                                <Save className="h-4 w-4" />
+                                Mes sauvegardes
+                            </TabsTrigger>
+                            <TabsTrigger 
+                                value="account" 
+                                className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md"
+                            >
+                                <UserIcon className="h-4 w-4" />
+                                Mon compte
+                            </TabsTrigger>
                         </TabsList>
-                        <TabsContent value="backup" className="mt-4">
+                        <TabsContent value="backup" className="mt-6">
                             <CloudBackupContent user={user} />
                         </TabsContent>
-                        <TabsContent value="account" className="mt-4 space-y-4">
+                        <TabsContent value="account" className="mt-6 space-y-4">
                             {user.user_metadata?.avatar_url && (
                                 <div className="flex justify-center">
                                     <img 
@@ -611,9 +627,21 @@ export default function AuthDialog({ open, onOpenChange, defaultTab }: AuthDialo
                     </Tabs>
                 ) : (
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                        <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="login">Connexion</TabsTrigger>
-                            <TabsTrigger value="signup">Inscription</TabsTrigger>
+                        <TabsList className="grid w-full grid-cols-2 bg-muted/50 p-1 rounded-lg">
+                            <TabsTrigger 
+                                value="login" 
+                                className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md"
+                            >
+                                <LogIn className="h-4 w-4" />
+                                Connexion
+                            </TabsTrigger>
+                            <TabsTrigger 
+                                value="signup" 
+                                className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md"
+                            >
+                                <UserIcon className="h-4 w-4" />
+                                Inscription
+                            </TabsTrigger>
                         </TabsList>
                         <TabsContent value="login" className="mt-4 space-y-4">
                             <form onSubmit={handleSignIn} className="space-y-4">

@@ -11,9 +11,9 @@ const isVercel = process.env.VERCEL === '1';
 // Lire la version depuis tauri.conf.json (si disponible)
 let appVersion = "0.0.0";
 if (existsSync("./src-tauri/tauri.conf.json")) {
-    const tauriConfig = JSON.parse(
-        readFileSync("./src-tauri/tauri.conf.json", "utf8")
-    );
+const tauriConfig = JSON.parse(
+    readFileSync("./src-tauri/tauri.conf.json", "utf8")
+);
     appVersion = tauriConfig.version;
 }
 

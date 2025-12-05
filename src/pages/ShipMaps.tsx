@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, RefreshCw, Loader2 } from "lucide-react";
+import { ExternalLink, RefreshCw, Loader2, Map } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import openExternal from "@/utils/external";
 
@@ -114,10 +114,10 @@ export default function ShipMaps() {
 
     return (
         <motion.div
-            initial={{ opacity: 0, x: 100 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.2, ease: [0, 0.71, 0.2, 1.01] }}
-            className="flex w-full h-full flex-col relative p-2 overflow-hidden"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+            className="flex w-full h-full flex-col relative p-4 overflow-hidden"
             style={{ 
                 maxHeight: '100%', 
                 height: '100%',
@@ -127,26 +127,33 @@ export default function ShipMaps() {
                 overflow: 'hidden'
             }}
         >
-            {/* Barre d'outils */}
-            <div className="absolute top-2 left-1/2 transform -translate-x-1/2 z-10 flex gap-2 opacity-70 hover:opacity-100 transition-opacity duration-300">
-                <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={handleRefresh}
-                    className="h-8 px-2 bg-background/90 backdrop-blur-sm border border-border/50 shadow-sm"
-                    title="Rafraîchir"
-                >
-                    <RefreshCw className="h-4 w-4" />
-                </Button>
-                <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={handleOpenExternal}
-                    className="h-8 px-2 bg-background/90 backdrop-blur-sm border border-border/50 shadow-sm"
-                    title="Ouvrir dans le navigateur"
-                >
-                    <ExternalLink className="h-4 w-4" />
-                </Button>
+            {/* Header flottant */}
+            <div className="absolute top-4 left-4 right-4 z-10 flex items-center justify-between">
+                <div className="flex items-center gap-3 bg-background/80 backdrop-blur-sm rounded-lg px-4 py-2 border border-border/50 shadow-sm">
+                    <Map className="h-5 w-5 text-indigo-500" />
+                    <span className="font-medium text-sm">Cartes de Vaisseaux ADI</span>
+                </div>
+                <div className="flex gap-2">
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={handleRefresh}
+                        className="h-8 px-3 bg-background/80 backdrop-blur-sm border border-border/50 shadow-sm"
+                        title="Rafraîchir"
+                    >
+                        <RefreshCw className="h-4 w-4" />
+                    </Button>
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={handleOpenExternal}
+                        className="h-8 px-3 bg-background/80 backdrop-blur-sm border border-border/50 shadow-sm gap-2"
+                        title="Ouvrir dans le navigateur"
+                    >
+                        <ExternalLink className="h-4 w-4" />
+                        <span className="hidden sm:inline text-xs">Navigateur</span>
+                    </Button>
+                </div>
             </div>
 
             {/* Indicateur de chargement */}

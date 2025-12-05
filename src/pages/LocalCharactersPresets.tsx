@@ -12,7 +12,8 @@ import logger from "@/utils/logger";
 import { isProtectedPath } from "@/utils/fs-permissions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Plus, Folder } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Plus, Folder, Users, Loader2, Save } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
 
 function LocalCharactersPresets() {
@@ -296,20 +297,23 @@ function LocalCharactersPresets() {
 
     if (!gamePaths) {
         return (
-            <div className="flex h-screen w-full items-center justify-center">
-                <p>Recherche des installations de Star Citizen...</p>
+            <div className="flex h-full w-full flex-col items-center justify-center gap-4">
+                <div className="p-4 rounded-full bg-muted animate-pulse">
+                    <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
+                </div>
+                <p className="text-muted-foreground">Recherche des installations de Star Citizen...</p>
             </div>
         );
     }
 
     if (isLoading) {
         return (
-            <div className="flex h-screen w-full items-center justify-center">
-                <p>
-                    Récupération des données{" "}
-                    {Array.from({ length: loadingDot }).map((_, i) => (
-                        <span key={i}>.</span>
-                    ))}
+            <div className="flex h-full w-full flex-col items-center justify-center gap-4">
+                <div className="p-4 rounded-full bg-muted animate-pulse">
+                    <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
+                </div>
+                <p className="text-muted-foreground">
+                    Récupération des données{Array.from({ length: loadingDot }).map((_, i) => <span key={i}>.</span>)}
                 </p>
             </div>
         );
@@ -317,101 +321,124 @@ function LocalCharactersPresets() {
 
     return (
         <motion.div
-            initial={{ opacity: 0, x: 100 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{
-                duration: 0.8,
-                delay: 0.2,
-                ease: [0, 0.71, 0.2, 1.01],
-            }}
-            className="flex flex-col w-full max-h-[calc(100vh-50px)] p-2 pr-3"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+            className="flex flex-col w-full h-full p-4 overflow-hidden"
         >
-            <div className="flex items-center gap-2 mb-4">
-                <h1 className="text-2xl mt-5">Gestionnaire de presets de Personnages</h1>
-            </div>
-
-            <Tabs defaultValue="presets" className="w-full">
-                <TabsList className="mb-4">
-                    <TabsTrigger value="presets">Presets locaux</TabsTrigger>
-                    <TabsTrigger value="backups">Sauvegardes</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="presets" className="space-y-4">
-            {/* Description d'en-tête */}
-                    <div className="p-4 bg-muted/30 rounded-lg border border-muted">
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                    Gérez vos configurations de personnages sauvegardées localement.
-                    Importez, exportez et organisez vos presets entre les différentes versions du jeu.
-                </p>
-            </div>
-
-            <DataTable
-                columns={columns(toast, refreshLocalCharacters, availableVersions)}
-                        data={localCharacters}
-                    />
-                </TabsContent>
-                
-                <TabsContent value="backups" className="space-y-4">
-                    <div className="p-4 bg-muted/30 rounded-lg border border-muted">
-                        <p className="text-sm text-muted-foreground leading-relaxed mb-2">
-                            Gérez les sauvegardes de vos personnages Star Citizen. Créez des sauvegardes, restaurez-les vers différentes versions du jeu.
-                        </p>
-                        <p className="text-xs text-yellow-500/90">
-                            Note : Le changement d'emplacement de sauvegarde nécessite un redémarrage de l'application.
-                        </p>
+            <div className="flex flex-col gap-6 h-full">
+                {/* Header */}
+                <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-pink-500/10">
+                        <Users className="h-6 w-6 text-pink-500" />
                     </div>
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight">Gestionnaire de Personnages</h1>
+                        <p className="text-sm text-muted-foreground">Gérez vos presets et sauvegardes</p>
+                    </div>
+                </div>
+
+                <Tabs defaultValue="presets" className="flex-1 flex flex-col overflow-hidden">
+                    <TabsList className="mb-4 w-fit bg-muted/50 p-1 rounded-lg">
+                        <TabsTrigger value="presets" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md px-4">
+                            <Users className="h-4 w-4" />
+                            Presets locaux
+                        </TabsTrigger>
+                        <TabsTrigger value="backups" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md px-4">
+                            <Save className="h-4 w-4" />
+                            Sauvegardes
+                        </TabsTrigger>
+                    </TabsList>
                     
-                    <div className="flex justify-between items-center">
-                        <div className="flex gap-2">
-                            <Button
-                                variant="default"
-                                size="sm"
-                                onClick={handleCreateBackup}
-                                className="gap-2"
-                            >
-                                <Plus className="h-4 w-4" />
-                                Créer une sauvegarde
-                            </Button>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={handleChangeFolder}
-                                className="gap-2"
-                            >
-                                <Folder className="h-4 w-4" />
-                                Changer de dossier
-                            </Button>
-                            {backupDir && (
+                    <TabsContent value="presets" className="flex flex-col gap-4 overflow-auto">
+                        <Card className="bg-gradient-to-r from-pink-500/5 to-pink-500/10 border-pink-500/20">
+                            <CardContent className="py-4">
+                                <p className="text-sm text-muted-foreground leading-relaxed">
+                                    👤 Gérez vos configurations de personnages sauvegardées localement.
+                                    Importez, exportez et organisez vos presets entre les différentes versions du jeu.
+                                </p>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="overflow-hidden">
+                            <CardContent className="p-0">
+                                <DataTable
+                                    columns={columns(toast, refreshLocalCharacters, availableVersions)}
+                                    data={localCharacters}
+                                />
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                    
+                    <TabsContent value="backups" className="flex flex-col gap-4 overflow-auto">
+                        <Card className="bg-gradient-to-r from-amber-500/5 to-amber-500/10 border-amber-500/20">
+                            <CardContent className="py-4">
+                                <p className="text-sm text-muted-foreground leading-relaxed">
+                                    💾 Gérez les sauvegardes de vos personnages. Créez des sauvegardes et restaurez-les vers différentes versions du jeu.
+                                </p>
+                                <p className="text-xs text-yellow-500/90 mt-2">
+                                    ⚠️ Le changement d'emplacement de sauvegarde nécessite un redémarrage de l'application.
+                                </p>
+                            </CardContent>
+                        </Card>
+                        
+                        <div className="flex justify-between items-center">
+                            <div className="flex gap-2">
                                 <Button
-                                    variant="ghost"
+                                    variant="default"
                                     size="sm"
-                                    onClick={handleOpenBackupFolder}
+                                    onClick={handleCreateBackup}
+                                    className="gap-2"
+                                >
+                                    <Plus className="h-4 w-4" />
+                                    Créer une sauvegarde
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleChangeFolder}
                                     className="gap-2"
                                 >
                                     <Folder className="h-4 w-4" />
-                                    Ouvrir le dossier
+                                    Changer de dossier
                                 </Button>
+                                {backupDir && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={handleOpenBackupFolder}
+                                        className="gap-2"
+                                    >
+                                        <Folder className="h-4 w-4" />
+                                        Ouvrir
+                                    </Button>
+                                )}
+                            </div>
+                            {backupDir && (
+                                <p className="text-xs text-muted-foreground truncate max-w-[300px]">
+                                    📁 {backupDir}
+                                </p>
                             )}
                         </div>
-                        {backupDir && (
-                            <div className="text-sm text-muted-foreground">
-                                Dossier : {backupDir || "(défaut)"}
-                            </div>
-                        )}
-                    </div>
-                    
-                    {isLoadingBackups ? (
-                        <div className="flex items-center justify-center h-24">
-                            <p>Chargement des sauvegardes...</p>
-                        </div>
-                    ) : (
-                        <BackupDataTable
-                            columns={backupColumns(toast, refreshBackups, gameVersionsList, refreshLocalCharacters)}
-                            data={backups}
-                        />
-                    )}
-                </TabsContent>
-            </Tabs>
+                        
+                        <Card className="overflow-hidden">
+                            <CardContent className="p-0">
+                                {isLoadingBackups ? (
+                                    <div className="flex flex-col items-center justify-center h-32 gap-3">
+                                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                                        <p className="text-sm text-muted-foreground">Chargement des sauvegardes...</p>
+                                    </div>
+                                ) : (
+                                    <BackupDataTable
+                                        columns={backupColumns(toast, refreshBackups, gameVersionsList, refreshLocalCharacters)}
+                                        data={backups}
+                                    />
+                                )}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                </Tabs>
+            </div>
         </motion.div>
     );
 }

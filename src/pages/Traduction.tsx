@@ -10,8 +10,9 @@ import {
     Link,
 } from "@/types/translation";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import logger from "@/utils/logger";
-import { Loader2, XCircle, CheckCircle, AlertCircle, HelpCircle } from "lucide-react";
+import { Loader2, XCircle, CheckCircle, AlertCircle, HelpCircle, Globe2, Languages, Settings2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -506,64 +507,24 @@ export default function Traduction() {
                 key={key}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{
-                    duration: 0.3,
-                    delay: 0.4 + index * 0.2
-                }}
-                className="w-full"
+                transition={{ duration: 0.3, delay: 0.1 + index * 0.1 }}
             >
-                <div className="w-full rounded-lg border border-primary/50 bg-card/50 hover:bg-card/60 shadow-sm p-2 duration-150 ease-in-out">
-                    <div className="grid grid-cols-12 gap-2">
-                        {/* Nom */}
-                        <div className="flex justify-start items-center col-span-1">
-                            <p className="font-medium text-sm">
+                <Card className="bg-background/40 border border-border/50 shadow-sm hover:shadow-md transition-all duration-200">
+                    <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                            <CardTitle className="text-lg flex items-center gap-2">
+                                <Globe2 className="h-5 w-5 text-primary" />
                                 {key}
-                            </p>
-                        </div>
-
-                        {/* Chemin */}
-                        <div className="flex justify-start items-center col-span-2 truncate">
-                            <Tooltip>
-                                <TooltipTrigger className="hover:cursor-default">
-                                    <p className="text-sm text-muted-foreground">
-                                        {value.path}...
-                                    </p>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p className="text-sm text-muted-foreground">
-                                        {value.path}
-                                    </p>
-                                </TooltipContent>
-                            </Tooltip>
-                        </div>
-
-                        {/* Switch pour settings FR/EN */}
-                        <div className="flex justify-center items-center gap-2 col-span-3">
-                            <span className="text-sm">Français</span>
-                            {loadingButtonId === `switch-${key}` ? (
-                                <Loader2 className="h-5 w-5 animate-spin" />
-                            ) : (
-                                <Switch
-                                    checked={translationsSelected[key as keyof TranslationsChoosen]?.settingsEN === true}
-                                    onCheckedChange={(checked) => handleSettingsToggle(key, checked)}
-                                    disabled={loadingButtonId !== null || !translationsSelected[key as keyof TranslationsChoosen]?.link}
-                                />
-                            )}
-                            <span className="text-sm">Anglais</span>
-                        </div>
-
-                        {/* État de la traduction */}
-                        <div className="flex items-center justify-start col-span-1">
+                            </CardTitle>
                             {value.up_to_date ? (
-                                <Badge variant="default" className="gap-1">
+                                <Badge variant="default" className="gap-1 bg-green-500/20 text-green-600 dark:text-green-400 border-green-500/30">
                                     <CheckCircle className="h-3.5 w-3.5" />
                                     À jour
                                 </Badge>
                             ) : value.translated ? (
-                                <Badge variant="default" className="gap-1">
+                                <Badge variant="default" className="gap-1 bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border-yellow-500/30">
                                     <AlertCircle className="h-3.5 w-3.5" />
-                                    Obsolète
+                                    Mise à jour dispo
                                 </Badge>
                             ) : (
                                 <Badge variant="outline" className="gap-1">
@@ -572,16 +533,32 @@ export default function Traduction() {
                                 </Badge>
                             )}
                         </div>
-
-                        {/* Dropdown pour choisir la traduction */}
-                        <div className="flex justify-center items-center col-span-3">
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <p className="text-xs text-muted-foreground truncate cursor-help mt-1">
+                                    📁 {value.path}
+                                </p>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p className="text-sm">{value.path}</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </CardHeader>
+                    
+                    <CardContent className="space-y-4">
+                        {/* Sélection de traduction */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium flex items-center gap-2">
+                                <Languages className="h-4 w-4" />
+                                Source de traduction
+                            </label>
                             {translations && translations.fr && translations.fr.links && translations.fr.links.length > 0 && (
                                 <Select
                                     value={translationsSelected[key as keyof TranslationsChoosen]?.link || ""}
-                                    onValueChange={(value) => handleTranslationSelect(key, value)}
+                                    onValueChange={(val) => handleTranslationSelect(key, val)}
                                     disabled={loadingButtonId !== null}
                                 >
-                                    <SelectTrigger className="w-[150px] h-8 text-xs">
+                                    <SelectTrigger className="w-full">
                                         <SelectValue placeholder="Choisir une traduction" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -595,28 +572,61 @@ export default function Traduction() {
                             )}
                         </div>
 
+                        {/* Toggle paramètres FR/EN */}
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/30">
+                            <div className="flex items-center gap-2">
+                                <Settings2 className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm">Langue des paramètres</span>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Langue des menus et paramètres du jeu</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className={`text-xs ${!translationsSelected[key as keyof TranslationsChoosen]?.settingsEN ? 'text-primary font-medium' : 'text-muted-foreground'}`}>
+                                    FR
+                                </span>
+                                {loadingButtonId === `switch-${key}` ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Switch
+                                        checked={translationsSelected[key as keyof TranslationsChoosen]?.settingsEN === true}
+                                        onCheckedChange={(checked) => handleSettingsToggle(key, checked)}
+                                        disabled={loadingButtonId !== null || !translationsSelected[key as keyof TranslationsChoosen]?.link}
+                                    />
+                                )}
+                                <span className={`text-xs ${translationsSelected[key as keyof TranslationsChoosen]?.settingsEN ? 'text-primary font-medium' : 'text-muted-foreground'}`}>
+                                    EN
+                                </span>
+                            </div>
+                        </div>
+
                         {/* Boutons d'action */}
-                        <div className="flex justify-end items-center gap-2 col-span-2">
+                        <div className="flex flex-wrap gap-2 pt-2">
                             {!value.translated && (
                                 <Button
-                                    size="sm"
+                                    className="flex-1"
                                     disabled={loadingButtonId === `install-${key}`}
                                     onClick={() => handleInstallTranslation(value.path, key)}
                                 >
                                     {loadingButtonId === `install-${key}` ? (
                                         <>
-                                            <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                             Installation...
                                         </>
                                     ) : (
-                                        "Installer"
+                                        "Installer la traduction"
                                     )}
                                 </Button>
                             )}
                             {value.translated && !value.up_to_date && translationsSelected[key as keyof TranslationsChoosen]?.link && (
                                 <Button
-                                    variant={"secondary"}
-                                    size="sm"
+                                    variant="secondary"
+                                    className="flex-1"
                                     disabled={loadingButtonId === `update-${key}`}
                                     onClick={() =>
                                         handleUpdateTranslation(
@@ -628,7 +638,7 @@ export default function Traduction() {
                                 >
                                     {loadingButtonId === `update-${key}` ? (
                                         <>
-                                            <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                             Mise à jour...
                                         </>
                                     ) : (
@@ -638,7 +648,7 @@ export default function Traduction() {
                             )}
                             {value.translated && (
                                 <Button
-                                    variant={"destructive"}
+                                    variant="destructive"
                                     size="sm"
                                     disabled={loadingButtonId === `uninstall-${key}`}
                                     onClick={async () => {
@@ -651,18 +661,15 @@ export default function Traduction() {
                                     }}
                                 >
                                     {loadingButtonId === `uninstall-${key}` ? (
-                                        <>
-                                            <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                                            Désinstallation...
-                                        </>
+                                        <Loader2 className="h-4 w-4 animate-spin" />
                                     ) : (
                                         "Désinstaller"
                                     )}
                                 </Button>
                             )}
                         </div>
-                    </div>
-                </div>
+                    </CardContent>
+                </Card>
             </motion.div>
         ));
     }, [
@@ -679,70 +686,50 @@ export default function Traduction() {
 
     return (
         <motion.div
-            initial={{ opacity: 0, x: 100 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{
-                duration: 0.8,
-                delay: 0.2,
-                ease: [0, 0.71, 0.2, 1.01],
-            }}
-            className="flex flex-col w-full max-h-[calc(100vh-50px)] p-2 pr-3"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+            className="flex flex-col w-full h-full p-4 overflow-hidden"
         >
             {paths && Object.entries(paths?.versions)[0] ? (
-                <div
-                    className="w-full max-w-full flex flex-col
-                    gap-2 mt-5 overflow-y-scroll overflow-x-hidden pr-3 pb-3"
-                >
-                    {/* Description d'en-tête */}
-                    <div className="mb-4 p-4 bg-muted/30 rounded-lg border border-muted">
-                        <p className="text-sm text-muted-foreground leading-relaxed">
-                            Installez et gérez la traduction française de Star Citizen. La traduction vous est fournie par la communauté de SCEFRA et inclut la traduction de circuspes de la communauté de Hugo Lisoir.
-                        </p>
+                <div className="flex flex-col gap-6 h-full overflow-y-auto pr-2">
+                    {/* Header */}
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-primary/10">
+                            <Languages className="h-6 w-6 text-primary" />
+                        </div>
+                        <div>
+                            <h1 className="text-2xl font-bold tracking-tight">Traduction Française</h1>
+                            <p className="text-sm text-muted-foreground">Installez et gérez la traduction de Star Citizen</p>
+                        </div>
                     </div>
 
-                    <div className="grid grid-cols-12 pr-4 gap-5">
-                        <p className="col-span-1 font-bold">
-                            Version
-                        </p>
-                        <p className="col-span-2 text-center font-bold">
-                            Chemin
-                        </p>
-                        <p className="col-span-3 text-center font-bold flex items-center justify-center gap-1">
-                            Paramètres
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p>Langue des paramètres du jeu</p>
-                                </TooltipContent>
-                            </Tooltip>
-                        </p>
-                        <p className="col-span-1 text-center font-bold">
-                            État
-                        </p>
-                        <p className="col-span-3 text-center font-bold">
-                            Traduction
-                        </p>
-                        <p className="col-span-2 text-end font-bold">
-                            Action
-                        </p>
+                    {/* Info box */}
+                    <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
+                        <CardContent className="py-4">
+                            <p className="text-sm text-muted-foreground leading-relaxed">
+                                🇫🇷 La traduction vous est fournie par la communauté <strong>SCEFRA</strong> et inclut la traduction de circuspes de la communauté de <strong>Hugo Lisoir</strong>.
+                            </p>
+                        </CardContent>
+                    </Card>
+
+                    {/* Version cards */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pb-4">
+                        {renderCard}
                     </div>
-                    {renderCard}
                 </div>
             ) : (
-                <div className="flex flex-col items-center justify-center w-full h-screen">
-                    <h2 className="text-3xl font-bold mb-2">
-                        Aucune version du jeu n{"'"}a été trouvée
-                    </h2>
-                    <p className="max-w-[500px] text-center leading-7">
-                        Pour régler ce problème, lancez Star Citizen, puis
-                        rechargez cette page en faisant la manipulation suivante
-                        :
-                        <span className="bg-gray-500 px-2 py-1 ml-2">
-                            CRTL + R
-                        </span>
-                    </p>
+                <div className="flex flex-col items-center justify-center w-full h-full gap-4">
+                    <div className="p-4 rounded-full bg-muted">
+                        <Globe2 className="h-12 w-12 text-muted-foreground" />
+                    </div>
+                    <div className="text-center space-y-2">
+                        <h2 className="text-2xl font-bold">Aucune version détectée</h2>
+                        <p className="text-muted-foreground max-w-md">
+                            Lancez Star Citizen au moins une fois, puis rechargez cette page avec
+                            <kbd className="mx-2 px-2 py-1 text-xs bg-muted rounded border">CTRL + R</kbd>
+                        </p>
+                    </div>
                 </div>
             )}
         </motion.div>

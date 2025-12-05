@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSe
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Monitor, Settings2 } from "lucide-react";
+import { Monitor, Settings2, Loader2, Cpu } from "lucide-react";
 
 // Résolutions prédéfinies
 const PREDEFINED_RESOLUTIONS = [
@@ -157,135 +157,148 @@ export default function GraphicsSettings() {
 
     return (
         <motion.div
-            initial={{ opacity: 0, x: 100 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{
-                duration: 0.8,
-                delay: 0.2,
-                ease: [0, 0.71, 0.2, 1.01],
-            }}
-            className="flex flex-col w-full max-h-[calc(100vh-50px)] p-2 pr-3"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+            className="flex flex-col w-full h-full p-4 overflow-hidden"
         >
-            <div className="flex items-center gap-2 mb-4">
-                <h1 className="text-2xl mt-5">Paramètres Graphiques</h1>
-            </div>
-
-            {isLoading ? (
-                <div className="flex items-center justify-center h-64">
-                    <p>Chargement des paramètres...</p>
+            <div className="flex flex-col gap-6 h-full overflow-y-auto pr-2">
+                {/* Header */}
+                <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-purple-500/10">
+                        <Monitor className="h-6 w-6 text-purple-500" />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight">Paramètres Graphiques</h1>
+                        <p className="text-sm text-muted-foreground">Configurez le rendu et la résolution</p>
+                    </div>
                 </div>
-            ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {/* Toggle Vulkan/DirectX */}
-                    <Card className="bg-background/40">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Settings2 className="h-5 w-5" />
-                                Renderer Graphique
-                            </CardTitle>
-                            <CardDescription>
-                                Choisissez entre Vulkan et DirectX 11
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <div className="space-y-0.5">
-                                    <Label htmlFor="renderer-toggle">
-                                        {isVulkan ? "Vulkan" : "DirectX 11"}
-                                    </Label>
-                                    <p className="text-sm text-muted-foreground">
-                                        {isVulkan 
-                                            ? "Vulkan est actuellement activé" 
-                                            : "DirectX 11 est actuellement activé"}
-                                    </p>
-                                </div>
-                                <Switch
-                                    id="renderer-toggle"
-                                    checked={isVulkan}
-                                    onCheckedChange={handleRendererToggle}
-                                    disabled={isSaving}
-                                />
-                            </div>
-                        </CardContent>
-                    </Card>
 
-                    {/* Résolution */}
-                    <Card className="bg-background/40">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Monitor className="h-5 w-5" />
-                                Résolution
-                            </CardTitle>
-                            <CardDescription>
-                                Définissez la résolution d'affichage
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="resolution-select">Résolution</Label>
-                                <Select
-                                    value={selectedResolution}
-                                    onValueChange={handleResolutionChange}
-                                    disabled={isSaving}
-                                >
-                                    <SelectTrigger id="resolution-select">
-                                        <SelectValue placeholder="Sélectionnez une résolution" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {PREDEFINED_RESOLUTIONS.map((res) => (
-                                            <SelectItem
-                                                key={`${res.width}x${res.height}`}
-                                                value={`${res.width}x${res.height}`}
-                                            >
-                                                {res.label}
+                {isLoading ? (
+                    <div className="flex flex-col items-center justify-center h-64 gap-3">
+                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                        <p className="text-muted-foreground">Chargement des paramètres...</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Toggle Vulkan/DirectX */}
+                        <Card className="bg-background/40 border border-border/50 shadow-sm">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-lg">
+                                    <Cpu className="h-5 w-5 text-purple-500" />
+                                    Renderer Graphique
+                                </CardTitle>
+                                <CardDescription>
+                                    Choisissez entre Vulkan et DirectX 11
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border/30">
+                                    <div className="space-y-1">
+                                        <Label htmlFor="renderer-toggle" className="text-base font-medium">
+                                            {isVulkan ? "🔥 Vulkan" : "⚡ DirectX 11"}
+                                        </Label>
+                                        <p className="text-sm text-muted-foreground">
+                                            {isVulkan 
+                                                ? "Meilleure performance sur hardware moderne" 
+                                                : "Compatibilité maximale"}
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        id="renderer-toggle"
+                                        checked={isVulkan}
+                                        onCheckedChange={handleRendererToggle}
+                                        disabled={isSaving}
+                                    />
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Résolution */}
+                        <Card className="bg-background/40 border border-border/50 shadow-sm">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-lg">
+                                    <Settings2 className="h-5 w-5 text-blue-500" />
+                                    Résolution
+                                </CardTitle>
+                                <CardDescription>
+                                    Définissez la résolution d'affichage
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="resolution-select">Résolution prédéfinie</Label>
+                                    <Select
+                                        value={selectedResolution}
+                                        onValueChange={handleResolutionChange}
+                                        disabled={isSaving}
+                                    >
+                                        <SelectTrigger id="resolution-select">
+                                            <SelectValue placeholder="Sélectionnez une résolution" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {PREDEFINED_RESOLUTIONS.map((res) => (
+                                                <SelectItem
+                                                    key={`${res.width}x${res.height}`}
+                                                    value={`${res.width}x${res.height}`}
+                                                >
+                                                    {res.label}
+                                                </SelectItem>
+                                            ))}
+                                            <SelectSeparator />
+                                            <SelectItem value={CUSTOM_VALUE}>
+                                                ✏️ Personnalisée
                                             </SelectItem>
-                                        ))}
-                                        <SelectSeparator />
-                                        <SelectItem value={CUSTOM_VALUE}>
-                                            Personnalisée
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            {selectedResolution === CUSTOM_VALUE && (
-                                <div className="grid grid-cols-2 gap-4 pt-2">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="width">Largeur</Label>
-                                        <Input
-                                            id="width"
-                                            type="number"
-                                            value={width}
-                                            onChange={(e) => setWidth(e.target.value)}
-                                            placeholder="1920"
-                                            disabled={isSaving}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="height">Hauteur</Label>
-                                        <Input
-                                            id="height"
-                                            type="number"
-                                            value={height}
-                                            onChange={(e) => setHeight(e.target.value)}
-                                            placeholder="1080"
-                                            disabled={isSaving}
-                                        />
-                                    </div>
+                                        </SelectContent>
+                                    </Select>
                                 </div>
-                            )}
 
-                            <Button
-                                onClick={handleResolutionSave}
-                                disabled={isSaving}
-                                className="w-full"
-                            >
-                                {isSaving ? "Sauvegarde..." : "Sauvegarder la résolution"}
-                            </Button>
-                        </CardContent>
-                    </Card>
-                </div>
-            )}
+                                {selectedResolution === CUSTOM_VALUE && (
+                                    <div className="grid grid-cols-2 gap-4 pt-2">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="width">Largeur (px)</Label>
+                                            <Input
+                                                id="width"
+                                                type="number"
+                                                value={width}
+                                                onChange={(e) => setWidth(e.target.value)}
+                                                placeholder="1920"
+                                                disabled={isSaving}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="height">Hauteur (px)</Label>
+                                            <Input
+                                                id="height"
+                                                type="number"
+                                                value={height}
+                                                onChange={(e) => setHeight(e.target.value)}
+                                                placeholder="1080"
+                                                disabled={isSaving}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                <Button
+                                    onClick={handleResolutionSave}
+                                    disabled={isSaving}
+                                    className="w-full"
+                                >
+                                    {isSaving ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Sauvegarde...
+                                        </>
+                                    ) : (
+                                        "Sauvegarder la résolution"
+                                    )}
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
+            </div>
         </motion.div>
     );
 }

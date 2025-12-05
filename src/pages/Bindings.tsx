@@ -1,10 +1,11 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState, useCallback } from "react";
 import { columns } from "@/components/custom/bindings/columns";
 import { DataTable } from "@/components/custom/bindings/data-table";
-import { Plus, Folder } from "lucide-react";
+import { Plus, Folder, Keyboard, Loader2, RefreshCw } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 
@@ -119,64 +120,77 @@ export default function Bindings() {
 
     return (
         <motion.div
-            initial={{ opacity: 0, x: 100 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{
-                duration: 0.8,
-                delay: 0.2,
-                ease: [0, 0.71, 0.2, 1.01],
-            }}
-            className="flex flex-col w-full max-h-[calc(100vh-50px)] p-2 pr-3"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+            className="flex flex-col w-full h-full p-4 overflow-hidden"
         >
-            <div className="flex items-center gap-2 mb-4">
-                <h1 className="text-2xl mt-5">Gestion des Bindings</h1>
-            </div>
-
-            {/* Description d'en-tête */}
-            <div className="mb-4 p-4 bg-muted/30 rounded-lg border border-muted">
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                    Gérez vos fichiers de configuration des contrôles de Star Citizen.
-                    Importez, supprimez et organisez vos fichiers de bindings XML.
-                </p>
-            </div>
-
-            {/* Actions */}
-            <div className="mb-4 flex justify-end gap-2">
-                <Button
-                    variant="default"
-                    size="sm"
-                    onClick={handleImportBindings}
-                    className="gap-2"
-                >
-                    <Plus className="h-4 w-4" />
-                    Importer des bindings
-                </Button>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleOpenFolder}
-                    className="gap-2"
-                >
-                    <Folder className="h-4 w-4" />
-                    Ouvrir le dossier
-                </Button>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleRefreshBindings}
-                >
-                    Rafraîchir la liste
-                </Button>
-            </div>
-
-            {/* Table */}
-            {isLoading ? (
-                <div className="flex items-center justify-center h-24">
-                    <p>Chargement des bindings...</p>
+            <div className="flex flex-col gap-6 h-full overflow-y-auto pr-2">
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-blue-500/10">
+                            <Keyboard className="h-6 w-6 text-blue-500" />
+                        </div>
+                        <div>
+                            <h1 className="text-2xl font-bold tracking-tight">Gestion des Bindings</h1>
+                            <p className="text-sm text-muted-foreground">Gérez vos configurations de contrôles</p>
+                        </div>
+                    </div>
+                    <div className="flex gap-2">
+                        <Button
+                            variant="default"
+                            size="sm"
+                            onClick={handleImportBindings}
+                            className="gap-2"
+                        >
+                            <Plus className="h-4 w-4" />
+                            Importer
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleOpenFolder}
+                            className="gap-2"
+                        >
+                            <Folder className="h-4 w-4" />
+                            Dossier
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleRefreshBindings}
+                            className="gap-2"
+                        >
+                            <RefreshCw className="h-4 w-4" />
+                        </Button>
+                    </div>
                 </div>
-            ) : (
-                <DataTable columns={columns(toast, loadBindings)} data={bindings} />
-            )}
+
+                {/* Info Card */}
+                <Card className="bg-gradient-to-r from-blue-500/5 to-blue-500/10 border-blue-500/20">
+                    <CardContent className="py-4">
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                            🎮 Importez vos fichiers <strong>XML</strong> de configuration des contrôles.
+                            Ils seront copiés dans le dossier de Star Citizen pour être utilisés en jeu.
+                        </p>
+                    </CardContent>
+                </Card>
+
+                {/* Table */}
+                <Card className="flex-1 overflow-hidden">
+                    <CardContent className="p-0">
+                        {isLoading ? (
+                            <div className="flex flex-col items-center justify-center h-32 gap-3">
+                                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                                <p className="text-sm text-muted-foreground">Chargement des bindings...</p>
+                            </div>
+                        ) : (
+                            <DataTable columns={columns(toast, loadBindings)} data={bindings} />
+                        )}
+                    </CardContent>
+                </Card>
+            </div>
         </motion.div>
     );
 }

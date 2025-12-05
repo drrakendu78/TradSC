@@ -5,7 +5,7 @@ import { XMLParser } from "fast-xml-parser";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, RefreshCw } from "lucide-react";
+import { ExternalLink, RefreshCw, Newspaper, Loader2 } from "lucide-react";
 
 const RSS_URL = "https://leonick.se/feeds/rsi/atom";
 
@@ -246,18 +246,24 @@ export default function Actualites() {
     if (loading) {
         return (
             <motion.div
-                initial={{ opacity: 0, x: 100 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.8, delay: 0.2, ease: [0, 0.71, 0.2, 1.01] }}
-                className="flex w-full h-full flex-col gap-4 p-2 pr-3"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
+                className="flex flex-col w-full h-full p-4"
             >
-                <div className="flex items-center justify-between">
-                    <h1 className="text-3xl font-bold">Actualités Star Citizen</h1>
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 rounded-lg bg-orange-500/10">
+                        <Newspaper className="h-6 w-6 text-orange-500" />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight">Actualités Star Citizen</h1>
+                        <p className="text-sm text-muted-foreground">Dernières nouvelles de RSI</p>
+                    </div>
                 </div>
                 <div className="space-y-4">
-                    <Skeleton className="h-[200px] w-full" />
-                    <Skeleton className="h-[200px] w-full" />
-                    <Skeleton className="h-[200px] w-full" />
+                    <Skeleton className="h-[140px] w-full rounded-lg" />
+                    <Skeleton className="h-[140px] w-full rounded-lg" />
+                    <Skeleton className="h-[140px] w-full rounded-lg" />
                 </div>
             </motion.div>
         );
@@ -266,18 +272,24 @@ export default function Actualites() {
     if (error) {
         return (
             <motion.div
-                initial={{ opacity: 0, x: 100 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.8, delay: 0.2, ease: [0, 0.71, 0.2, 1.01] }}
-                className="flex w-full h-full flex-col gap-4 p-2 pr-3"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
+                className="flex flex-col w-full h-full p-4"
             >
-                <div className="flex items-center justify-between">
-                    <h1 className="text-3xl font-bold">Actualités Star Citizen</h1>
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 rounded-lg bg-orange-500/10">
+                        <Newspaper className="h-6 w-6 text-orange-500" />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight">Actualités Star Citizen</h1>
+                        <p className="text-sm text-muted-foreground">Dernières nouvelles de RSI</p>
+                    </div>
                 </div>
-                <Card className="bg-background/40 p-4 border-red-500/50">
-                    <CardContent>
-                        <h3 className="text-red-700 dark:text-red-400 font-semibold mb-2">Erreur lors du chargement du flux RSS</h3>
-                        <p className="text-red-600 dark:text-red-300 mb-4">{error}</p>
+                <Card className="bg-red-500/10 border-red-500/30">
+                    <CardContent className="py-6">
+                        <h3 className="text-red-600 dark:text-red-400 font-semibold mb-2">Erreur de chargement</h3>
+                        <p className="text-red-500/80 mb-4 text-sm">{error}</p>
                         <Button 
                             onClick={fetchRss}
                             variant="outline"
@@ -294,24 +306,34 @@ export default function Actualites() {
 
     return (
         <motion.div
-            initial={{ opacity: 0, x: 100 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.2, ease: [0, 0.71, 0.2, 1.01] }}
-            className="flex w-full h-full flex-col gap-4 p-2 pr-3"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+            className="flex flex-col w-full h-full p-4 overflow-hidden"
         >
-            <div className="flex items-center justify-between">
-                <h1 className="text-3xl font-bold">Actualités Star Citizen</h1>
-                <Button 
-                    onClick={fetchRss}
-                    variant="outline"
-                    size="sm"
-                    className="gap-2"
-                    disabled={loading}
-                >
-                    <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                    Actualiser
-                </Button>
-            </div>
+            <div className="flex flex-col gap-4 h-full">
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-orange-500/10">
+                            <Newspaper className="h-6 w-6 text-orange-500" />
+                        </div>
+                        <div>
+                            <h1 className="text-2xl font-bold tracking-tight">Actualités Star Citizen</h1>
+                            <p className="text-sm text-muted-foreground">Dernières nouvelles officielles</p>
+                        </div>
+                    </div>
+                    <Button 
+                        onClick={fetchRss}
+                        variant="outline"
+                        size="sm"
+                        className="gap-2"
+                        disabled={loading}
+                    >
+                        <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                        Actualiser
+                    </Button>
+                </div>
             
             <div 
                 ref={scrollContainerRef}
@@ -417,11 +439,12 @@ export default function Actualites() {
                 {isLoadingMore && (
                     <div className="flex justify-center py-4">
                         <div className="flex items-center gap-2 text-muted-foreground">
-                            <RefreshCw className="h-4 w-4 animate-spin" />
+                            <Loader2 className="h-4 w-4 animate-spin" />
                             <span>Chargement...</span>
                         </div>
                     </div>
                 )}
+            </div>
             </div>
         </motion.div>
     );
