@@ -18,7 +18,26 @@ import {
 } from 'lucide-react';
 import RecentPatchNotes from '@/components/custom/recent-patchnotes';
 import RecentActualites from '@/components/custom/recent-actualites';
-import { HolidayWishesDialog } from '@/components/custom/holiday-wishes-dialog';
+import { AnnouncementDialog } from '@/components/custom/announcement-dialog';
+
+// ============================================
+// CONFIGURATION DE LA POPUP D'ANNONCE
+// ============================================
+// Pour activer une annonce, modifie les valeurs ci-dessous
+// Pour désactiver, mets showAnnouncement à false
+const ANNOUNCEMENT_CONFIG = {
+    showAnnouncement: false, // Mettre à true pour afficher l'annonce
+    storageKey: "startradfr_annonce_2026", // Change cette clé pour chaque nouvelle annonce
+    title: "Joyeux Noël 2026 !",
+    message: "Toute l'équipe de StarTrad FR vous souhaite de merveilleuses fêtes ! 🎄✨",
+    secondaryMessage: "Merci de faire partie de notre communauté.",
+    buttonText: "Merci et bonne année !",
+    delay: 500, // Délai avant affichage en millisecondes
+    // Optionnel : décommente pour personnaliser
+    // gradientColors: "from-red-500/20 via-green-500/20 to-background/80",
+    // showDontShowAgain: true,
+};
+// ============================================
 
 // Animation variants pour les cartes
 const cardVariants = {
@@ -77,7 +96,18 @@ function QuickAction({ to, icon, title, description, color, index }: QuickAction
 function Home() {
     return (
         <div className="flex w-full h-full flex-col gap-6 p-4 overflow-y-auto">
-            <HolidayWishesDialog />
+            
+            {/* Popup d'annonce - uniquement sur la page d'accueil */}
+            {ANNOUNCEMENT_CONFIG.showAnnouncement && (
+                <AnnouncementDialog
+                    storageKey={ANNOUNCEMENT_CONFIG.storageKey}
+                    title={ANNOUNCEMENT_CONFIG.title}
+                    message={ANNOUNCEMENT_CONFIG.message}
+                    secondaryMessage={ANNOUNCEMENT_CONFIG.secondaryMessage}
+                    buttonText={ANNOUNCEMENT_CONFIG.buttonText}
+                    delay={ANNOUNCEMENT_CONFIG.delay}
+                />
+            )}
             
             {/* Hero Section - Action principale */}
             <motion.div
