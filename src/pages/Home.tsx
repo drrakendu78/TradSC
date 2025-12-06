@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
@@ -19,6 +20,7 @@ import {
 import RecentPatchNotes from '@/components/custom/recent-patchnotes';
 import RecentActualites from '@/components/custom/recent-actualites';
 import { AnnouncementDialog } from '@/components/custom/announcement-dialog';
+import { useSidebarStore } from '@/stores/sidebar-store';
 
 // ============================================
 // CONFIGURATION DE LA POPUP D'ANNONCE
@@ -91,8 +93,44 @@ function QuickAction({ to, icon, title, description, color, index }: QuickAction
 }
 
 function Home() {
+    const { isCollapsed } = useSidebarStore();
+    const [isDesktop, setIsDesktop] = useState(false);
+    
+    useEffect(() => {
+        const checkDesktop = () => setIsDesktop(window.innerWidth >= 768);
+        checkDesktop();
+        window.addEventListener('resize', checkDesktop);
+        return () => window.removeEventListener('resize', checkDesktop);
+    }, []);
+    
+    const sidebarLeft = isCollapsed ? '5rem' : '14rem'; // w-20 = 5rem, w-56 = 14rem
+    const sidebarWidth = isCollapsed ? '5rem' : '14rem';
+    
     return (
-        <div className="flex w-full h-full flex-col gap-6 p-4 overflow-y-auto">
+        <div className="flex w-full h-full flex-col gap-6 p-4 overflow-y-auto relative">
+            
+            {/* Vidéo de fond avec fondu progressif */}
+            <div 
+                className="fixed top-0 h-[70vh] z-0 pointer-events-none overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]"
+                style={{
+                    left: isDesktop ? sidebarLeft : '0',
+                    width: isDesktop ? `calc(100% - ${sidebarWidth})` : '100%'
+                }}
+            >
+                <video
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="w-full h-full object-cover"
+                    style={{
+                        maskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.9) 35%, rgba(0,0,0,0.5) 50%, rgba(0,0,0,0.2) 60%, rgba(0,0,0,0) 70%)',
+                        WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.9) 35%, rgba(0,0,0,0.5) 50%, rgba(0,0,0,0.2) 60%, rgba(0,0,0,0) 70%)',
+                    }}
+                >
+                    <source src="/video-montage-sc.mp4" type="video/mp4" />
+                </video>
+            </div>
             
             {/* Popup d'annonce - uniquement sur la page d'accueil */}
             {ANNOUNCEMENT_CONFIG.showAnnouncement && (
@@ -111,6 +149,7 @@ function Home() {
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6 }}
+                className="relative z-10"
             >
                 <Card className="bg-gradient-to-br from-primary/20 via-background/60 to-background/40 border-primary/30 overflow-hidden relative">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
@@ -138,7 +177,7 @@ function Home() {
             </motion.div>
 
             {/* Actions rapides */}
-            <div className="space-y-3">
+            <div className="space-y-3 relative z-10">
                 <motion.h2 
                     className="text-lg font-semibold flex items-center gap-2 px-1"
                     initial={{ opacity: 0 }}
@@ -202,7 +241,7 @@ function Home() {
             </div>
 
             {/* Section infos */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 relative z-10">
                 
                 {/* Patchnotes */}
                 <motion.div

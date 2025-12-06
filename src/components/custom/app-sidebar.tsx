@@ -506,7 +506,7 @@ export function AppSidebar() {
                     fixed top-0 left-0 h-full bg-background/70 backdrop-blur-xl backdrop-saturate-150 border-r border-border/50 z-40 flex flex-col
                     ${isOpen ? "translate-x-0" : "-translate-x-full"}
                     ${isCollapsed ? "w-20" : "w-56"}
-                    md:translate-x-0 md:static md:z-auto
+                    md:translate-x-0 md:static md:z-50
                     transition-all duration-500 ease-&lsqb;cubic-bezier(0.4,0,0.2,1)&rsqb;
                 `}
                 style={{

@@ -39,11 +39,11 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             <DragRegion className="w-full h-screen max-h-screen max-w-full overflow-hidden flex" style={{ height: '100vh', maxHeight: '100vh', minHeight: '100vh', alignItems: 'stretch' }}>
                 <AppSidebar />
                 <div className='flex h-full mt-2 flex-col flex-1 overflow-hidden md:ml-0' style={{ maxHeight: '100vh', height: '100%', minHeight: 0, flexShrink: 0 }}>
-                    <div className='w-max-content flex items-center gap-2.5 -ml-3'>
+                    <div className='w-max-content flex items-center gap-2.5 -ml-3 relative z-50'>
                         <button
                             onClick={toggleLock}
                             className={`
-                                relative overflow-hidden
+                                relative overflow-hidden z-50
                                 p-2 rounded-lg
                                 transition-all duration-300 ease-out
                                 bg-background/70 backdrop-blur-xl backdrop-saturate-150
