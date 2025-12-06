@@ -173,10 +173,11 @@ function Home() {
             
             {/* Vidéo de fond avec fondu progressif */}
             <div 
-                className="fixed top-0 h-[70vh] z-0 pointer-events-none overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]"
+                className="fixed top-0 h-[70vh] z-0 pointer-events-none overflow-hidden transition-all duration-500"
                 style={{
                     left: isDesktop ? sidebarLeft : '0',
-                    width: isDesktop ? `calc(100% - ${sidebarWidth})` : '100%'
+                    width: isDesktop ? `calc(100% - ${sidebarWidth})` : '100%',
+                    transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)'
                 }}
             >
                 <video
