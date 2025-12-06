@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
@@ -95,6 +95,8 @@ function QuickAction({ to, icon, title, description, color, index }: QuickAction
 function Home() {
     const { isCollapsed } = useSidebarStore();
     const [isDesktop, setIsDesktop] = useState(false);
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const [isMuted, setIsMuted] = useState(false);
     
     useEffect(() => {
         const checkDesktop = () => setIsDesktop(window.innerWidth >= 768);
@@ -102,6 +104,66 @@ function Home() {
         window.addEventListener('resize', checkDesktop);
         return () => window.removeEventListener('resize', checkDesktop);
     }, []);
+    
+    // Gérer les changements de volume et mute
+    useEffect(() => {
+        const handleVolumeChange = (e: CustomEvent) => {
+            const newVolume = e.detail;
+            if (videoRef.current) {
+                videoRef.current.volume = newVolume;
+            }
+        };
+        
+        const handleMuteChange = (e: CustomEvent) => {
+            const newMuted = e.detail;
+            setIsMuted(newMuted);
+            if (videoRef.current) {
+                videoRef.current.muted = newMuted;
+            }
+        };
+        
+        window.addEventListener('videoVolumeChange', handleVolumeChange as EventListener);
+        window.addEventListener('videoMuteChange', handleMuteChange as EventListener);
+        
+        return () => {
+            window.removeEventListener('videoVolumeChange', handleVolumeChange as EventListener);
+            window.removeEventListener('videoMuteChange', handleMuteChange as EventListener);
+        };
+    }, []);
+    
+    // Initialiser le volume de la vidéo quand elle est prête
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video) return;
+        
+        const initializeVideo = () => {
+            const savedVolume = localStorage.getItem('videoVolume');
+            const vol = savedVolume ? parseFloat(savedVolume) : 0.5;
+            video.volume = vol;
+            video.muted = isMuted;
+        };
+        
+        const handleLoadedMetadata = () => {
+            initializeVideo();
+        };
+        
+        const handleCanPlay = () => {
+            initializeVideo();
+        };
+        
+        video.addEventListener('loadedmetadata', handleLoadedMetadata);
+        video.addEventListener('canplay', handleCanPlay);
+        
+        // Si la vidéo est déjà chargée
+        if (video.readyState >= 1) {
+            initializeVideo();
+        }
+        
+        return () => {
+            video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+            video.removeEventListener('canplay', handleCanPlay);
+        };
+    }, [isMuted]);
     
     const sidebarLeft = isCollapsed ? '5rem' : '14rem'; // w-20 = 5rem, w-56 = 14rem
     const sidebarWidth = isCollapsed ? '5rem' : '14rem';
@@ -118,14 +180,38 @@ function Home() {
                 }}
             >
                 <video
+                    ref={videoRef}
                     autoPlay
                     loop
-                    muted
                     playsInline
+                    muted={isMuted}
                     className="w-full h-full object-cover"
                     style={{
                         maskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.9) 35%, rgba(0,0,0,0.5) 50%, rgba(0,0,0,0.2) 60%, rgba(0,0,0,0) 70%)',
                         WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.9) 35%, rgba(0,0,0,0.5) 50%, rgba(0,0,0,0.2) 60%, rgba(0,0,0,0) 70%)',
+                    }}
+                    onLoadedMetadata={() => {
+                        if (videoRef.current) {
+                            const savedVolume = localStorage.getItem('videoVolume');
+                            const vol = savedVolume ? parseFloat(savedVolume) : 0.5;
+                            videoRef.current.volume = vol;
+                            videoRef.current.muted = isMuted;
+                            // Forcer la lecture
+                            videoRef.current.play().catch(err => {
+                                console.error('Erreur de lecture de la vidéo:', err);
+                            });
+                        }
+                    }}
+                    onCanPlay={() => {
+                        if (videoRef.current) {
+                            const savedVolume = localStorage.getItem('videoVolume');
+                            const vol = savedVolume ? parseFloat(savedVolume) : 0.5;
+                            videoRef.current.volume = vol;
+                            videoRef.current.muted = isMuted;
+                        }
+                    }}
+                    onError={(e) => {
+                        console.error('Erreur de chargement de la vidéo:', e);
                     }}
                 >
                     <source src="/video-montage-sc.mp4" type="video/mp4" />
