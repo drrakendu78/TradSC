@@ -165,6 +165,48 @@ function Home() {
         };
     }, [isMuted]);
     
+    // Mettre en pause la vidéo quand la fenêtre est minimisée ou en arrière-plan
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video) return;
+        
+        const handleVisibilityChange = () => {
+            if (document.hidden) {
+                // Fenêtre cachée/minimisée : mettre en pause
+                video.pause();
+            } else {
+                // Fenêtre visible : reprendre la lecture
+                video.play().catch(err => {
+                    console.error('Erreur de reprise de la vidéo:', err);
+                });
+            }
+        };
+        
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        
+        // Détecter aussi quand la fenêtre perd le focus (blur)
+        const handleBlur = () => {
+            video.pause();
+        };
+        
+        const handleFocus = () => {
+            if (!document.hidden) {
+                video.play().catch(err => {
+                    console.error('Erreur de reprise de la vidéo:', err);
+                });
+            }
+        };
+        
+        window.addEventListener('blur', handleBlur);
+        window.addEventListener('focus', handleFocus);
+        
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('blur', handleBlur);
+            window.removeEventListener('focus', handleFocus);
+        };
+    }, []);
+    
     const sidebarLeft = isCollapsed ? '5rem' : '14rem'; // w-20 = 5rem, w-56 = 14rem
     const sidebarWidth = isCollapsed ? '5rem' : '14rem';
     
