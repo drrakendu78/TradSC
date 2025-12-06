@@ -15,7 +15,9 @@ import {
     Rocket,
     ArrowRight,
     Sparkles,
-    Map
+    Map,
+    Eye,
+    EyeOff
 } from 'lucide-react';
 import RecentPatchNotes from '@/components/custom/recent-patchnotes';
 import RecentActualites from '@/components/custom/recent-actualites';
@@ -97,6 +99,7 @@ function Home() {
     const [isDesktop, setIsDesktop] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isMuted, setIsMuted] = useState(false);
+    const [showContent, setShowContent] = useState(true);
     
     useEffect(() => {
         const checkDesktop = () => setIsDesktop(window.innerWidth >= 768);
@@ -211,7 +214,7 @@ function Home() {
     const sidebarWidth = isCollapsed ? '5rem' : '14rem';
     
     return (
-        <div className="flex w-full h-full flex-col gap-6 p-4 overflow-y-auto relative">
+        <div className="flex w-full h-full flex-col gap-6 p-4 overflow-y-auto relative justify-between">
             
             {/* Vidéo de fond avec fondu progressif */}
             <div 
@@ -230,8 +233,8 @@ function Home() {
                     muted={isMuted}
                     className="w-full h-full object-cover"
                     style={{
-                        maskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.9) 35%, rgba(0,0,0,0.5) 50%, rgba(0,0,0,0.2) 60%, rgba(0,0,0,0) 70%)',
-                        WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.9) 35%, rgba(0,0,0,0.5) 50%, rgba(0,0,0,0.2) 60%, rgba(0,0,0,0) 70%)',
+                        maskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 20%, rgba(0,0,0,0.9) 40%, rgba(0,0,0,0.5) 60%, rgba(0,0,0,0.2) 75%, rgba(0,0,0,0) 100%)',
+                        WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 20%, rgba(0,0,0,0.9) 40%, rgba(0,0,0,0.5) 60%, rgba(0,0,0,0.2) 75%, rgba(0,0,0,0) 100%)',
                     }}
                     onLoadedMetadata={() => {
                         if (videoRef.current) {
@@ -305,129 +308,187 @@ function Home() {
                 </Card>
             </motion.div>
 
+            {/* Bouton pour masquer/afficher le contenu */}
+            <div className="flex justify-end relative z-10 px-1">
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowContent(!showContent)}
+                    className="gap-2 text-muted-foreground hover:text-foreground"
+                >
+                    {showContent ? (
+                        <>
+                            <EyeOff className="h-4 w-4" />
+                            <span className="hidden sm:inline">Masquer le contenu</span>
+                        </>
+                    ) : (
+                        <>
+                            <Eye className="h-4 w-4" />
+                            <span className="hidden sm:inline">Afficher le contenu</span>
+                        </>
+                    )}
+                </Button>
+            </div>
+
             {/* Actions rapides */}
-            <div className="space-y-3 relative z-10">
-                <motion.h2 
-                    className="text-lg font-semibold flex items-center gap-2 px-1"
+            {showContent && (
+                <motion.div 
+                    className="space-y-3 relative z-10"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.3 }}
                 >
-                    <Sparkles className="h-4 w-4 text-primary" />
-                    Actions rapides
-                </motion.h2>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    <QuickAction
-                        to="/cache"
-                        icon={<Brush className="h-5 w-5" />}
-                        title="Gestion du cache"
-                        description="Libérer de l'espace disque"
-                        color="bg-orange-500"
-                        index={0}
-                    />
-                    <QuickAction
-                        to="/presets-local"
-                        icon={<Users className="h-5 w-5" />}
-                        title="Mes personnages"
-                        description="Gérer vos persos locaux"
-                        color="bg-blue-500"
-                        index={1}
-                    />
-                    <QuickAction
-                        to="/presets-remote"
-                        icon={<Download className="h-5 w-5" />}
-                        title="Persos en ligne"
-                        description="Télécharger des presets"
-                        color="bg-green-500"
-                        index={2}
-                    />
-                    <QuickAction
-                        to="/bindings"
-                        icon={<Keyboard className="h-5 w-5" />}
-                        title="Bindings"
-                        description="Raccourcis clavier"
-                        color="bg-purple-500"
-                        index={3}
-                    />
-                    <QuickAction
-                        to="/graphics-settings"
-                        icon={<Monitor className="h-5 w-5" />}
-                        title="Graphismes"
-                        description="Paramètres visuels"
-                        color="bg-pink-500"
-                        index={4}
-                    />
-                    <QuickAction
-                        to="/ship-maps"
-                        icon={<Map className="h-5 w-5" />}
-                        title="Cartes vaisseaux"
-                        description="Plans détaillés"
-                        color="bg-cyan-500"
-                        index={5}
-                    />
-                </div>
-            </div>
+                    <motion.h2 
+                        className="text-lg font-semibold flex items-center gap-2 px-1"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.3 }}
+                    >
+                        <Sparkles className="h-4 w-4 text-primary" />
+                        Actions rapides
+                    </motion.h2>
+                    
+                    <motion.div 
+                        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.3 }}
+                    >
+                        <QuickAction
+                            to="/cache"
+                            icon={<Brush className="h-5 w-5" />}
+                            title="Gestion du cache"
+                            description="Libérer de l'espace disque"
+                            color="bg-orange-500"
+                            index={0}
+                        />
+                        <QuickAction
+                            to="/presets-local"
+                            icon={<Users className="h-5 w-5" />}
+                            title="Mes personnages"
+                            description="Gérer vos persos locaux"
+                            color="bg-blue-500"
+                            index={1}
+                        />
+                        <QuickAction
+                            to="/presets-remote"
+                            icon={<Download className="h-5 w-5" />}
+                            title="Persos en ligne"
+                            description="Télécharger des presets"
+                            color="bg-green-500"
+                            index={2}
+                        />
+                        <QuickAction
+                            to="/bindings"
+                            icon={<Keyboard className="h-5 w-5" />}
+                            title="Bindings"
+                            description="Raccourcis clavier"
+                            color="bg-purple-500"
+                            index={3}
+                        />
+                        <QuickAction
+                            to="/graphics-settings"
+                            icon={<Monitor className="h-5 w-5" />}
+                            title="Graphismes"
+                            description="Paramètres visuels"
+                            color="bg-pink-500"
+                            index={4}
+                        />
+                        <QuickAction
+                            to="/ship-maps"
+                            icon={<Map className="h-5 w-5" />}
+                            title="Cartes vaisseaux"
+                            description="Plans détaillés"
+                            color="bg-cyan-500"
+                            index={5}
+                        />
+                    </motion.div>
+                </motion.div>
+            )}
 
             {/* Section infos */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 relative z-10">
-                
-                {/* Patchnotes */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 }}
+            {showContent && (
+                <motion.div 
+                    className="space-y-3 relative z-10"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.4 }}
                 >
-                    <Card className="bg-background/40 h-full">
-                        <CardHeader className="pb-3">
-                        <CardTitle className="text-base flex items-center gap-2">
-                                <FileText className="h-4 w-4 text-primary" />
-                                Patchnotes StarTrad
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <RecentPatchNotes max={3} />
-                            <Link to="/patchnotes">
-                                <Button variant="ghost" size="sm" className="w-full mt-3 text-xs">
-                                    Voir tout
-                                    <ArrowRight className="h-3 w-3 ml-1" />
-                                </Button>
-                            </Link>
-                    </CardContent>
-                </Card>
-                </motion.div>
+                    <motion.h2 
+                        className="text-lg font-semibold flex items-center gap-2 px-1"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.4 }}
+                    >
+                        <FileText className="h-4 w-4 text-primary" />
+                        Informations
+                    </motion.h2>
+                    
+                    <motion.div 
+                        className="grid grid-cols-1 lg:grid-cols-3 gap-4"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.3 }}
+                    >
+                        {/* Patchnotes */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.5 }}
+                        >
+                            <Card className="bg-background/40 h-full">
+                                <CardHeader className="pb-3">
+                                <CardTitle className="text-base flex items-center gap-2">
+                                        <FileText className="h-4 w-4 text-primary" />
+                                        Patchnotes StarTrad
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <RecentPatchNotes max={3} />
+                                    <Link to="/patchnotes">
+                                        <Button variant="ghost" size="sm" className="w-full mt-3 text-xs">
+                                            Voir tout
+                                            <ArrowRight className="h-3 w-3 ml-1" />
+                                        </Button>
+                                    </Link>
+                            </CardContent>
+                        </Card>
+                        </motion.div>
 
-                {/* Actualités */}
-                <motion.div
-                    className="lg:col-span-2"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.6 }}
-                >
-                    <Card className="bg-background/40 h-full">
-                        <CardHeader className="pb-3">
-                            <CardTitle className="text-base flex items-center gap-2">
-                                <Newspaper className="h-4 w-4 text-primary" />
-                                Actualités Star Citizen
-                            </CardTitle>
-                    </CardHeader>
-                        <CardContent>
-                        <RecentActualites max={3} />
-                            <Link to="/actualites">
-                                <Button variant="ghost" size="sm" className="w-full mt-3 text-xs">
-                                    Voir toutes les actualités
-                                    <ArrowRight className="h-3 w-3 ml-1" />
-                                </Button>
-                            </Link>
-                    </CardContent>
-                </Card>
+                        {/* Actualités */}
+                        <motion.div
+                            className="lg:col-span-2"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.6 }}
+                        >
+                            <Card className="bg-background/40 h-full">
+                                <CardHeader className="pb-3">
+                                    <CardTitle className="text-base flex items-center gap-2">
+                                        <Newspaper className="h-4 w-4 text-primary" />
+                                        Actualités Star Citizen
+                                    </CardTitle>
+                            </CardHeader>
+                                <CardContent>
+                                <RecentActualites max={3} />
+                                    <Link to="/actualites">
+                                        <Button variant="ghost" size="sm" className="w-full mt-3 text-xs">
+                                            Voir toutes les actualités
+                                            <ArrowRight className="h-3 w-3 ml-1" />
+                                        </Button>
+                                    </Link>
+                            </CardContent>
+                        </Card>
+                        </motion.div>
+                    </motion.div>
                 </motion.div>
-
-            </div>
+            )}
 
             {/* Footer hint */}
             <motion.p 
-                className="text-center text-xs text-muted-foreground/60 pb-2"
+                className="text-center text-xs text-muted-foreground/60 pb-2 relative z-10 mt-auto"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.8 }}
