@@ -9,6 +9,7 @@ import { getAppVersionSync, formatVersion } from '@/utils/version';
 import { useUpdater } from '@/hooks/useUpdater';
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useSidebarStore } from '@/stores/sidebar-store';
+import { BackgroundVideo } from '@/components/custom/background-video';
 
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
@@ -37,6 +38,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     return (
         <TooltipProvider>
             <DragRegion className="w-full h-screen max-h-screen max-w-full overflow-hidden flex" style={{ height: '100vh', maxHeight: '100vh', minHeight: '100vh', alignItems: 'stretch' }}>
+                <BackgroundVideo />
                 <AppSidebar />
                 <div className='flex h-full mt-2 flex-col flex-1 overflow-hidden md:ml-0' style={{ maxHeight: '100vh', height: '100%', minHeight: 0, flexShrink: 0 }}>
                     <div className='w-max-content flex items-center gap-2.5 -ml-3 relative z-50'>

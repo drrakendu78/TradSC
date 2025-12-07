@@ -4,17 +4,17 @@
     "version": "3.0.0",
     "identifier": "com.drrakendu78.startradfr",
     "build": {
-        "beforeDevCommand": "",
-        "devUrl": "https://startradfr.vercel.app",
-        "beforeBuildCommand": "",
-        "frontendDist": "https://startradfr.vercel.app"
+        "beforeDevCommand": "npm run dev",
+        "devUrl": "http://localhost:1420",
+        "beforeBuildCommand": "npm run build",
+        "frontendDist": "../dist"
     },
     "app": {
         "windows": [
             {
                 "title": "StarTrad FR",
                 "width": 1294,
-                "height": 864,
+                "height": 992,
                 "resizable": true,
                 "center": true,
                 "decorations": false,

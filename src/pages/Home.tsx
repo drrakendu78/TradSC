@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { useEffect, useState, useRef } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
@@ -22,7 +22,6 @@ import {
 import RecentPatchNotes from '@/components/custom/recent-patchnotes';
 import RecentActualites from '@/components/custom/recent-actualites';
 import { AnnouncementDialog } from '@/components/custom/announcement-dialog';
-import { useSidebarStore } from '@/stores/sidebar-store';
 
 // ============================================
 // CONFIGURATION DE LA POPUP D'ANNONCE
@@ -95,174 +94,10 @@ function QuickAction({ to, icon, title, description, color, index }: QuickAction
 }
 
 function Home() {
-    const { isCollapsed } = useSidebarStore();
-    const [isDesktop, setIsDesktop] = useState(false);
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const [isMuted, setIsMuted] = useState(false);
     const [showContent, setShowContent] = useState(true);
-    
-    useEffect(() => {
-        const checkDesktop = () => setIsDesktop(window.innerWidth >= 768);
-        checkDesktop();
-        window.addEventListener('resize', checkDesktop);
-        return () => window.removeEventListener('resize', checkDesktop);
-    }, []);
-    
-    // Gérer les changements de volume et mute
-    useEffect(() => {
-        const handleVolumeChange = (e: CustomEvent) => {
-            const newVolume = e.detail;
-            if (videoRef.current) {
-                videoRef.current.volume = newVolume;
-            }
-        };
-        
-        const handleMuteChange = (e: CustomEvent) => {
-            const newMuted = e.detail;
-            setIsMuted(newMuted);
-            if (videoRef.current) {
-                videoRef.current.muted = newMuted;
-            }
-        };
-        
-        window.addEventListener('videoVolumeChange', handleVolumeChange as EventListener);
-        window.addEventListener('videoMuteChange', handleMuteChange as EventListener);
-        
-        return () => {
-            window.removeEventListener('videoVolumeChange', handleVolumeChange as EventListener);
-            window.removeEventListener('videoMuteChange', handleMuteChange as EventListener);
-        };
-    }, []);
-    
-    // Initialiser le volume de la vidéo quand elle est prête
-    useEffect(() => {
-        const video = videoRef.current;
-        if (!video) return;
-        
-        const initializeVideo = () => {
-            const savedVolume = localStorage.getItem('videoVolume');
-            const vol = savedVolume ? parseFloat(savedVolume) : 0.5;
-            video.volume = vol;
-            video.muted = isMuted;
-        };
-        
-        const handleLoadedMetadata = () => {
-            initializeVideo();
-        };
-        
-        const handleCanPlay = () => {
-            initializeVideo();
-        };
-        
-        video.addEventListener('loadedmetadata', handleLoadedMetadata);
-        video.addEventListener('canplay', handleCanPlay);
-        
-        // Si la vidéo est déjà chargée
-        if (video.readyState >= 1) {
-            initializeVideo();
-        }
-        
-        return () => {
-            video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-            video.removeEventListener('canplay', handleCanPlay);
-        };
-    }, [isMuted]);
-    
-    // Mettre en pause la vidéo quand la fenêtre est minimisée ou en arrière-plan
-    useEffect(() => {
-        const video = videoRef.current;
-        if (!video) return;
-        
-        const handleVisibilityChange = () => {
-            if (document.hidden) {
-                // Fenêtre cachée/minimisée : mettre en pause
-                video.pause();
-            } else {
-                // Fenêtre visible : reprendre la lecture
-                video.play().catch(err => {
-                    console.error('Erreur de reprise de la vidéo:', err);
-                });
-            }
-        };
-        
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        
-        // Détecter aussi quand la fenêtre perd le focus (blur)
-        const handleBlur = () => {
-            video.pause();
-        };
-        
-        const handleFocus = () => {
-            if (!document.hidden) {
-                video.play().catch(err => {
-                    console.error('Erreur de reprise de la vidéo:', err);
-                });
-            }
-        };
-        
-        window.addEventListener('blur', handleBlur);
-        window.addEventListener('focus', handleFocus);
-        
-        return () => {
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-            window.removeEventListener('blur', handleBlur);
-            window.removeEventListener('focus', handleFocus);
-        };
-    }, []);
-    
-    const sidebarLeft = isCollapsed ? '5rem' : '14rem'; // w-20 = 5rem, w-56 = 14rem
-    const sidebarWidth = isCollapsed ? '5rem' : '14rem';
     
     return (
         <div className="flex w-full h-full flex-col gap-6 p-4 overflow-y-auto relative justify-between">
-            
-            {/* Vidéo de fond avec fondu progressif */}
-            <div 
-                className="fixed top-0 h-[70vh] z-0 pointer-events-none overflow-hidden transition-all duration-500"
-                style={{
-                    left: isDesktop ? sidebarLeft : '0',
-                    width: isDesktop ? `calc(100% - ${sidebarWidth})` : '100%',
-                    transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)'
-                }}
-            >
-                <video
-                    ref={videoRef}
-                    autoPlay
-                    loop
-                    playsInline
-                    muted={isMuted}
-                    className="w-full h-full object-cover"
-                    style={{
-                        maskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 20%, rgba(0,0,0,0.9) 40%, rgba(0,0,0,0.5) 60%, rgba(0,0,0,0.2) 75%, rgba(0,0,0,0) 100%)',
-                        WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 20%, rgba(0,0,0,0.9) 40%, rgba(0,0,0,0.5) 60%, rgba(0,0,0,0.2) 75%, rgba(0,0,0,0) 100%)',
-                    }}
-                    onLoadedMetadata={() => {
-                        if (videoRef.current) {
-                            const savedVolume = localStorage.getItem('videoVolume');
-                            const vol = savedVolume ? parseFloat(savedVolume) : 0.5;
-                            videoRef.current.volume = vol;
-                            videoRef.current.muted = isMuted;
-                            // Forcer la lecture
-                            videoRef.current.play().catch(err => {
-                                console.error('Erreur de lecture de la vidéo:', err);
-                            });
-                        }
-                    }}
-                    onCanPlay={() => {
-                        if (videoRef.current) {
-                            const savedVolume = localStorage.getItem('videoVolume');
-                            const vol = savedVolume ? parseFloat(savedVolume) : 0.5;
-                            videoRef.current.volume = vol;
-                            videoRef.current.muted = isMuted;
-                        }
-                    }}
-                    onError={(e) => {
-                        console.error('Erreur de chargement de la vidéo:', e);
-                    }}
-                >
-                    <source src="/video-montage-sc.mp4" type="video/mp4" />
-                </video>
-            </div>
             
             {/* Popup d'annonce - uniquement sur la page d'accueil */}
             {ANNOUNCEMENT_CONFIG.showAnnouncement && (
@@ -281,7 +116,7 @@ function Home() {
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6 }}
-                className="relative z-10"
+                className="sticky top-0 z-20 bg-background/80 backdrop-blur-sm -mx-4 px-4 pt-4 pb-2"
             >
                 <Card className="bg-gradient-to-br from-primary/20 via-background/60 to-background/40 border-primary/30 overflow-hidden relative">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
@@ -440,21 +275,21 @@ function Home() {
                         >
                             <Card className="bg-background/40 h-full">
                                 <CardHeader className="pb-3">
-                                <CardTitle className="text-base flex items-center gap-2">
+                        <CardTitle className="text-base flex items-center gap-2">
                                         <FileText className="h-4 w-4 text-primary" />
                                         Patchnotes StarTrad
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <RecentPatchNotes max={3} />
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <RecentPatchNotes max={3} />
                                     <Link to="/patchnotes">
                                         <Button variant="ghost" size="sm" className="w-full mt-3 text-xs">
                                             Voir tout
                                             <ArrowRight className="h-3 w-3 ml-1" />
                                         </Button>
                                     </Link>
-                            </CardContent>
-                        </Card>
+                    </CardContent>
+                </Card>
                         </motion.div>
 
                         {/* Actualités */}
@@ -470,17 +305,17 @@ function Home() {
                                         <Newspaper className="h-4 w-4 text-primary" />
                                         Actualités Star Citizen
                                     </CardTitle>
-                            </CardHeader>
+                    </CardHeader>
                                 <CardContent>
-                                <RecentActualites max={3} />
+                        <RecentActualites max={3} />
                                     <Link to="/actualites">
                                         <Button variant="ghost" size="sm" className="w-full mt-3 text-xs">
                                             Voir toutes les actualités
                                             <ArrowRight className="h-3 w-3 ml-1" />
                                         </Button>
                                     </Link>
-                            </CardContent>
-                        </Card>
+                    </CardContent>
+                </Card>
                         </motion.div>
                     </motion.div>
                 </motion.div>
@@ -496,7 +331,7 @@ function Home() {
                 💡 Astuce : Utilisez le menu à gauche pour naviguer rapidement
             </motion.p>
 
-        </div>
+            </div>
     );
 }
 
