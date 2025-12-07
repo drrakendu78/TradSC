@@ -143,38 +143,16 @@ function Home() {
                 </Card>
             </motion.div>
 
-            {/* Bouton pour masquer/afficher le contenu */}
-            <div className="flex justify-end relative z-10 px-1">
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowContent(!showContent)}
-                    className="gap-2 text-muted-foreground hover:text-foreground"
-                >
-                    {showContent ? (
-                        <>
-                            <EyeOff className="h-4 w-4" />
-                            <span className="hidden sm:inline">Masquer le contenu</span>
-                        </>
-                    ) : (
-                        <>
-                            <Eye className="h-4 w-4" />
-                            <span className="hidden sm:inline">Afficher le contenu</span>
-                        </>
-                    )}
-                </Button>
-            </div>
-
             {/* Actions rapides */}
-            {showContent && (
-                <motion.div 
-                    className="space-y-3 relative z-10"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.3 }}
-                >
+            <motion.div 
+                className="space-y-3 relative z-10"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+            >
+                <div className="flex items-center justify-between px-1">
                     <motion.h2 
-                        className="text-lg font-semibold flex items-center gap-2 px-1"
+                        className="text-lg font-semibold flex items-center gap-2"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.3 }}
@@ -182,7 +160,27 @@ function Home() {
                         <Sparkles className="h-4 w-4 text-primary" />
                         Actions rapides
                     </motion.h2>
-                    
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowContent(!showContent)}
+                        className="gap-2 text-muted-foreground hover:text-foreground"
+                    >
+                        {showContent ? (
+                            <>
+                                <EyeOff className="h-4 w-4" />
+                                <span className="hidden sm:inline">Masquer le contenu</span>
+                            </>
+                        ) : (
+                            <>
+                                <Eye className="h-4 w-4" />
+                                <span className="hidden sm:inline">Afficher le contenu</span>
+                            </>
+                        )}
+                    </Button>
+                </div>
+                
+                {showContent && (
                     <motion.div 
                         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"
                         initial={{ opacity: 0, height: 0 }}
@@ -239,8 +237,8 @@ function Home() {
                             index={5}
                         />
                     </motion.div>
-                </motion.div>
-            )}
+                )}
+            </motion.div>
 
             {/* Section infos */}
             {showContent && (
