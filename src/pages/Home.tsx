@@ -144,27 +144,24 @@ function Home() {
             </motion.div>
 
             {/* Actions rapides */}
-            <motion.div 
-                className="space-y-3 relative z-10"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.3 }}
-            >
-                <div className="flex items-center justify-between px-1">
-                    <motion.h2 
-                        className="text-lg font-semibold flex items-center gap-2"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.3 }}
-                    >
-                        <Sparkles className="h-4 w-4 text-primary" />
-                        Actions rapides
-                    </motion.h2>
+            <div className="relative z-10">
+                <div className="flex items-center justify-between px-1 mb-3">
+                    {showContent && (
+                        <motion.h2 
+                            className="text-lg font-semibold flex items-center gap-2"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.2 }}
+                        >
+                            <Sparkles className="h-4 w-4 text-primary" />
+                            Actions rapides
+                        </motion.h2>
+                    )}
                     <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => setShowContent(!showContent)}
-                        className="gap-2 text-muted-foreground hover:text-foreground"
+                        className="gap-2 text-muted-foreground hover:text-foreground ml-auto"
                     >
                         {showContent ? (
                             <>
@@ -182,11 +179,18 @@ function Home() {
                 
                 {showContent && (
                     <motion.div 
+                        className="space-y-3"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.2 }}
+                    >
+                    
+                    <motion.div 
                         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.3 }}
+                        transition={{ duration: 0.2 }}
                     >
                         <QuickAction
                             to="/cache"
@@ -237,8 +241,9 @@ function Home() {
                             index={5}
                         />
                     </motion.div>
+                    </motion.div>
                 )}
-            </motion.div>
+            </div>
 
             {/* Section infos */}
             {showContent && (
@@ -246,13 +251,13 @@ function Home() {
                     className="space-y-3 relative z-10"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    transition={{ delay: 0.4 }}
+                    transition={{ duration: 0.2 }}
                 >
                     <motion.h2 
                         className="text-lg font-semibold flex items-center gap-2 px-1"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        transition={{ delay: 0.4 }}
+                        transition={{ duration: 0.2 }}
                     >
                         <FileText className="h-4 w-4 text-primary" />
                         Informations
@@ -263,7 +268,7 @@ function Home() {
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.3 }}
+                        transition={{ duration: 0.2 }}
                     >
                         {/* Patchnotes */}
                         <motion.div
