@@ -116,7 +116,7 @@ function Home() {
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6 }}
-                className="sticky top-0 z-20 bg-background/80 backdrop-blur-sm -mx-4 px-4 pt-4 pb-2"
+                className="sticky top-0 z-20 -mx-4 px-4 pt-4 pb-2"
             >
                 <Card className="bg-gradient-to-br from-primary/20 via-background/60 to-background/40 border-primary/30 overflow-hidden relative">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
