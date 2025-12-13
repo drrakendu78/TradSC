@@ -32,6 +32,61 @@ export function DataTable<TData, TValue>({
     });
 
     return (
+<<<<<<< HEAD
+        <div className="rounded-md border border-border/50 bg-background/40 shadow-sm hover:shadow-md transition-all duration-200 max-h-[calc(100vh-100px)] overflow-hidden">
+            <div className="overflow-y-auto max-h-[calc(100vh-100px)]">
+                <Table className="!bg-transparent">
+                    <TableHeader className="sticky top-0 z-10 bg-background/60 backdrop-blur-md border-b border-border/50">
+                        {table.getHeaderGroups().map((headerGroup) => (
+                            <TableRow key={headerGroup.id} className="hover:bg-transparent border-0">
+                                {headerGroup.headers.map((header) => (
+                                    <TableHead key={header.id} className="font-semibold text-foreground/90">
+                                        {header.isPlaceholder
+                                            ? null
+                                            : flexRender(
+                                                header.column.columnDef.header,
+                                                header.getContext(),
+                                            )}
+                                    </TableHead>
+                                ))}
+                            </TableRow>
+                        ))}
+                    </TableHeader>
+                    <TableBody className="bg-transparent">
+                        {table.getRowModel().rows?.length ? (
+                            table.getRowModel().rows.map((row) => (
+                                <TableRow
+                                    key={row.id}
+                                    data-state={row.getIsSelected() && "selected"}
+                                    className="transition-all duration-200 hover:bg-muted/50 border-b border-border/30 last:border-0 bg-transparent"
+                                >
+                                    {row.getVisibleCells().map((cell) => (
+                                        <TableCell key={cell.id} className="py-4">
+                                            {flexRender(
+                                                cell.column.columnDef.cell,
+                                                cell.getContext(),
+                                            )}
+                                        </TableCell>
+                                    ))}
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow className="hover:bg-transparent">
+                                <TableCell
+                                    colSpan={columns.length}
+                                    className="h-32 text-center"
+                                >
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div className="text-muted-foreground text-lg">Le cache de Star Citizen est vide.</div>
+                                        <div className="text-muted-foreground/60 text-sm">Rien à nettoyer</div>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </div>
+=======
         <div className="rounded-md border max-h-[calc(100vh-100px)] overflow-y-scroll">
             <Table className="bg-background/50 text-foreground hover:bg-background/60 duration-150 ease-in-out">
                 <TableHeader>
@@ -82,6 +137,7 @@ export function DataTable<TData, TValue>({
                     )}
                 </TableBody>
             </Table>
+>>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
         </div>
     );
 }

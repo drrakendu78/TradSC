@@ -90,7 +90,11 @@ export const columns = (
                     <Button
                         variant="ghost"
                         size="sm"
+<<<<<<< HEAD
+                        className="h-8 w-8 p-0 hover:text-destructive"
+=======
                         className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+>>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
                         onClick={remove}
                     >
                         <Trash2 className="h-4 w-4" />

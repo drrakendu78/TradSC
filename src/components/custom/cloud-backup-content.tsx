@@ -51,6 +51,10 @@ export default function CloudBackupContent({ user }: CloudBackupContentProps) {
     const [confirmDelete, setConfirmDelete] = useState<BackupItem | null>(null);
     const [gamePaths, setGamePaths] = useState<GamePaths | null>(null);
     const [selectedVersion, setSelectedVersion] = useState<string>('LIVE');
+<<<<<<< HEAD
+    const [restoreTargetVersion, setRestoreTargetVersion] = useState<string>('LIVE');
+=======
+>>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
 
     useEffect(() => {
         loadBackups();
@@ -93,8 +97,14 @@ export default function CloudBackupContent({ user }: CloudBackupContentProps) {
             const parsed = JSON.parse(result);
             const items: BackupItem[] = parsed?.map((item: any) => {
                 // Extraire la version du nom de fichier (format: backup_VERSION_timestamp.zip)
+<<<<<<< HEAD
+                // Le timestamp est toujours au format YYYYMMDD_HHMMSS (8 chiffres _ 6 chiffres)
+                let version = 'LIVE'; // Par défaut
+                const match = item.name.match(/backup_(.+)_(\d{8}_\d{6})\.zip/);
+=======
                 let version = 'LIVE'; // Par défaut
                 const match = item.name.match(/backup_([^_]+)_\d{8}_\d{6}\.zip/);
+>>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
                 if (match) {
                     version = match[1];
                 }
@@ -196,6 +206,11 @@ export default function CloudBackupContent({ user }: CloudBackupContentProps) {
     };
 
     const handleRestore = async (backup: BackupItem) => {
+<<<<<<< HEAD
+        // Initialiser la version cible avec la version du backup
+        setRestoreTargetVersion(backup.version || 'LIVE');
+=======
+>>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
         setConfirmRestore(backup);
     };
 
@@ -234,9 +249,14 @@ export default function CloudBackupContent({ user }: CloudBackupContentProps) {
                 description: 'Extraction et restauration du dossier user/',
             });
 
+<<<<<<< HEAD
+            // Restaurer le backup - utiliser la version cible sélectionnée par l'utilisateur
+            await invoke('restore_backup', { zipPath: localPath, version: restoreTargetVersion });
+=======
             // Restaurer le backup - utiliser la version stockée dans le backup ou LIVE par défaut
             const restoreVersion = backup.version || 'LIVE';
             await invoke('restore_backup', { zipPath: localPath, version: restoreVersion });
+>>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
 
             toast({
                 title: 'Restauration réussie',
@@ -441,6 +461,31 @@ export default function CloudBackupContent({ user }: CloudBackupContentProps) {
                             Êtes-vous sûr de vouloir restaurer cette sauvegarde ? Cela remplacera votre dossier user/ actuel.
                         </DialogDescription>
                     </DialogHeader>
+<<<<<<< HEAD
+                    {confirmRestore && (
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="restore-version">Version de destination</Label>
+                                <Select value={restoreTargetVersion} onValueChange={setRestoreTargetVersion}>
+                                    <SelectTrigger id="restore-version">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {availableVersions.map((version) => (
+                                            <SelectItem key={version} value={version}>
+                                                {version}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-xs text-muted-foreground">
+                                    Sauvegarde d'origine : {confirmRestore.version || 'LIVE'}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+=======
+>>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setConfirmRestore(null)}>
                             Annuler

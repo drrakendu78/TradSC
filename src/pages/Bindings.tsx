@@ -1,6 +1,10 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+<<<<<<< HEAD
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+=======
+>>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState, useCallback } from "react";
 import { columns } from "@/components/custom/bindings/columns";
@@ -8,6 +12,10 @@ import { DataTable } from "@/components/custom/bindings/data-table";
 import { Plus, Folder, Keyboard, Loader2, RefreshCw } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+<<<<<<< HEAD
+import { GamePaths, isGamePaths } from "@/types/translation";
+=======
+>>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
 
 interface BindingFile {
     name: string;
@@ -18,11 +26,43 @@ export default function Bindings() {
     const { toast } = useToast();
     const [bindings, setBindings] = useState<BindingFile[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+<<<<<<< HEAD
+    const [gamePaths, setGamePaths] = useState<GamePaths | null>(null);
+    const [selectedVersion, setSelectedVersion] = useState<string>('');
+
+    const loadGameVersions = useCallback(async () => {
+        try {
+            const versions = await invoke('get_star_citizen_versions');
+            if (isGamePaths(versions)) {
+                setGamePaths(versions);
+                // Sélectionner LIVE par défaut s'il existe, sinon la première version disponible
+                if (versions.versions['LIVE']) {
+                    setSelectedVersion('LIVE');
+                } else {
+                    const firstVersion = Object.keys(versions.versions)[0];
+                    if (firstVersion) {
+                        setSelectedVersion(firstVersion);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Erreur lors du chargement des versions:', error);
+        }
+    }, []);
+
+    const loadBindings = useCallback(async () => {
+        if (!selectedVersion) return;
+
+        setIsLoading(true);
+        try {
+            const files = await invoke<BindingFile[]>("list_bindings_files", { version: selectedVersion });
+=======
 
     const loadBindings = useCallback(async () => {
         setIsLoading(true);
         try {
             const files = await invoke<BindingFile[]>("list_bindings_files");
+>>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
             setBindings(files);
         } catch (error) {
             toast({
@@ -33,7 +73,11 @@ export default function Bindings() {
         } finally {
             setIsLoading(false);
         }
+<<<<<<< HEAD
+    }, [selectedVersion, toast]);
+=======
     }, [toast]);
+>>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
 
     const handleImportBindings = async () => {
         try {
@@ -56,11 +100,19 @@ export default function Bindings() {
                 return;
             }
 
+<<<<<<< HEAD
+            await invoke("import_bindings_file", { sourcePath: filePath, version: selectedVersion });
+
+            toast({
+                title: "Succès",
+                description: `Les bindings ont été importés avec succès pour ${selectedVersion} !`,
+=======
             await invoke("import_bindings_file", { sourcePath: filePath });
 
             toast({
                 title: "Succès",
                 description: "Les bindings ont été importés avec succès !",
+>>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
                 variant: "default",
             });
 
@@ -101,7 +153,11 @@ export default function Bindings() {
 
     const handleOpenFolder = async () => {
         try {
+<<<<<<< HEAD
+            await invoke("open_bindings_folder", { version: selectedVersion });
+=======
             await invoke("open_bindings_folder");
+>>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
         } catch (error: unknown) {
             toast({
                 title: "Erreur",
@@ -115,8 +171,19 @@ export default function Bindings() {
     };
 
     useEffect(() => {
+<<<<<<< HEAD
+        loadGameVersions();
+    }, [loadGameVersions]);
+
+    useEffect(() => {
+        if (selectedVersion) {
+            loadBindings();
+        }
+    }, [selectedVersion, loadBindings]);
+=======
         loadBindings();
     }, [loadBindings]);
+>>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
 
     return (
         <motion.div
@@ -137,7 +204,25 @@ export default function Bindings() {
                             <p className="text-sm text-muted-foreground">Gérez vos configurations de contrôles</p>
                         </div>
                     </div>
+<<<<<<< HEAD
+                    <div className="flex items-center gap-2">
+                        {gamePaths && Object.keys(gamePaths.versions).length > 0 && (
+                            <Select value={selectedVersion} onValueChange={setSelectedVersion}>
+                                <SelectTrigger className="w-32">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {Object.keys(gamePaths.versions).sort().map((version) => (
+                                        <SelectItem key={version} value={version}>
+                                            {version}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
+=======
                     <div className="flex gap-2">
+>>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
                         <Button
                             variant="default"
                             size="sm"
@@ -178,7 +263,11 @@ export default function Bindings() {
                 </Card>
 
                 {/* Table */}
+<<<<<<< HEAD
+                <Card className="overflow-hidden bg-background/40 border-border/50">
+=======
                 <Card className="flex-1 overflow-hidden">
+>>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
                     <CardContent className="p-0">
                         {isLoading ? (
                             <div className="flex flex-col items-center justify-center h-32 gap-3">

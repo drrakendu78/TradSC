@@ -9,6 +9,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Monitor, Settings2, Loader2, Cpu } from "lucide-react";
+<<<<<<< HEAD
+import { GamePaths, isGamePaths } from "@/types/translation";
+=======
+>>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
 
 // Résolutions prédéfinies
 const PREDEFINED_RESOLUTIONS = [
@@ -36,16 +40,50 @@ export default function GraphicsSettings() {
     const [selectedResolution, setSelectedResolution] = useState<string>(CUSTOM_VALUE);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+<<<<<<< HEAD
+    const [gamePaths, setGamePaths] = useState<GamePaths | null>(null);
+    const [selectedVersion, setSelectedVersion] = useState<string>('');
+
+    const loadGameVersions = async () => {
+        try {
+            const versions = await invoke('get_star_citizen_versions');
+            if (isGamePaths(versions)) {
+                setGamePaths(versions);
+                // Sélectionner LIVE par défaut s'il existe, sinon la première version disponible
+                if (versions.versions['LIVE']) {
+                    setSelectedVersion('LIVE');
+                } else {
+                    const firstVersion = Object.keys(versions.versions)[0];
+                    if (firstVersion) {
+                        setSelectedVersion(firstVersion);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Erreur lors du chargement des versions:', error);
+        }
+    };
+=======
+>>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
 
     const loadSettings = async () => {
         setIsLoading(true);
         try {
+<<<<<<< HEAD
+            // Charger le renderer actuel pour la version sélectionnée
+            const renderer = await invoke<number>("get_graphics_renderer", { version: selectedVersion });
+            setIsVulkan(renderer === 1);
+
+            // Charger la résolution actuelle pour la version sélectionnée
+            const resolution = await invoke<[number, number]>("get_user_cfg_resolution", { version: selectedVersion });
+=======
             // Charger le renderer actuel
             const renderer = await invoke<number>("get_graphics_renderer");
             setIsVulkan(renderer === 1);
 
             // Charger la résolution actuelle
             const resolution = await invoke<[number, number]>("get_user_cfg_resolution");
+>>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
             const currentWidth = resolution[0];
             const currentHeight = resolution[1];
             setWidth(currentWidth.toString());
@@ -75,11 +113,19 @@ export default function GraphicsSettings() {
         setIsSaving(true);
         try {
             const renderer = checked ? 1 : 0; // 1 = Vulkan, 0 = DirectX 11
+<<<<<<< HEAD
+            await invoke("set_graphics_renderer", { renderer, version: selectedVersion });
+            setIsVulkan(checked);
+            toast({
+                title: "Succès",
+                description: `Renderer changé pour ${checked ? "Vulkan" : "DirectX 11"} (${selectedVersion})`,
+=======
             await invoke("set_graphics_renderer", { renderer });
             setIsVulkan(checked);
             toast({
                 title: "Succès",
                 description: `Renderer changé pour ${checked ? "Vulkan" : "DirectX 11"}`,
+>>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
                 variant: "default",
             });
         } catch (error) {
@@ -123,8 +169,13 @@ export default function GraphicsSettings() {
 
         setIsSaving(true);
         try {
+<<<<<<< HEAD
+            await invoke("set_user_cfg_resolution", { width: widthNum, height: heightNum, version: selectedVersion });
+
+=======
             await invoke("set_user_cfg_resolution", { width: widthNum, height: heightNum });
             
+>>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
             // Mettre à jour la sélection si ce n'est pas custom
             const matchingResolution = PREDEFINED_RESOLUTIONS.find(
                 (res) => res.width === widthNum && res.height === heightNum
@@ -137,7 +188,11 @@ export default function GraphicsSettings() {
 
             toast({
                 title: "Succès",
+<<<<<<< HEAD
+                description: `Résolution mise à jour : ${widthNum}x${heightNum} (${selectedVersion})`,
+=======
                 description: `Résolution mise à jour : ${widthNum}x${heightNum}`,
+>>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
                 variant: "default",
             });
         } catch (error) {
@@ -152,9 +207,21 @@ export default function GraphicsSettings() {
     };
 
     useEffect(() => {
+<<<<<<< HEAD
+        loadGameVersions();
+    }, []);
+
+    useEffect(() => {
+        if (selectedVersion && gamePaths) {
+            loadSettings();
+        }
+    }, [selectedVersion]);
+
+=======
         loadSettings();
     }, []);
 
+>>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -164,6 +231,37 @@ export default function GraphicsSettings() {
         >
             <div className="flex flex-col gap-6 h-full overflow-y-auto pr-2">
                 {/* Header */}
+<<<<<<< HEAD
+                <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-purple-500/10">
+                            <Monitor className="h-6 w-6 text-purple-500" />
+                        </div>
+                        <div>
+                            <h1 className="text-2xl font-bold tracking-tight">Paramètres Graphiques</h1>
+                            <p className="text-sm text-muted-foreground">Configurez le rendu et la résolution</p>
+                        </div>
+                    </div>
+                    {gamePaths && Object.keys(gamePaths.versions).length > 0 && (
+                        <div className="flex flex-col gap-1">
+                            <Label htmlFor="version-select" className="text-xs text-muted-foreground">
+                                Version
+                            </Label>
+                            <Select value={selectedVersion} onValueChange={setSelectedVersion}>
+                                <SelectTrigger id="version-select" className="w-32">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {Object.keys(gamePaths.versions).sort().map((version) => (
+                                        <SelectItem key={version} value={version}>
+                                            {version}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+=======
                 <div className="flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-purple-500/10">
                         <Monitor className="h-6 w-6 text-purple-500" />
@@ -172,6 +270,7 @@ export default function GraphicsSettings() {
                         <h1 className="text-2xl font-bold tracking-tight">Paramètres Graphiques</h1>
                         <p className="text-sm text-muted-foreground">Configurez le rendu et la résolution</p>
                     </div>
+>>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
                 </div>
 
                 {isLoading ? (

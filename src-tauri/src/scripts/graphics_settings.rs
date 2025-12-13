@@ -47,6 +47,39 @@ fn find_graphics_settings_path() -> Result<String, String> {
 }
 
 /// Lit la valeur actuelle du renderer (Vulkan = 1, DirectX 11 = 0)
+<<<<<<< HEAD
+/// Lit depuis le user.cfg spécifique à la version pour permettre des configs différentes par version
+#[command]
+pub fn get_graphics_renderer(version: String) -> Result<u32, String> {
+    use crate::scripts::gamepath::get_star_citizen_versions;
+
+    let versions = get_star_citizen_versions();
+    let version_path = versions.versions
+        .get(&version)
+        .ok_or_else(|| format!("Version {} non trouvée", version))?;
+
+    let user_cfg_path = Path::new(&version_path.path).join("user.cfg");
+
+    if !user_cfg_path.exists() {
+        return Ok(0); // Par défaut DirectX 11
+    }
+
+    let content = fs::read_to_string(&user_cfg_path)
+        .map_err(|e| format!("Erreur lors de la lecture: {}", e))?;
+
+    // Chercher la ligne r.graphicsRenderer
+    for line in content.lines() {
+        if line.trim().starts_with("r.graphicsRenderer") {
+            if let Some(value) = line.split('=').nth(1) {
+                if let Ok(renderer) = value.trim().parse::<u32>() {
+                    return Ok(renderer);
+                }
+            }
+        }
+    }
+
+    Ok(0) // Par défaut DirectX 11 si non trouvé
+=======
 #[command]
 pub fn get_graphics_renderer() -> Result<u32, String> {
     let path = find_graphics_settings_path()?;
@@ -57,21 +90,47 @@ pub fn get_graphics_renderer() -> Result<u32, String> {
         .map_err(|e| format!("Erreur lors du parsing JSON: {}", e))?;
     
     Ok(settings.graphics_settings.graphics_renderer)
+>>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
 }
 
 /// Met à jour le renderer (Vulkan = 1, DirectX 11 = 0)
 #[command]
+<<<<<<< HEAD
+pub fn set_graphics_renderer(renderer: u32, version: String) -> Result<(), String> {
+    use crate::scripts::gamepath::get_star_citizen_versions;
+
+    // Mettre à jour GraphicsSettings.json
+    let path = find_graphics_settings_path()?;
+
+=======
 pub fn set_graphics_renderer(renderer: u32) -> Result<(), String> {
     use crate::scripts::gamepath::get_star_citizen_versions;
     
     // Mettre à jour GraphicsSettings.json
     let path = find_graphics_settings_path()?;
     
+>>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
     let settings = GraphicsSettings {
         graphics_settings: GraphicsSettingsInner {
             graphics_renderer: renderer,
         },
     };
+<<<<<<< HEAD
+
+    let json = serde_json::to_string_pretty(&settings)
+        .map_err(|e| format!("Erreur lors de la sérialisation: {}", e))?;
+
+    fs::write(&path, json)
+        .map_err(|e| format!("Erreur lors de l'écriture: {}", e))?;
+
+    // Mettre à jour user.cfg avec r.graphicsRenderer (à la fin du fichier)
+    let versions = get_star_citizen_versions();
+    let version_path = versions.versions
+        .get(&version)
+        .ok_or_else(|| format!("Version {} non trouvée", version))?;
+
+    let user_cfg_path = Path::new(&version_path.path).join("user.cfg");
+=======
     
     let json = serde_json::to_string_pretty(&settings)
         .map_err(|e| format!("Erreur lors de la sérialisation: {}", e))?;
@@ -86,6 +145,7 @@ pub fn set_graphics_renderer(renderer: u32) -> Result<(), String> {
         .ok_or_else(|| "Version LIVE non trouvée".to_string())?;
     
     let user_cfg_path = Path::new(&live_path.path).join("user.cfg");
+>>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
     
     // Lire le contenu actuel
     let content = if user_cfg_path.exists() {
@@ -119,6 +179,17 @@ pub fn set_graphics_renderer(renderer: u32) -> Result<(), String> {
 
 /// Lit la résolution actuelle depuis user.cfg
 #[command]
+<<<<<<< HEAD
+pub fn get_user_cfg_resolution(version: String) -> Result<(u32, u32), String> {
+    use crate::scripts::gamepath::get_star_citizen_versions;
+
+    let versions = get_star_citizen_versions();
+    let version_path = versions.versions
+        .get(&version)
+        .ok_or_else(|| format!("Version {} non trouvée", version))?;
+
+    let user_cfg_path = Path::new(&version_path.path).join("user.cfg");
+=======
 pub fn get_user_cfg_resolution() -> Result<(u32, u32), String> {
     use crate::scripts::gamepath::get_star_citizen_versions;
     
@@ -128,6 +199,7 @@ pub fn get_user_cfg_resolution() -> Result<(u32, u32), String> {
         .ok_or_else(|| "Version LIVE non trouvée".to_string())?;
     
     let user_cfg_path = Path::new(&live_path.path).join("user.cfg");
+>>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
     
     if !user_cfg_path.exists() {
         return Ok((1920, 1080)); // Valeur par défaut
@@ -160,6 +232,17 @@ pub fn get_user_cfg_resolution() -> Result<(u32, u32), String> {
 
 /// Met à jour la résolution dans user.cfg
 #[command]
+<<<<<<< HEAD
+pub fn set_user_cfg_resolution(width: u32, height: u32, version: String) -> Result<(), String> {
+    use crate::scripts::gamepath::get_star_citizen_versions;
+
+    let versions = get_star_citizen_versions();
+    let version_path = versions.versions
+        .get(&version)
+        .ok_or_else(|| format!("Version {} non trouvée", version))?;
+
+    let user_cfg_path = Path::new(&version_path.path).join("user.cfg");
+=======
 pub fn set_user_cfg_resolution(width: u32, height: u32) -> Result<(), String> {
     use crate::scripts::gamepath::get_star_citizen_versions;
     
@@ -169,6 +252,7 @@ pub fn set_user_cfg_resolution(width: u32, height: u32) -> Result<(), String> {
         .ok_or_else(|| "Version LIVE non trouvée".to_string())?;
     
     let user_cfg_path = Path::new(&live_path.path).join("user.cfg");
+>>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
     
     // Lire le contenu actuel
     let content = if user_cfg_path.exists() {

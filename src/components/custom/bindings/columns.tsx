@@ -34,6 +34,19 @@ export const columns = (
 
             return (
                 <div className="flex flex-col items-start gap-2">
+<<<<<<< HEAD
+                    <button
+                        onClick={handleDelete}
+                        className="flex items-center gap-2 hover:text-red-500 transition-colors"
+                        aria-label="Supprimer le fichier"
+                    >
+                        <Trash2
+                            strokeWidth={3}
+                            className="h-4 w-4"
+                        />
+                        <span>Supprimer le fichier</span>
+                    </button>
+=======
                     <div className="flex flex-row-reverse items-center gap-2">
                         <span>Supprimer le fichier</span>
                         <button
@@ -46,6 +59,7 @@ export const columns = (
                             />
                         </button>
                     </div>
+>>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
                 </div>
             );
         },
