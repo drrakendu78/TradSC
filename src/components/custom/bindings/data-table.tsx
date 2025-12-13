@@ -30,7 +30,6 @@ export function DataTable<TData, TValue>({
     });
 
     return (
-<<<<<<< HEAD
         <div className="rounded-md border border-border/50 bg-background/40 shadow-sm hover:shadow-md transition-all duration-200 max-h-[calc(100vh-100px)] overflow-hidden">
             <div className="overflow-y-auto max-h-[calc(100vh-100px)]">
                 <Table className="!bg-transparent">
@@ -75,43 +74,6 @@ export function DataTable<TData, TValue>({
                     </TableBody>
                 </Table>
             </div>
-=======
-        <div className="rounded-md border max-h-[calc(100vh-100px)] overflow-y-scroll">
-            <Table className="bg-background/50 text-foreground hover:bg-background/60 duration-150 ease-in-out">
-                <TableHeader>
-                    {table.getHeaderGroups().map((headerGroup) => (
-                        <TableRow key={headerGroup.id}>
-                            {headerGroup.headers.map((header) => (
-                                <TableHead key={header.id}>
-                                    {header.isPlaceholder
-                                        ? null
-                                        : flexRender(header.column.columnDef.header, header.getContext())}
-                                </TableHead>
-                            ))}
-                        </TableRow>
-                    ))}
-                </TableHeader>
-                <TableBody>
-                    {table.getRowModel().rows?.length ? (
-                        table.getRowModel().rows.map((row) => (
-                            <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
-                                {row.getVisibleCells().map((cell) => (
-                                    <TableCell key={cell.id}>
-                                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                    </TableCell>
-                                ))}
-                            </TableRow>
-                        ))
-                    ) : (
-                        <TableRow>
-                            <TableCell colSpan={columns.length} className="h-24 text-center">
-                                Aucun binding trouvé
-                            </TableCell>
-                        </TableRow>
-                    )}
-                </TableBody>
-            </Table>
->>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
         </div>
     );
 }

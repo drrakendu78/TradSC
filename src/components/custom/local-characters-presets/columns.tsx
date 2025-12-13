@@ -131,7 +131,6 @@ export const columns = (
 
                 return (
                     <div className="flex flex-col items-start gap-2">
-<<<<<<< HEAD
                         <button
                             onClick={() => {
                                 setPendingAction("delete");
@@ -183,62 +182,6 @@ export const columns = (
                             />
                             <span>Ouvrir le dossier des personnages</span>
                         </button>
-=======
-                        <div className="flex flex-row-reverse items-center gap-2">
-                            <span>Supprimer le personnage</span>
-                            <button
-                                onClick={() => {
-                                    setPendingAction("delete");
-                                    setModalOpen("delete");
-                                }}
-                                aria-label="Supprimer le personnage"
-                            >
-                                <Trash
-                                    strokeWidth={3}
-                                    className="h-4 w-4 hover:text-red-500 hover:cursor-pointer"
-                                />
-                            </button>
-                        </div>
-                        <div className="flex flex-row-reverse items-center gap-2">
-                            <span>Dupliquer le personnage</span>
-                            <button
-                                onClick={() => {
-                                    const path = character.versions.find(v => v.path)?.path;
-                                    if (path) {
-                                        duplicateCharacter(path, toast, refreshData);
-                                    } else {
-                                        toast({
-                                            title: "Erreur",
-                                            description: "Impossible de dupliquer : aucun chemin disponible.",
-                                            success: "false",
-                                            duration: 3000,
-                                        });
-                                    }
-                                }}
-                                aria-label="Dupliquer le personnage"
-                            >
-                                <FolderSync
-                                    strokeWidth={3}
-                                    className="h-4 w-4 hover:text-primary hover:cursor-pointer"
-                                />
-                            </button>
-                        </div>
-                        <div className="flex flex-row-reverse items-center gap-2">
-                            <span>Ouvrir le dossier des personnages</span>
-                            <button
-                                onClick={() => {
-                                    setPendingAction("open");
-                                    setModalOpen("open");
-                                }}
-                                aria-label="Ouvrir le dossier des personnages"
-                            >
-                                <Folder
-                                    strokeWidth={3}
-                                    className="h-4 w-4 hover:text-primary hover:cursor-pointer"
-                                />
-                            </button>
-                        </div>
->>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
                         <PresetActionModal
                             open={!!modalOpen}
                             onClose={() => setModalOpen(false)}

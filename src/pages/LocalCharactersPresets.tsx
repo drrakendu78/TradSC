@@ -14,15 +14,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Folder, Users, Loader2, Save } from "lucide-react";
-<<<<<<< HEAD
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-=======
->>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
 import { open } from "@tauri-apps/plugin-dialog";
 
 function LocalCharactersPresets() {
@@ -214,21 +211,12 @@ function LocalCharactersPresets() {
         }
     }, [toast]);
     
-<<<<<<< HEAD
     const handleCreateBackup = async (version: string) => {
         try {
             await invoke("create_character_backup", { version });
             toast({
                 title: "Succès",
                 description: `Sauvegarde de ${version} créée !`,
-=======
-    const handleCreateBackup = async () => {
-        try {
-            await invoke("create_character_backup");
-            toast({
-                title: "Succès",
-                description: "Sauvegarde créée !",
->>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
                 variant: "default",
             });
             refreshBackups();
@@ -378,11 +366,7 @@ function LocalCharactersPresets() {
                             </CardContent>
                         </Card>
 
-<<<<<<< HEAD
                         <Card className="overflow-hidden bg-background/40 border-border/50">
-=======
-                        <Card className="overflow-hidden">
->>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
                             <CardContent className="p-0">
                                 <DataTable
                                     columns={columns(toast, refreshLocalCharacters, availableVersions)}
@@ -406,7 +390,6 @@ function LocalCharactersPresets() {
                         
                         <div className="flex justify-between items-center">
                             <div className="flex gap-2">
-<<<<<<< HEAD
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button
@@ -429,17 +412,6 @@ function LocalCharactersPresets() {
                                         ))}
                                     </DropdownMenuContent>
                                 </DropdownMenu>
-=======
-                                <Button
-                                    variant="default"
-                                    size="sm"
-                                    onClick={handleCreateBackup}
-                                    className="gap-2"
-                                >
-                                    <Plus className="h-4 w-4" />
-                                    Créer une sauvegarde
-                                </Button>
->>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
                                 <Button
                                     variant="outline"
                                     size="sm"
@@ -468,11 +440,7 @@ function LocalCharactersPresets() {
                             )}
                         </div>
                         
-<<<<<<< HEAD
                         <Card className="overflow-hidden bg-background/40 border-border/50">
-=======
-                        <Card className="overflow-hidden">
->>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
                             <CardContent className="p-0">
                                 {isLoadingBackups ? (
                                     <div className="flex flex-col items-center justify-center h-32 gap-3">

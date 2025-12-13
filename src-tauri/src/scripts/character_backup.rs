@@ -162,13 +162,8 @@ pub fn list_character_backups(app_handle: tauri::AppHandle) -> Result<Vec<Backup
 }
 
 #[command]
-<<<<<<< HEAD
 pub fn create_character_backup(app_handle: tauri::AppHandle, version: String) -> Result<(), String> {
     let src = get_game_customcharacters_dir_for(&version)?;
-=======
-pub fn create_character_backup(app_handle: tauri::AppHandle) -> Result<(), String> {
-    let src = get_game_customcharacters_dir_for("LIVE")?; // Par défaut LIVE
->>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
     if !src.exists() {
         return Err("Le dossier customcharacters n'existe pas".to_string());
     }

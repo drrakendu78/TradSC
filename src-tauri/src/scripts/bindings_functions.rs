@@ -12,7 +12,6 @@ pub struct BindingFile {
 }
 
 #[command]
-<<<<<<< HEAD
 pub fn import_bindings_file(source_path: String, version: String) -> Result<(), String> {
     // Obtenir le chemin du jeu
     let game_paths = get_star_citizen_versions();
@@ -23,18 +22,6 @@ pub fn import_bindings_file(source_path: String, version: String) -> Result<(), 
         .ok_or_else(|| format!("Version {} non trouvée", version))?;
 
     let base_path = Path::new(&version_info.path);
-=======
-pub fn import_bindings_file(source_path: String) -> Result<(), String> {
-    // Obtenir le chemin du jeu
-    let game_paths = get_star_citizen_versions();
-    
-    let live_version = game_paths
-        .versions
-        .get("LIVE")
-        .ok_or_else(|| "Version LIVE non trouvée".to_string())?;
-    
-    let base_path = Path::new(&live_version.path);
->>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
     let source_filename = Path::new(&source_path)
         .file_name()
         .ok_or_else(|| "Nom de fichier source invalide".to_string())?
@@ -71,7 +58,6 @@ pub fn import_bindings_file(source_path: String) -> Result<(), String> {
 }
 
 #[command]
-<<<<<<< HEAD
 pub fn list_bindings_files(version: String) -> Result<Vec<BindingFile>, String> {
     let game_paths = get_star_citizen_versions();
 
@@ -81,17 +67,6 @@ pub fn list_bindings_files(version: String) -> Result<Vec<BindingFile>, String> 
         .ok_or_else(|| format!("Version {} non trouvée", version))?;
 
     let bindings_path = Path::new(&version_info.path)
-=======
-pub fn list_bindings_files() -> Result<Vec<BindingFile>, String> {
-    let game_paths = get_star_citizen_versions();
-    
-    let live_version = game_paths
-        .versions
-        .get("LIVE")
-        .ok_or_else(|| "Version LIVE non trouvée".to_string())?;
-    
-    let bindings_path = Path::new(&live_version.path)
->>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
         .join("user")
         .join("client")
         .join("0")
@@ -138,7 +113,6 @@ pub fn refresh_bindings() -> Result<(), String> {
 }
 
 #[command]
-<<<<<<< HEAD
 pub fn open_bindings_folder(version: String) -> Result<bool, String> {
     let game_paths = get_star_citizen_versions();
 
@@ -148,17 +122,6 @@ pub fn open_bindings_folder(version: String) -> Result<bool, String> {
         .ok_or_else(|| format!("Version {} non trouvée", version))?;
 
     let bindings_path = Path::new(&version_info.path)
-=======
-pub fn open_bindings_folder() -> Result<bool, String> {
-    let game_paths = get_star_citizen_versions();
-    
-    let live_version = game_paths
-        .versions
-        .get("LIVE")
-        .ok_or_else(|| "Version LIVE non trouvée".to_string())?;
-    
-    let bindings_path = Path::new(&live_version.path)
->>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
         .join("user")
         .join("client")
         .join("0")

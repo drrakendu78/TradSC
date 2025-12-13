@@ -115,11 +115,7 @@ export default function ClearCache() {
                 </div>
 
                 {/* Table */}
-<<<<<<< HEAD
                 <Card className="overflow-hidden bg-background/40 border-border/50">
-=======
-                <Card className="flex-1 overflow-hidden">
->>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
                     <CardContent className="p-0">
                         <DataTable
                             columns={columns(toast, updateCacheInfos)}

@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-<<<<<<< HEAD
 import {
     Globe2,
     Brush,
@@ -12,31 +11,16 @@ import {
     FileText,
     Newspaper,
     Keyboard,
-=======
-import { 
-    Globe2, 
-    Brush, 
-    Users, 
-    Download, 
-    FileText, 
-    Newspaper, 
-    Keyboard, 
->>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
     Monitor,
     Rocket,
     ArrowRight,
     Sparkles,
     Map,
     Eye,
-<<<<<<< HEAD
     EyeOff,
     ExternalLink
 } from 'lucide-react';
 import { open } from '@tauri-apps/plugin-shell';
-=======
-    EyeOff
-} from 'lucide-react';
->>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
 import RecentPatchNotes from '@/components/custom/recent-patchnotes';
 import RecentActualites from '@/components/custom/recent-actualites';
 import { AnnouncementDialog } from '@/components/custom/announcement-dialog';
@@ -149,7 +133,6 @@ function Home() {
                                     Prêt à jouer en français ? Installez la traduction en un clic.
                                 </p>
                             </div>
-<<<<<<< HEAD
                             <div className="flex flex-wrap gap-2">
                                 <Link to="/traduction">
                                     <Button size="lg" className="gap-2 text-base px-6 shadow-lg hover:shadow-primary/25 transition-shadow">
@@ -169,15 +152,6 @@ function Home() {
                                     <ExternalLink className="h-4 w-4" />
                                 </Button>
                             </div>
-=======
-                            <Link to="/traduction">
-                                <Button size="lg" className="gap-2 text-base px-6 shadow-lg hover:shadow-primary/25 transition-shadow">
-                                    <Globe2 className="h-5 w-5" />
-                                    Installer la traduction
-                                    <Sparkles className="h-4 w-4" />
-                                </Button>
-                            </Link>
->>>>>>> 8ea516e4f0f165d82c640cc411c57b6d77c9c98b
                         </div>
                     </CardContent>
                 </Card>
