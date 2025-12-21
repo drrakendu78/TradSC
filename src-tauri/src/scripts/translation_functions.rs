@@ -15,6 +15,98 @@ pub fn get_language_folder(lang: &str) -> Option<&str> {
 
 const UTF8_BOM: &[u8] = &[0xEF, 0xBB, 0xBF];
 
+/// Applique le branding StarTrad FR directement sur le contenu (sans vérifier le lien)
+fn apply_startrad_branding_direct(content: &str) -> String {
+    // Note: l'apostrophe dans le fichier INI est U+2019 (') et non U+0027 (')
+    let search_text1 = "l\u{2019}application Multitool";
+    let replace_text1 = "l\u{2019}application StarTrad FR";
+
+    let search_text2 = "n\u{2019}hésitez pas à les signaler sur le Discord SCEFRA (lien sur Multitool)";
+    let replace_text2 = "n\u{2019}hésitez pas à les signaler sur Discord pseudo drrakendu78";
+
+    content
+        .replace(search_text1, replace_text1)
+        .replace(search_text2, replace_text2)
+}
+
+/// Vérifie si le fichier local a besoin du branding (contient encore "Multitool" dans les textes SCEFRA)
+fn needs_branding(content: &str) -> bool {
+    let search_text1 = "l\u{2019}application Multitool";
+    let search_text2 = "n\u{2019}hésitez pas à les signaler sur le Discord SCEFRA (lien sur Multitool)";
+    content.contains(search_text1) || content.contains(search_text2)
+}
+
+/// Applique le branding StarTrad FR à un fichier local existant
+#[command]
+pub fn apply_branding_to_local_file(path: String, lang: String) -> Result<bool, String> {
+    let base_path = Path::new(&path);
+
+    let lang_folder_name = get_language_folder(&lang)
+        .ok_or_else(|| "Langue non prise en charge".to_string())?;
+
+    let global_ini_path = base_path
+        .join("data")
+        .join("Localization")
+        .join(lang_folder_name)
+        .join("global.ini");
+
+    if !global_ini_path.is_file() {
+        return Ok(false); // Fichier non trouvé, rien à faire
+    }
+
+    // Lire le fichier
+    let mut content_bytes = fs::read(&global_ini_path)
+        .map_err(|e| format!("Erreur lecture: {}", e))?;
+
+    // Retirer le BOM si présent
+    if content_bytes.starts_with(UTF8_BOM) {
+        content_bytes = content_bytes[UTF8_BOM.len()..].to_vec();
+    }
+
+    let content = String::from_utf8(content_bytes)
+        .map_err(|e| format!("Erreur UTF-8: {}", e))?;
+
+    // Vérifier si le branding est nécessaire
+    if !needs_branding(&content) {
+            return Ok(false);
+    }
+
+    // Appliquer le branding
+    let new_content = apply_startrad_branding_direct(&content);
+
+    // Réécrire le fichier avec BOM
+    let mut file = File::create(&global_ini_path)
+        .map_err(|e| format!("Erreur création: {}", e))?;
+    file.write_all(UTF8_BOM)
+        .and_then(|_| file.write_all(new_content.as_bytes()))
+        .map_err(|e| format!("Erreur écriture: {}", e))?;
+
+    Ok(true)
+}
+
+/// Applique le branding StarTrad FR en remplaçant "l'application Multitool" par "l'application StarTrad FR"
+/// Uniquement pour les traductions SCFRA (détecté via le lien)
+fn apply_startrad_branding(content: &str, translation_link: &str) -> String {
+    // Appliquer uniquement pour les traductions SCFRA (contient "Scefra" ou "SPEED0U")
+    let is_scefra = translation_link.to_lowercase().contains("scefra") || translation_link.contains("SPEED0U");
+
+    if is_scefra {
+        // Note: l'apostrophe dans "l'application" est U+2019 (') et non U+0027 (')
+        let search_text1 = "l\u{2019}application Multitool";
+        let replace_text1 = "l\u{2019}application StarTrad FR";
+
+        // Remplacement du texte Discord SCEFRA (apostrophe U+2019 aussi)
+        let search_text2 = "n\u{2019}hésitez pas à les signaler sur le Discord SCEFRA (lien sur Multitool)";
+        let replace_text2 = "n\u{2019}hésitez pas à les signaler sur Discord pseudo drrakendu78";
+
+        content
+            .replace(search_text1, replace_text1)
+            .replace(search_text2, replace_text2)
+    } else {
+        content.to_string()
+    }
+}
+
 #[command]
 pub fn is_game_translated(path: String, lang: String) -> bool {
     let base_path = Path::new(&path);
@@ -97,6 +189,10 @@ pub fn init_translation_files(
     let content = response
         .text()
         .map_err(|e| format!("Erreur lors de la lecture de la réponse: {}", e))?;
+
+    // Appliquer le branding StarTrad FR pour les traductions SCFRA
+    let content = apply_startrad_branding(&content, &translation_link);
+
     let mut file = File::create(&global_ini_path)
         .map_err(|e| format!("Erreur lors de la création de 'global.ini': {}", e))?;
     file.write_all(UTF8_BOM)
@@ -166,6 +262,9 @@ pub fn is_translation_up_to_date(path: String, translation_link: String, lang: S
         Err(_) => return false,
     };
 
+    // Appliquer le branding StarTrad FR au contenu distant pour comparaison correcte
+    let remote_ini_content = apply_startrad_branding(&remote_ini_content, &translation_link);
+
     // Normaliser les contenus
     let local_normalized = local_ini_content.replace("\r\n", "\n").trim().to_string();
     let remote_normalized = remote_ini_content.replace("\r\n", "\n").trim().to_string();
@@ -210,6 +309,9 @@ pub fn update_translation(
     let content = response
         .text()
         .map_err(|e| format!("Erreur lors de la lecture de la réponse: {}", e))?;
+
+    // Appliquer le branding StarTrad FR pour les traductions SCFRA
+    let content = apply_startrad_branding(&content, &translation_link);
 
     // Écrire le contenu dans le fichier 'global.ini' local avec UTF-8 BOM
     let mut file = File::create(&global_ini_path)
@@ -295,6 +397,9 @@ pub async fn is_translation_up_to_date_async(path: String, translation_link: Str
         Err(_) => return false,
     };
 
+    // Appliquer le branding StarTrad FR au contenu distant pour comparaison correcte
+    let remote_ini_content = apply_startrad_branding(&remote_ini_content, &translation_link);
+
     // Normaliser les contenus
     let local_normalized = local_ini_content.replace("\r\n", "\n").trim().to_string();
     let remote_normalized = remote_ini_content.replace("\r\n", "\n").trim().to_string();
@@ -341,6 +446,9 @@ pub async fn update_translation_async(
         .text()
         .await
         .map_err(|e| format!("Erreur lors de la lecture de la réponse: {}", e))?;
+
+    // Appliquer le branding StarTrad FR pour les traductions SCFRA
+    let content = apply_startrad_branding(&content, &translation_link);
 
     // Écrire le contenu dans le fichier 'global.ini' local avec UTF-8 BOM
     let mut file = File::create(&global_ini_path)

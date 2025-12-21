@@ -6,7 +6,7 @@ use tokio::time::sleep;
 use tauri_plugin_notification::NotificationExt;
 
 use crate::scripts::gamepath::get_star_citizen_versions;
-use crate::scripts::translation_functions::{is_game_translated, is_translation_up_to_date_async, update_translation_async};
+use crate::scripts::translation_functions::{apply_branding_to_local_file, is_game_translated, is_translation_up_to_date_async, update_translation_async};
 use crate::scripts::translation_preferences::load_translations_selected;
 
 /// Configuration du service de tâche de fond
@@ -241,6 +241,13 @@ async fn check_and_update_translations(app: &AppHandle, lang: &str) -> Result<()
             if let Some(link) = translation_setting.get("link").and_then(|v| v.as_str()) {
                 // Vérifier si la traduction est installée
                 if is_game_translated(version_path.clone(), lang.to_string()) {
+                    // Appliquer le branding local si nécessaire (pour les installations existantes)
+                    match apply_branding_to_local_file(version_path.clone(), lang.to_string()) {
+                        Ok(true) => println!("[Background Service] Branding appliqué pour {}", version_name),
+                        Ok(false) => {}, // Déjà à jour, rien à faire
+                        Err(e) => eprintln!("[Background Service] Erreur branding pour {}: {}", version_name, e),
+                    }
+
                     // Vérifier si une mise à jour est disponible (ASYNC)
                     if !is_translation_up_to_date_async(version_path.clone(), link.to_string(), lang.to_string()).await {
                         println!("[Background Service] Mise à jour disponible pour {}", version_name);

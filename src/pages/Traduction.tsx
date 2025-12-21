@@ -168,6 +168,18 @@ export default function Traduction() {
                         },
                     );
 
+                    // Appliquer le branding automatiquement si la traduction est installée
+                    if (translated) {
+                        try {
+                            await invoke("apply_branding_to_local_file", {
+                                path: value.path,
+                                lang: defaultLanguage,
+                            });
+                        } catch (e) {
+                            console.error("Erreur branding:", e);
+                        }
+                    }
+
                     const upToDate: boolean = (versionSettings && versionSettings.link)
                         ? await invoke("is_translation_up_to_date", {
                             path: value.path,

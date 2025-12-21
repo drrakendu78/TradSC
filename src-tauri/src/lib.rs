@@ -40,8 +40,8 @@ use scripts::startup_manager::{
 use scripts::system_tray::setup_system_tray;
 use scripts::theme_preferences::{load_theme_selected, save_theme_selected};
 use scripts::translation_functions::{
-    init_translation_files, is_game_translated, is_translation_up_to_date, uninstall_translation,
-    update_translation,
+    apply_branding_to_local_file, init_translation_files, is_game_translated, is_translation_up_to_date,
+    uninstall_translation, update_translation,
 };
 use scripts::translation_preferences::{load_translations_selected, save_translations_selected};
 use scripts::translations_links::{get_translation_by_setting, get_translations};
@@ -261,6 +261,7 @@ pub fn run() {
             is_translation_up_to_date,
             update_translation,
             uninstall_translation,
+            apply_branding_to_local_file,
             save_translations_selected,
             load_translations_selected,
             get_translations,
