@@ -21,12 +21,11 @@ import {
     ExternalLink,
     Play
 } from 'lucide-react';
-import { open } from '@tauri-apps/plugin-shell';
-import { invoke } from '@tauri-apps/api/core';
 import RecentPatchNotes from '@/components/custom/recent-patchnotes';
 import RecentActualites from '@/components/custom/recent-actualites';
 import { AnnouncementDialog } from '@/components/custom/announcement-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { isTauri } from '@/utils/tauri-helpers';
 
 interface LauncherStatus {
     installed: boolean;
@@ -107,25 +106,34 @@ function Home() {
     const [showContent, setShowContent] = useState(true);
     const [launcherStatus, setLauncherStatus] = useState<LauncherStatus>({ installed: false, path: null });
     const [launchingLauncher, setLaunchingLauncher] = useState(false);
+    const [isInTauri, setIsInTauri] = useState(false);
     const { toast } = useToast();
 
-    // Vérifier si le RSI Launcher est installé
+    // Vérifier si on est dans Tauri et si le RSI Launcher est installé
     useEffect(() => {
-        const checkLauncher = async () => {
-            try {
-                const status = await invoke<LauncherStatus>('check_rsi_launcher');
-                setLauncherStatus(status);
-            } catch (error) {
-                console.error('Erreur lors de la vérification du launcher:', error);
-            }
-        };
-        checkLauncher();
+        const inTauri = isTauri();
+        setIsInTauri(inTauri);
+
+        if (inTauri) {
+            const checkLauncher = async () => {
+                try {
+                    const { invoke } = await import('@tauri-apps/api/core');
+                    const status = await invoke<LauncherStatus>('check_rsi_launcher');
+                    setLauncherStatus(status);
+                } catch (error) {
+                    console.error('Erreur lors de la vérification du launcher:', error);
+                }
+            };
+            checkLauncher();
+        }
     }, []);
 
     // Lancer le RSI Launcher
     const handleLaunchLauncher = async () => {
+        if (!isInTauri) return;
         setLaunchingLauncher(true);
         try {
+            const { invoke } = await import('@tauri-apps/api/core');
             await invoke('launch_rsi_launcher');
             toast({
                 title: 'RSI Launcher lancé',
@@ -139,6 +147,16 @@ function Home() {
             });
         } finally {
             setLaunchingLauncher(false);
+        }
+    };
+
+    // Ouvrir un lien externe
+    const handleOpenExternal = async (url: string) => {
+        if (isInTauri) {
+            const { open } = await import('@tauri-apps/plugin-shell');
+            await open(url);
+        } else {
+            window.open(url, '_blank');
         }
     };
 
@@ -185,28 +203,30 @@ function Home() {
                                         <Sparkles className="h-4 w-4" />
                                     </Button>
                                 </Link>
-                                {launcherStatus.installed ? (
-                                    <Button
-                                        size="lg"
-                                        variant="outline"
-                                        className="gap-2 text-base px-6"
-                                        onClick={handleLaunchLauncher}
-                                        disabled={launchingLauncher}
-                                    >
-                                        <Play className="h-5 w-5" />
-                                        {launchingLauncher ? 'Démarrage...' : 'Démarrer RSI Launcher'}
-                                    </Button>
-                                ) : (
-                                    <Button
-                                        size="lg"
-                                        variant="outline"
-                                        className="gap-2 text-base px-6"
-                                        onClick={() => open('https://install.robertsspaceindustries.com/rel/2/RSI%20Launcher-Setup-2.11.0.exe')}
-                                    >
-                                        <Download className="h-5 w-5" />
-                                        Télécharger le Launcher
-                                        <ExternalLink className="h-4 w-4" />
-                                    </Button>
+                                {isInTauri && (
+                                    launcherStatus.installed ? (
+                                        <Button
+                                            size="lg"
+                                            variant="outline"
+                                            className="gap-2 text-base px-6"
+                                            onClick={handleLaunchLauncher}
+                                            disabled={launchingLauncher}
+                                        >
+                                            <Play className="h-5 w-5" />
+                                            {launchingLauncher ? 'Démarrage...' : 'Démarrer RSI Launcher'}
+                                        </Button>
+                                    ) : (
+                                        <Button
+                                            size="lg"
+                                            variant="outline"
+                                            className="gap-2 text-base px-6"
+                                            onClick={() => handleOpenExternal('https://install.robertsspaceindustries.com/rel/2/RSI%20Launcher-Setup-2.11.0.exe')}
+                                        >
+                                            <Download className="h-5 w-5" />
+                                            Télécharger le Launcher
+                                            <ExternalLink className="h-4 w-4" />
+                                        </Button>
+                                    )
                                 )}
                             </div>
                         </div>
