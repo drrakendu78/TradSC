@@ -126,7 +126,7 @@ const socialLinks: NavigationItem[] = [
         id: "site",
         name: "Site web",
         icon: <IconCloud size={18} />,
-        href: "https://drrakendu78.github.io/TradSC-docs/",
+        href: "https://startrad.link/",
         tooltip: "Site web"
     },
     {
