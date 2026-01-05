@@ -194,7 +194,7 @@ function Home() {
                                         disabled={launchingLauncher}
                                     >
                                         <Play className="h-5 w-5" />
-                                        {launchingLauncher ? 'Lancement...' : 'Lancer le Launcher'}
+                                        {launchingLauncher ? 'Démarrage...' : 'Démarrer RSI Launcher'}
                                     </Button>
                                 ) : (
                                     <Button
