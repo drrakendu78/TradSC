@@ -18,6 +18,9 @@ const ALLOWED_DOMAINS = [
     "maps.adi.sc",
     "adi.sc",
     "startrad.link",
+    "finder.cstone.space",
+    "survey.cstone.space",
+    "cstone.space",
 ];
 
 // Autorise https, http (si besoin), et schémas ms-windows-store

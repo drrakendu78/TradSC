@@ -199,11 +199,10 @@ export default function Finder() {
                     height: 'calc(100% - 1rem)',
                     maxHeight: '100%',
                     maxWidth: '100%',
-                    overflow: 'hidden',
+                    overflow: 'auto',
                     display: 'block',
                     flexShrink: 0
                 }}
-                scrolling="no"
             />
         </motion.div>
     );
