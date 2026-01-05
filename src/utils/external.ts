@@ -17,6 +17,7 @@ const ALLOWED_DOMAINS = [
     "uexcorp.space",
     "maps.adi.sc",
     "adi.sc",
+    "startrad.link",
 ];
 
 // Autorise https, http (si besoin), et schémas ms-windows-store
