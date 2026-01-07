@@ -16,6 +16,7 @@ import {
     Dialog,
     DialogContent,
     DialogDescription,
+    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
@@ -155,6 +156,10 @@ function SidebarUserProfile({ isCollapsed, onMenuOpenChange }: { isCollapsed: bo
     const [authDialogOpen, setAuthDialogOpen] = useState(false);
     const [authDefaultTab, setAuthDefaultTab] = useState<string>('login');
     const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+    const [signOutDialogOpen, setSignOutDialogOpen] = useState(false);
+    const [menuReady, setMenuReady] = useState(false);
+    const { isLocked, isCollapsed: storeIsCollapsed, setCollapsed, setLocked } = useSidebarStore();
+    const previousSidebarState = React.useRef<{ isLocked: boolean; isCollapsed: boolean } | null>(null);
     const { toast } = useToast();
 
     useEffect(() => {
@@ -215,7 +220,30 @@ function SidebarUserProfile({ isCollapsed, onMenuOpenChange }: { isCollapsed: bo
         return (
             <>
                 <div className={`${isCollapsed ? 'px-2' : 'px-3'}`}>
-                    <DropdownMenu onOpenChange={(open) => onMenuOpenChange?.(open)}>
+                    <DropdownMenu onOpenChange={(open) => {
+                        onMenuOpenChange?.(open);
+                        if (open) {
+                            // Sauvegarder l'état actuel avant de modifier
+                            previousSidebarState.current = { isLocked, isCollapsed: storeIsCollapsed };
+                            setLocked(true); // Verrouiller la sidebar
+                            setCollapsed(false); // Agrandir la sidebar
+                            setMenuReady(false);
+                            setTimeout(() => setMenuReady(true), 150);
+                        } else {
+                            // Restaurer l'état précédent quand le menu se ferme
+                            if (previousSidebarState.current) {
+                                const savedState = previousSidebarState.current;
+                                previousSidebarState.current = null;
+                                setTimeout(() => {
+                                    setLocked(savedState.isLocked);
+                                    // Si la sidebar était en mode hover (non verrouillée), on la réduit
+                                    if (!savedState.isLocked) {
+                                        setCollapsed(true);
+                                    }
+                                }, 100);
+                            }
+                        }
+                    }}>
                         <DropdownMenuTrigger asChild>
                             <div 
                                 className={`
@@ -264,14 +292,16 @@ function SidebarUserProfile({ isCollapsed, onMenuOpenChange }: { isCollapsed: bo
                                 )}
                             </div>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent 
-                            align={isCollapsed ? "start" : "end"} 
-                            side={isCollapsed ? "right" : "top"}
+                        <DropdownMenuContent
+                            align="end"
+                            side="top"
+                            sideOffset={8}
                             className="w-56"
                         >
                             {user && (
                                 <DropdownMenuItem
                                     onClick={openCloudBackup}
+                                    disabled={!menuReady}
                                     className="cursor-pointer"
                                 >
                                     <IconCloud size={18} className="mr-2 text-blue-400" />
@@ -280,6 +310,7 @@ function SidebarUserProfile({ isCollapsed, onMenuOpenChange }: { isCollapsed: bo
                             )}
                             <DropdownMenuItem
                                 onClick={() => setSettingsDialogOpen(true)}
+                                disabled={!menuReady}
                                 className="cursor-pointer"
                             >
                                 <Settings size={18} className="mr-2" />
@@ -289,7 +320,8 @@ function SidebarUserProfile({ isCollapsed, onMenuOpenChange }: { isCollapsed: bo
                                 <>
                                     <div className="h-px bg-border/50 mx-2 my-1" />
                                     <DropdownMenuItem
-                                        onClick={handleSignOut}
+                                        onClick={() => setSignOutDialogOpen(true)}
+                                        disabled={!menuReady}
                                         className="cursor-pointer text-red-400 focus:text-red-400"
                                     >
                                         <LogOut size={18} className="mr-2" />
@@ -313,6 +345,35 @@ function SidebarUserProfile({ isCollapsed, onMenuOpenChange }: { isCollapsed: bo
                             </DialogDescription>
                         </DialogHeader>
                         <SettingsContent />
+                    </DialogContent>
+                </Dialog>
+
+                {/* Dialog Confirmation Déconnexion */}
+                <Dialog open={signOutDialogOpen} onOpenChange={setSignOutDialogOpen}>
+                    <DialogContent className="max-w-sm">
+                        <DialogHeader>
+                            <DialogTitle>Confirmer la déconnexion</DialogTitle>
+                            <DialogDescription>
+                                Êtes-vous sûr de vouloir vous déconnecter ?
+                            </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter className="gap-2 sm:gap-0">
+                            <Button
+                                variant="outline"
+                                onClick={() => setSignOutDialogOpen(false)}
+                            >
+                                Annuler
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                onClick={() => {
+                                    setSignOutDialogOpen(false);
+                                    handleSignOut();
+                                }}
+                            >
+                                Se déconnecter
+                            </Button>
+                        </DialogFooter>
                     </DialogContent>
                 </Dialog>
             </>
