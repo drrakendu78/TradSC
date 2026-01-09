@@ -1,5 +1,36 @@
 # StarTrad FR - Version 3.1.0
 
+## Nouveautes
+
+### Discord Rich Presence
+- Integration Discord : affichez votre activite StarTrad FR sur votre profil Discord
+- Affichage automatique de l'etat (page en cours, version traduite, etc.)
+- Activation/desactivation depuis les parametres
+
+### Mode Hors-Ligne
+- Nouveau systeme de cache des traductions pour fonctionner sans connexion internet
+- Les 3 sources de traduction (SCFRA FR, SCFRA EN, Circuspes) sont automatiquement mises en cache
+- Installation des traductions possible meme sans internet
+- Indicateur visuel du mode hors-ligne dans la page Traduction
+- Rafraichissement automatique du cache lors du retour en ligne
+
+### Temps de Jeu
+- Affichage du temps de jeu total sur la page d'accueil
+- Calcul base sur les logs du jeu (dossier logbackups)
+- Nombre de sessions detectees
+
+### Export/Import des Preferences
+- Export local : sauvegardez vos preferences (theme, sidebar, stats) dans un fichier JSON
+- Import local : restaurez vos preferences depuis un fichier
+- Sauvegarde cloud : synchronisez vos preferences avec votre compte (connexion requise)
+- Restauration cloud : recuperez vos preferences sur un autre appareil
+
+### Statistiques Utilisateur
+- Suivi du nombre d'installations de traduction
+- Suivi du nombre de nettoyages de cache
+- Suivi des personnages telecharges
+- Date de premiere utilisation de l'application
+
 ## Corrections
 
 ### Synchronisation Cloud des Preferences
@@ -16,6 +47,11 @@
 - Ajout du label "Nouveau" avec icone sur les elements les plus recents
 - Dates relatives (Aujourd'hui, Hier, Il y a X jours) pour une meilleure lisibilite
 - Mise en avant visuelle du premier element de chaque section
+
+### Page Traduction
+- Affichage de la date de derniere mise a jour pour chaque traduction
+- Indicateur de source en cache disponible
+- Meilleure gestion des erreurs reseau
 
 ### Fenetre
 - Ajustement de la taille de la fenetre a 1294x1060 pour un meilleur confort visuel
