@@ -1,0 +1,10 @@
+StarTrad FR v3.1.1 - Checksums SHA256
+
+StarTrad FR_3.1.1_x64_fr-FR.msi
+8f5348f222d5140cbbe17dfffb9a2565ea6a761d4f4b33fc276c91366f1ac94a
+
+StarTrad FR_3.1.1_x64-setup.exe
+874671d7f0dd487633d949085688d6809fba9baaa2916965ccf324b7e873f1b5
+
+startradfr.exe (Portable)
+6ee600fb24ee31be0ca0c3f2320d9d3fe3cf799e140869a0f37898c933943850
