@@ -1016,12 +1016,24 @@ function SettingsContent() {
         return saved === null ? true : saved === 'true';
     });
 
-    // État Discord Rich Presence
+    // État Discord Rich Presence (activé par défaut + migration v3.1.1)
     const [discordEnabled, setDiscordEnabled] = useState(() => {
+        const migrationKey = 'discordRPCMigrated_v311';
+        const hasMigrated = localStorage.getItem(migrationKey);
+
+        if (!hasMigrated) {
+            // Migration v3.1.1: forcer l'activation pour tous les utilisateurs (une seule fois)
+            localStorage.setItem('discordRPCEnabled', 'true');
+            localStorage.setItem(migrationKey, 'true');
+            return true;
+        }
+
+        // Après migration, respecter le choix de l'utilisateur
         const saved = localStorage.getItem('discordRPCEnabled');
-        return saved === 'true';
+        return saved === null ? true : saved === 'true';
     });
     const [discordConnecting, setDiscordConnecting] = useState(false);
+    const [discordConnected, setDiscordConnected] = useState(false);
 
     // État du cache de traductions
     interface CacheInfo {
@@ -1038,22 +1050,40 @@ function SettingsContent() {
         checkAutoStartupStatus();
     }, []);
 
-    // Connecter Discord au démarrage si activé
+    // Connecter Discord au démarrage et maintenir la connexion active
     useEffect(() => {
-        const initDiscord = async () => {
-            if (discordEnabled) {
-                try {
-                    await invoke('connect_discord');
-                } catch (error) {
-                    console.error('Erreur connexion Discord au démarrage:', error);
-                    // Désactiver si Discord n'est pas disponible
-                    setDiscordEnabled(false);
-                    localStorage.setItem('discordRPCEnabled', 'false');
-                }
+        let heartbeatInterval: NodeJS.Timeout | null = null;
+
+        const tryConnectDiscord = async () => {
+            if (!discordEnabled) return false;
+
+            try {
+                const result = await invoke<boolean>('check_and_reconnect_discord');
+                setDiscordConnected(result);
+                return result;
+            } catch {
+                // Discord pas disponible, on garde l'état activé mais pas connecté
+                setDiscordConnected(false);
+                return false;
             }
         };
-        initDiscord();
-    }, []);
+
+        // Tentative initiale de connexion
+        tryConnectDiscord();
+
+        // Vérification périodique toutes les 30 secondes pour maintenir/rétablir la connexion
+        if (discordEnabled) {
+            heartbeatInterval = setInterval(async () => {
+                await tryConnectDiscord();
+            }, 30000); // 30 secondes
+        }
+
+        return () => {
+            if (heartbeatInterval) {
+                clearInterval(heartbeatInterval);
+            }
+        };
+    }, [discordEnabled]);
 
     // Charger les infos du cache
     const loadCacheInfo = async () => {
@@ -1113,21 +1143,38 @@ function SettingsContent() {
         setDiscordConnecting(true);
         try {
             if (checked) {
-                await invoke('connect_discord');
+                // Activer - on sauvegarde l'état même si Discord n'est pas disponible
                 localStorage.setItem('discordRPCEnabled', 'true');
-                toast({
-                    title: 'Discord connecté',
-                    description: 'Votre activité sera affichée sur Discord',
-                });
+                setDiscordEnabled(true);
+
+                // Tenter de se connecter maintenant
+                try {
+                    const connected = await invoke<boolean>('check_and_reconnect_discord');
+                    setDiscordConnected(connected);
+                    toast({
+                        title: connected ? 'Discord connecté' : 'Discord activé',
+                        description: connected
+                            ? 'Votre activité est affichée sur Discord'
+                            : 'La connexion sera établie dès que Discord sera ouvert',
+                    });
+                } catch {
+                    setDiscordConnected(false);
+                    toast({
+                        title: 'Discord activé',
+                        description: 'La connexion sera établie dès que Discord sera ouvert',
+                    });
+                }
             } else {
+                // Désactiver
                 await invoke('disconnect_discord');
                 localStorage.setItem('discordRPCEnabled', 'false');
+                setDiscordEnabled(false);
+                setDiscordConnected(false);
                 toast({
                     title: 'Discord déconnecté',
                     description: 'Votre activité ne sera plus affichée sur Discord',
                 });
             }
-            setDiscordEnabled(checked);
         } catch (error) {
             toast({
                 title: 'Erreur Discord',
@@ -1446,10 +1493,16 @@ function SettingsContent() {
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
-                        {discordEnabled && !discordConnecting && (
+                        {discordEnabled && !discordConnecting && discordConnected && (
                             <span className="flex items-center gap-1 text-sm text-[#5865F2]">
                                 <IconBrandDiscord size={16} />
                                 Connecté
+                            </span>
+                        )}
+                        {discordEnabled && !discordConnecting && !discordConnected && (
+                            <span className="flex items-center gap-1 text-sm text-amber-500">
+                                <IconBrandDiscord size={16} />
+                                En attente
                             </span>
                         )}
                         {discordConnecting && (
@@ -1471,8 +1524,9 @@ function SettingsContent() {
                     <h4 className="font-medium text-sm">Comment ça fonctionne ?</h4>
                     <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
                         <li>Affiche "StarTrad FR" sur votre profil Discord</li>
-                        <li>Montre votre activité aux autres membres</li>
-                        <li>Discord doit être ouvert pour fonctionner</li>
+                        <li>Se connecte automatiquement dès que Discord est ouvert</li>
+                        <li>Reconnexion automatique si Discord redémarre</li>
+                        <li><span className="text-[#5865F2]">Connecté</span> = actif sur Discord • <span className="text-amber-500">En attente</span> = Discord pas détecté</li>
                     </ul>
                 </div>
             </div>

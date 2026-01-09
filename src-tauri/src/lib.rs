@@ -49,7 +49,8 @@ use scripts::updater_functions::{download_and_install_update, download_and_insta
 use scripts::app_stats::{get_app_stats, get_playtime, debug_game_paths};
 use scripts::discord_presence::{
     connect_discord, disconnect_discord, update_discord_activity, get_discord_status,
-    set_translating_activity, clear_discord_activity, DiscordState,
+    set_translating_activity, clear_discord_activity, reconnect_discord, check_and_reconnect_discord,
+    DiscordState,
 };
 use scripts::offline_cache::{
     cache_translation, list_cached_translations, get_cached_translation,
@@ -353,6 +354,8 @@ pub fn run() {
             get_discord_status,
             set_translating_activity,
             clear_discord_activity,
+            reconnect_discord,
+            check_and_reconnect_discord,
             cache_translation,
             list_cached_translations,
             get_cached_translation,

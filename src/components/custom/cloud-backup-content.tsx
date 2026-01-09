@@ -92,25 +92,30 @@ export default function CloudBackupContent({ user }: CloudBackupContentProps) {
             });
 
             const parsed = JSON.parse(result);
-            const items: BackupItem[] = parsed?.map((item: any) => {
-                // Extraire la version du nom de fichier (format: backup_VERSION_timestamp.zip)
-                // Le timestamp est toujours au format YYYYMMDD_HHMMSS (8 chiffres _ 6 chiffres)
-                let version = 'LIVE'; // Par défaut
-                const match = item.name.match(/backup_(.+)_(\d{8}_\d{6})\.zip/);
-                if (match) {
-                    version = match[1];
-                }
-                
-                return {
-                    name: item.name,
-                    id: item.id,
-                    created_at: item.created_at,
-                    updated_at: item.updated_at,
-                    last_accessed_at: item.last_accessed_at,
-                    version: version,
-                    metadata: item.metadata || { size: 0, mimetype: 'application/zip' },
-                };
-            }) || [];
+            // Filtrer pour n'inclure que les vrais fichiers de backup (format: backup_VERSION_timestamp.zip)
+            // Exclut les dossiers comme "preferences/" qui sont utilisés pour d'autres fonctionnalités
+            const backupPattern = /^backup_(.+)_(\d{8}_\d{6})\.zip$/;
+
+            const items: BackupItem[] = (parsed || [])
+                .filter((item: any) => {
+                    // Ne garder que les fichiers qui correspondent au pattern de backup
+                    return item.name && backupPattern.test(item.name);
+                })
+                .map((item: any) => {
+                    // Extraire la version du nom de fichier
+                    const match = item.name.match(backupPattern);
+                    const version = match ? match[1] : 'LIVE';
+
+                    return {
+                        name: item.name,
+                        id: item.id,
+                        created_at: item.created_at,
+                        updated_at: item.updated_at,
+                        last_accessed_at: item.last_accessed_at,
+                        version: version,
+                        metadata: item.metadata || { size: 0, mimetype: 'application/zip' },
+                    };
+                });
 
             // Trier par date de création (plus récent en premier)
             items.sort((a, b) => 
