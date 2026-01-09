@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
+import { Sparkles, Clock } from "lucide-react";
 
 type Release = {
     name: string;
@@ -27,35 +27,77 @@ export default function RecentPatchNotes({ max = 3 }: { max?: number }) {
     }, []);
 
     if (releases === null) {
-        return <Skeleton className="h-[160px] w-full" />;
+        return (
+            <div className="space-y-2">
+                <Skeleton className="h-16 w-full rounded-lg" />
+                <Skeleton className="h-16 w-full rounded-lg" />
+                <Skeleton className="h-16 w-full rounded-lg" />
+            </div>
+        );
     }
 
     const getFirstLine = (text: string): string => {
         if (!text) return "";
         const firstLine = text.split('\n')[0].trim();
-        // Retirer les markdown headers (#, ##, etc.)
         return firstLine.replace(/^#+\s*/, '');
     };
 
+    const formatDate = (dateString: string) => {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffTime = Math.abs(now.getTime() - date.getTime());
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays === 0) return "Aujourd'hui";
+        if (diffDays === 1) return "Hier";
+        if (diffDays < 7) return `Il y a ${diffDays} jours`;
+
+        return date.toLocaleDateString('fr-FR', {
+            day: '2-digit',
+            month: 'short'
+        });
+    };
+
     return (
-        <div className="flex flex-col gap-3 flex-1">
-            <ul className="space-y-3 flex-1">
-                {releases.slice(0, max).map((release, idx) => (
-                    <li key={release.tag_name || idx} className="text-sm">
-                        <p className="font-medium">{getFirstLine(release.body) || release.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                            {new Date(release.published_at).toLocaleString('fr-FR')}
-                        </p>
-                    </li>
-                ))}
-            </ul>
-            <div className="mt-auto">
-                <Link to="/patchnotes">
-                    <Button variant="secondary" size="sm" className="hover:scale-[1.01] transition">Voir tous les patchnotes</Button>
-                </Link>
-            </div>
+        <div className="space-y-2">
+            {releases.slice(0, max).map((release, idx) => (
+                <div
+                    key={release.tag_name || idx}
+                    className={`
+                        relative p-3 rounded-lg border transition-all duration-200
+                        ${idx === 0
+                            ? 'bg-primary/10 border-primary/30 hover:border-primary/50'
+                            : 'bg-muted/30 border-border/50 hover:border-border'
+                        }
+                    `}
+                >
+                    <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                                <Badge
+                                    variant={idx === 0 ? "default" : "secondary"}
+                                    className="text-[10px] px-1.5 py-0 h-5"
+                                >
+                                    {release.tag_name}
+                                </Badge>
+                                {idx === 0 && (
+                                    <span className="flex items-center gap-1 text-[10px] text-primary font-medium">
+                                        <Sparkles className="h-3 w-3" />
+                                        Nouveau
+                                    </span>
+                                )}
+                            </div>
+                            <p className="text-sm font-medium truncate">
+                                {getFirstLine(release.body) || release.name}
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground shrink-0">
+                            <Clock className="h-3 w-3" />
+                            {formatDate(release.published_at)}
+                        </div>
+                    </div>
+                </div>
+            ))}
         </div>
     );
 }
-
-

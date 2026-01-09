@@ -7,7 +7,7 @@ import {
     ChevronDown
 } from 'lucide-react';
 import { IconHome, IconBrandDiscord, IconCloud, IconBrandGithub, IconLanguage, IconUsers, IconNews, IconKeyboard, IconCalculator, IconMap2, IconSearch } from "@tabler/icons-react";
-import { BrushCleaning, Download, Power, PowerOff, Loader2, RotateCcw, Monitor, Route } from "lucide-react";
+import { BrushCleaning, Download, Power, PowerOff, Loader2, RotateCcw, Monitor, Route, BarChart3, Calendar, Languages, Trash2, Save, Users } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { ColorPicker } from "@/components/custom/color-picker";
 import openExternal from "@/utils/external";
@@ -21,6 +21,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { useSidebarStore } from "@/stores/sidebar-store";
+import { useStatsStore } from "@/stores/stats-store";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -1015,11 +1016,128 @@ function SettingsContent() {
         return saved === null ? true : saved === 'true';
     });
 
+    // État Discord Rich Presence
+    const [discordEnabled, setDiscordEnabled] = useState(() => {
+        const saved = localStorage.getItem('discordRPCEnabled');
+        return saved === 'true';
+    });
+    const [discordConnecting, setDiscordConnecting] = useState(false);
+
+    // État du cache de traductions
+    interface CacheInfo {
+        total_files: number;
+        total_size: number;
+        cache_path: string;
+    }
+    const [cacheInfo, setCacheInfo] = useState<CacheInfo | null>(null);
+    const [loadingCache, setLoadingCache] = useState(false);
+
     // Charger la configuration au montage
     useEffect(() => {
         loadConfiguration();
         checkAutoStartupStatus();
     }, []);
+
+    // Connecter Discord au démarrage si activé
+    useEffect(() => {
+        const initDiscord = async () => {
+            if (discordEnabled) {
+                try {
+                    await invoke('connect_discord');
+                } catch (error) {
+                    console.error('Erreur connexion Discord au démarrage:', error);
+                    // Désactiver si Discord n'est pas disponible
+                    setDiscordEnabled(false);
+                    localStorage.setItem('discordRPCEnabled', 'false');
+                }
+            }
+        };
+        initDiscord();
+    }, []);
+
+    // Charger les infos du cache
+    const loadCacheInfo = async () => {
+        try {
+            const info = await invoke<CacheInfo>('get_translation_cache_info');
+            setCacheInfo(info);
+        } catch (error) {
+            console.error('Erreur chargement cache info:', error);
+        }
+    };
+
+    useEffect(() => {
+        loadCacheInfo();
+    }, []);
+
+    const handleClearCache = async () => {
+        setLoadingCache(true);
+        try {
+            const count = await invoke<number>('clear_translation_cache');
+            toast({
+                title: 'Cache vidé',
+                description: `${count} fichier(s) supprimé(s)`,
+            });
+            await loadCacheInfo();
+        } catch (error) {
+            toast({
+                title: 'Erreur',
+                description: `${error}`,
+                variant: 'destructive',
+            });
+        } finally {
+            setLoadingCache(false);
+        }
+    };
+
+    const handleOpenCacheFolder = async () => {
+        try {
+            await invoke('open_translation_cache_folder');
+        } catch (error) {
+            toast({
+                title: 'Erreur',
+                description: `${error}`,
+                variant: 'destructive',
+            });
+        }
+    };
+
+    const formatBytes = (bytes: number): string => {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+
+    const handleDiscordToggle = async (checked: boolean) => {
+        setDiscordConnecting(true);
+        try {
+            if (checked) {
+                await invoke('connect_discord');
+                localStorage.setItem('discordRPCEnabled', 'true');
+                toast({
+                    title: 'Discord connecté',
+                    description: 'Votre activité sera affichée sur Discord',
+                });
+            } else {
+                await invoke('disconnect_discord');
+                localStorage.setItem('discordRPCEnabled', 'false');
+                toast({
+                    title: 'Discord déconnecté',
+                    description: 'Votre activité ne sera plus affichée sur Discord',
+                });
+            }
+            setDiscordEnabled(checked);
+        } catch (error) {
+            toast({
+                title: 'Erreur Discord',
+                description: `${error}`,
+                variant: 'destructive',
+            });
+        } finally {
+            setDiscordConnecting(false);
+        }
+    };
 
     const loadConfiguration = async () => {
         try {
@@ -1311,6 +1429,112 @@ function SettingsContent() {
 
             <Separator />
 
+            {/* Discord Rich Presence */}
+            <div className="space-y-4">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <IconBrandDiscord size={20} className="text-[#5865F2]" />
+                    Discord Rich Presence
+                </h3>
+
+                <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                        <span className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                            Afficher l'activité
+                        </span>
+                        <p className="text-sm text-muted-foreground">
+                            Montre que vous utilisez StarTrad FR sur votre profil Discord
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {discordEnabled && !discordConnecting && (
+                            <span className="flex items-center gap-1 text-sm text-[#5865F2]">
+                                <IconBrandDiscord size={16} />
+                                Connecté
+                            </span>
+                        )}
+                        {discordConnecting && (
+                            <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                            </span>
+                        )}
+                        <Switch
+                            id="discord-rpc"
+                            aria-label="Discord Rich Presence"
+                            checked={discordEnabled}
+                            onCheckedChange={handleDiscordToggle}
+                            disabled={discordConnecting}
+                        />
+                    </div>
+                </div>
+
+                <div className="bg-muted/50 p-4 rounded-lg space-y-2">
+                    <h4 className="font-medium text-sm">Comment ça fonctionne ?</h4>
+                    <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                        <li>Affiche "StarTrad FR" sur votre profil Discord</li>
+                        <li>Montre votre activité aux autres membres</li>
+                        <li>Discord doit être ouvert pour fonctionner</li>
+                    </ul>
+                </div>
+            </div>
+
+            <Separator />
+
+            {/* Cache de traductions / Mode hors-ligne */}
+            <div className="space-y-4">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <Save className="h-5 w-5 text-green-500" />
+                    Cache de traductions
+                </h3>
+
+                <div className="bg-muted/50 p-4 rounded-lg space-y-3">
+                    <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Fichiers en cache</span>
+                        <span className="text-sm font-medium">{cacheInfo?.total_files || 0}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Taille totale</span>
+                        <span className="text-sm font-medium">{formatBytes(cacheInfo?.total_size || 0)}</span>
+                    </div>
+                </div>
+
+                <div className="flex gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleOpenCacheFolder}
+                        className="flex-1"
+                    >
+                        Ouvrir le dossier
+                    </Button>
+                    <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleClearCache}
+                        disabled={loadingCache || (cacheInfo?.total_files || 0) === 0}
+                        className="flex-1"
+                    >
+                        {loadingCache ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                            <>
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Vider le cache
+                            </>
+                        )}
+                    </Button>
+                </div>
+
+                <div className="bg-muted/50 p-4 rounded-lg space-y-2">
+                    <h4 className="font-medium text-sm">Mode hors-ligne</h4>
+                    <p className="text-sm text-muted-foreground">
+                        Les traductions installées sont automatiquement mises en cache.
+                        Vous pouvez les réinstaller même sans connexion internet depuis la page Traduction.
+                    </p>
+                </div>
+            </div>
+
+            <Separator />
+
             {/* Réinitialisation */}
             <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Réinitialisation</h3>
@@ -1338,7 +1562,7 @@ function SettingsContent() {
                                     }
                                 }
                                 keysToRemove.forEach(key => localStorage.removeItem(key));
-                                
+
                                 toast({
                                     title: 'Popups réinitialisées',
                                     description: 'Redémarrage de l\'application...',
@@ -1356,6 +1580,133 @@ function SettingsContent() {
                     </div>
                 </div>
             </div>
+
+            <Separator />
+
+            {/* Statistiques */}
+            <StatsSection />
+        </div>
+    );
+}
+
+interface AppStats {
+    first_install_date: string | null;
+    days_since_install: number | null;
+    local_backups_count: number;
+    translations_installed_count: number;
+    translated_versions: string[];
+}
+
+function StatsSection() {
+    const { cacheCleanCount, characterDownloadCount } = useStatsStore();
+    const [appStats, setAppStats] = useState<AppStats | null>(null);
+    const [cloudBackupsCount, setCloudBackupsCount] = useState<number>(0);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchStats = async () => {
+            try {
+                // Récupérer les stats depuis Rust
+                const stats = await invoke<AppStats>("get_app_stats");
+                setAppStats(stats);
+
+                // Récupérer le nombre de backups cloud si connecté
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session?.user) {
+                    const { data: backups } = await supabase.storage
+                        .from("user-backups")
+                        .list(`${session.user.id}/backups`);
+                    setCloudBackupsCount(backups?.length || 0);
+                }
+            } catch (error) {
+                console.error("Erreur lors du chargement des stats:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchStats();
+    }, []);
+
+    const totalBackups = (appStats?.local_backups_count || 0) + cloudBackupsCount;
+
+    const stats = [
+        {
+            icon: <Calendar className="h-4 w-4 text-primary" />,
+            label: "Utilisation",
+            value: appStats?.days_since_install !== null && appStats?.days_since_install !== undefined
+                ? `${appStats.days_since_install} jour${appStats.days_since_install > 1 ? 's' : ''}`
+                : "Nouveau",
+            description: "Depuis l'installation"
+        },
+        {
+            icon: <Languages className="h-4 w-4 text-blue-500" />,
+            label: "Traductions actives",
+            value: appStats?.translations_installed_count?.toString() || "0",
+            description: appStats?.translated_versions?.join(", ") || "Aucune"
+        },
+        {
+            icon: <Trash2 className="h-4 w-4 text-orange-500" />,
+            label: "Nettoyages cache",
+            value: cacheCleanCount.toString(),
+            description: "Cette session"
+        },
+        {
+            icon: <Save className="h-4 w-4 text-green-500" />,
+            label: "Backups",
+            value: totalBackups.toString(),
+            description: `${appStats?.local_backups_count || 0} local${cloudBackupsCount > 0 ? ` + ${cloudBackupsCount} cloud` : ''}`
+        },
+        {
+            icon: <Users className="h-4 w-4 text-purple-500" />,
+            label: "Presets téléchargés",
+            value: characterDownloadCount.toString(),
+            description: "Personnages"
+        }
+    ];
+
+    if (loading) {
+        return (
+            <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5 text-primary" />
+                    <h3 className="text-lg font-semibold">Statistiques</h3>
+                </div>
+                <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-4">
+            <div className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-primary" />
+                <h3 className="text-lg font-semibold">Statistiques</h3>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+                {stats.map((stat, index) => (
+                    <div
+                        key={index}
+                        className="bg-muted/30 rounded-lg p-3 border border-border/30 hover:bg-muted/50 transition-colors"
+                    >
+                        <div className="flex items-center gap-2 mb-1">
+                            {stat.icon}
+                            <span className="text-xs text-muted-foreground">{stat.label}</span>
+                        </div>
+                        <p className="text-xl font-bold">{stat.value}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate" title={stat.description}>
+                            {stat.description}
+                        </p>
+                    </div>
+                ))}
+            </div>
+
+            <p className="text-xs text-muted-foreground text-center">
+                Données réelles depuis le système
+            </p>
         </div>
     );
 }

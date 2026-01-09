@@ -1,3 +1,4 @@
+pub mod app_stats;
 pub mod background_service;
 pub mod bindings_functions;
 pub mod cache_functions;
@@ -17,3 +18,5 @@ pub mod translations_links;
 pub mod updater_functions;
 pub mod config_paths;
 pub mod oauth_callback;
+pub mod discord_presence;
+pub mod offline_cache;

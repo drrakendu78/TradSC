@@ -5,6 +5,8 @@ use std::path::Path;
 use reqwest::blocking::Client;
 use tauri::command;
 
+use super::offline_cache::cache_translation_internal;
+
 pub fn get_language_folder(lang: &str) -> Option<&str> {
     match lang.to_lowercase().as_str() {
         "fr" => Some("french_(france)"),
@@ -186,6 +188,7 @@ pub fn init_translation_files(
     path: String,
     lang: String,
     translation_link: String,
+    game_version: Option<String>,
 ) -> Result<(), String> {
     let base_path = Path::new(&path);
 
@@ -244,6 +247,11 @@ pub fn init_translation_files(
     );
     file.write_all(cfg_content.as_bytes())
         .map_err(|e| format!("Erreur lors de l'écriture dans 'user.cfg': {}", e))?;
+
+    // Mettre en cache pour le mode hors-ligne (si game_version fourni)
+    if let Some(version) = game_version {
+        let _ = cache_translation_internal(&version, &translation_link, &content);
+    }
 
     Ok(())
 }
@@ -313,6 +321,7 @@ pub fn update_translation(
     path: String,
     lang: String,
     translation_link: String,
+    game_version: Option<String>,
 ) -> Result<(), String> {
     let base_path = Path::new(&path);
 
@@ -354,6 +363,11 @@ pub fn update_translation(
     file.write_all(UTF8_BOM)
         .and_then(|_| file.write_all(content.as_bytes()))
         .map_err(|e| format!("Erreur lors de l'écriture de 'global.ini': {}", e))?;
+
+    // Mettre en cache pour le mode hors-ligne (si game_version fourni)
+    if let Some(version) = game_version {
+        let _ = cache_translation_internal(&version, &translation_link, &content);
+    }
 
     Ok(())
 }
@@ -491,6 +505,66 @@ pub async fn update_translation_async(
     file.write_all(UTF8_BOM)
         .and_then(|_| file.write_all(content.as_bytes()))
         .map_err(|e| format!("Erreur lors de l'écriture de 'global.ini': {}", e))?;
+
+    Ok(())
+}
+
+// ============================================================================
+// Installation depuis le cache (mode hors-ligne)
+// ============================================================================
+
+/// Installe une traduction depuis le cache local
+#[command]
+pub fn install_translation_from_cache(
+    path: String,
+    lang: String,
+    cached_content: String,
+) -> Result<(), String> {
+    let base_path = Path::new(&path);
+
+    // Vérifier et créer le dossier 'data'
+    let data_path = base_path.join("data");
+    if !data_path.exists() {
+        fs::create_dir(&data_path)
+            .map_err(|e| format!("Erreur lors de la création de 'data': {}", e))?;
+    }
+
+    // Vérifier et créer le dossier 'Localization'
+    let localization_path = data_path.join("Localization");
+    if !localization_path.exists() {
+        fs::create_dir(&localization_path)
+            .map_err(|e| format!("Erreur lors de la création de 'Localization': {}", e))?;
+    }
+
+    // Obtenir le nom du dossier de langue
+    let lang_folder_name =
+        get_language_folder(&lang).ok_or_else(|| "Langue non prise en charge".to_string())?;
+
+    // Vérifier et créer le dossier de langue
+    let lang_folder_path = localization_path.join(lang_folder_name);
+    if !lang_folder_path.exists() {
+        fs::create_dir(&lang_folder_path)
+            .map_err(|e| format!("Erreur lors de la création du dossier de langue: {}", e))?;
+    }
+
+    // Écrire le fichier 'global.ini' avec UTF-8 BOM
+    let global_ini_path = lang_folder_path.join("global.ini");
+    let mut file = File::create(&global_ini_path)
+        .map_err(|e| format!("Erreur lors de la création de 'global.ini': {}", e))?;
+    file.write_all(UTF8_BOM)
+        .and_then(|_| file.write_all(cached_content.as_bytes()))
+        .map_err(|e| format!("Erreur lors de l'écriture de 'global.ini': {}", e))?;
+
+    // Créer ou mettre à jour 'user.cfg' à la racine
+    let user_cfg_path = base_path.join("user.cfg");
+    let mut file = File::create(&user_cfg_path)
+        .map_err(|e| format!("Erreur lors de la création de 'user.cfg': {}", e))?;
+    let cfg_content = format!(
+        "g_language = {}\ng_languageAudio = english\n",
+        lang_folder_name
+    );
+    file.write_all(cfg_content.as_bytes())
+        .map_err(|e| format!("Erreur lors de l'écriture dans 'user.cfg': {}", e))?;
 
     Ok(())
 }

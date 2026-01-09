@@ -23,7 +23,7 @@ use scripts::cloud_backup::{
     download_backup_from_supabase, delete_backup_from_supabase,
 };
 use scripts::oauth_callback::start_oauth_callback_server;
-use scripts::gamepath::{get_star_citizen_versions, check_rsi_launcher, launch_rsi_launcher};
+use scripts::gamepath::{get_star_citizen_versions, check_rsi_launcher, launch_rsi_launcher, get_folder_creation_date};
 use scripts::graphics_settings::{
     get_graphics_renderer, set_graphics_renderer,
     get_user_cfg_resolution, set_user_cfg_resolution,
@@ -41,13 +41,33 @@ use scripts::system_tray::setup_system_tray;
 use scripts::theme_preferences::{load_theme_selected, save_theme_selected};
 use scripts::translation_functions::{
     apply_branding_to_local_file, init_translation_files, is_game_translated, is_translation_up_to_date,
-    uninstall_translation, update_translation,
+    uninstall_translation, update_translation, install_translation_from_cache,
 };
 use scripts::translation_preferences::{load_translations_selected, save_translations_selected};
-use scripts::translations_links::{get_translation_by_setting, get_translations};
+use scripts::translations_links::{get_translation_by_setting, get_translation_last_updated, get_translations};
 use scripts::updater_functions::{download_and_install_update, download_and_install_update_immediate};
+use scripts::app_stats::{get_app_stats, get_playtime, debug_game_paths};
+use scripts::discord_presence::{
+    connect_discord, disconnect_discord, update_discord_activity, get_discord_status,
+    set_translating_activity, clear_discord_activity, DiscordState,
+};
+use scripts::offline_cache::{
+    cache_translation, list_cached_translations, get_cached_translation,
+    delete_cached_translation, clear_translation_cache, is_translation_cached,
+    get_translation_cache_info, open_translation_cache_folder, cache_all_installed_translations,
+};
 use tauri::{command, Manager};
 use window_vibrancy::apply_acrylic;
+
+#[command]
+async fn write_text_file(path: String, content: String) -> Result<(), String> {
+    std::fs::write(&path, &content).map_err(|e| format!("Erreur d'écriture: {}", e))
+}
+
+#[command]
+async fn read_text_file(path: String) -> Result<String, String> {
+    std::fs::read_to_string(&path).map_err(|e| format!("Erreur de lecture: {}", e))
+}
 
 #[command]
 async fn open_external(url: String, _app_handle: tauri::AppHandle) -> Result<(), String> {
@@ -226,6 +246,10 @@ pub fn run() {
 
             app.manage(background_state);
 
+            // Initialiser l'état Discord Rich Presence
+            let discord_state = DiscordState::default();
+            app.manage(discord_state);
+
             // Configurer le system tray
             if let Err(e) = setup_system_tray(&app.handle()) {
                 eprintln!("Échec de la configuration du system tray: {}", e);
@@ -261,11 +285,13 @@ pub fn run() {
             is_translation_up_to_date,
             update_translation,
             uninstall_translation,
+            install_translation_from_cache,
             apply_branding_to_local_file,
             save_translations_selected,
             load_translations_selected,
             get_translations,
             get_translation_by_setting,
+            get_translation_last_updated,
             get_cache_informations,
             delete_folder,
             get_character_informations,
@@ -317,6 +343,27 @@ pub fn run() {
             delete_backup_from_supabase,
             check_rsi_launcher,
             launch_rsi_launcher,
+            get_folder_creation_date,
+            get_app_stats,
+            get_playtime,
+            debug_game_paths,
+            connect_discord,
+            disconnect_discord,
+            update_discord_activity,
+            get_discord_status,
+            set_translating_activity,
+            clear_discord_activity,
+            cache_translation,
+            list_cached_translations,
+            get_cached_translation,
+            delete_cached_translation,
+            clear_translation_cache,
+            is_translation_cached,
+            get_translation_cache_info,
+            open_translation_cache_folder,
+            cache_all_installed_translations,
+            write_text_file,
+            read_text_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

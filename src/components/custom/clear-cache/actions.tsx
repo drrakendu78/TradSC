@@ -7,9 +7,12 @@ import {
 import { Ellipsis } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useToast } from "@/hooks/use-toast";
+import { useStatsStore } from "@/stores/stats-store";
 
 export default function ActionsMenu({ setCacheInfos }: { setCacheInfos: any }) {
     const { toast } = useToast();
+    const recordCacheClean = useStatsStore((state) => state.recordCacheClean);
+
     const handleOpenCacheFolder = async () => {
         try {
             const res = await invoke("open_cache_folder");
@@ -35,6 +38,7 @@ export default function ActionsMenu({ setCacheInfos }: { setCacheInfos: any }) {
             const res = await invoke("clear_cache");
             if (res) {
                 setCacheInfos([]);
+                recordCacheClean();
                 toast({
                     title: "Cache nettoyé",
                     description: "Le cache a bien été nettoyé.",

@@ -2,6 +2,7 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { Trash } from "lucide-react";
 import { invokeDeleteWithToast } from "@/utils/invoke-helpers";
+import { useStatsStore } from "@/stores/stats-store";
 
 export type Folder = {
     name: string;
@@ -23,7 +24,11 @@ const deleteFolder = async (
         { path },
         toast,
         `Le dossier ${path}`,
-        () => updateCacheInfos(path)
+        () => {
+            updateCacheInfos(path);
+            // Enregistrer la stat de nettoyage
+            useStatsStore.getState().recordCacheClean();
+        }
     );
 };
 

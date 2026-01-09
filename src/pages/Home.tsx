@@ -1,8 +1,16 @@
 import { motion } from 'framer-motion';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import {
     Globe2,
     Brush,
@@ -19,17 +27,43 @@ import {
     Eye,
     EyeOff,
     ExternalLink,
-    Play
+    Play,
+    Clock,
+    FileDown,
+    FileUp,
+    CloudUpload,
+    CloudDownload,
+    Loader2,
+    Palette,
+    PanelLeft,
+    BarChart3
 } from 'lucide-react';
+import { usePreferencesSyncStore, ExportedPreferences } from '@/stores/preferences-sync-store';
+import { supabase } from '@/lib/supabase';
 import RecentPatchNotes from '@/components/custom/recent-patchnotes';
 import RecentActualites from '@/components/custom/recent-actualites';
 import { AnnouncementDialog } from '@/components/custom/announcement-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { isTauri } from '@/utils/tauri-helpers';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface LauncherStatus {
     installed: boolean;
     path: string | null;
+}
+
+interface VersionPlaytime {
+    version: string;
+    hours: number;
+    formatted: string;
+    session_count: number;
+}
+
+interface PlaytimeStats {
+    total_hours: number;
+    formatted: string;
+    session_count: number;
+    by_version: VersionPlaytime[];
 }
 
 // ============================================
@@ -107,7 +141,23 @@ function Home() {
     const [launcherStatus, setLauncherStatus] = useState<LauncherStatus>({ installed: false, path: null });
     const [launchingLauncher, setLaunchingLauncher] = useState(false);
     const [isInTauri, setIsInTauri] = useState(false);
+    const [playtime, setPlaytime] = useState<PlaytimeStats | null>(null);
     const { toast } = useToast();
+
+    // Préférences app
+    const {
+        exportPreferences,
+        importPreferences,
+        saveToCloud,
+        loadFromCloud,
+        isSyncing
+    } = usePreferencesSyncStore();
+    const [prefsSaving, setPrefsSaving] = useState(false);
+    const [prefsLoading, setPrefsLoading] = useState(false);
+    const [userId, setUserId] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [showCloudPrefsDialog, setShowCloudPrefsDialog] = useState(false);
+    const [cloudPrefsPreview, setCloudPrefsPreview] = useState<ExportedPreferences | null>(null);
 
     // Vérifier si on est dans Tauri et si le RSI Launcher est installé
     useEffect(() => {
@@ -125,8 +175,267 @@ function Home() {
                 }
             };
             checkLauncher();
+
+            // Récupérer le temps de jeu
+            const fetchPlaytime = async () => {
+                try {
+                    const { invoke } = await import('@tauri-apps/api/core');
+
+                    // Debug: afficher les chemins détectés
+                    const paths = await invoke<string[]>('debug_game_paths');
+                    console.log('[Playtime] Chemins détectés:', paths);
+
+                    const stats = await invoke<PlaytimeStats>('get_playtime');
+                    console.log('[Playtime] Stats:', stats);
+                    setPlaytime(stats);
+                } catch (error) {
+                    console.error('Erreur lors de la récupération du temps de jeu:', error);
+                }
+            };
+            fetchPlaytime();
         }
     }, []);
+
+    // Vérifier si l'utilisateur est connecté
+    useEffect(() => {
+        const checkUser = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+                setUserId(session.user.id);
+            }
+        };
+        checkUser();
+
+        // Écouter les changements de session
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+            setUserId(session?.user?.id || null);
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
+    // Export local - ouvrir dialogue pour choisir où enregistrer
+    const handleExportLocal = async () => {
+        try {
+            const prefs = exportPreferences();
+            const json = JSON.stringify(prefs, null, 2);
+
+            if (isInTauri) {
+                // Utiliser le dialogue natif Tauri
+                const { save } = await import('@tauri-apps/plugin-dialog');
+                const { invoke } = await import('@tauri-apps/api/core');
+
+                console.log('[Export] Ouverture du dialogue de sauvegarde...');
+                const filePath = await save({
+                    title: 'Exporter les préférences',
+                    defaultPath: `startradfr_preferences_${new Date().toISOString().split('T')[0]}.json`,
+                    filters: [{
+                        name: 'JSON',
+                        extensions: ['json']
+                    }]
+                });
+                console.log('[Export] Chemin sélectionné:', filePath);
+
+                if (filePath) {
+                    console.log('[Export] Écriture du fichier...');
+                    await invoke('write_text_file', { path: filePath, content: json });
+                    console.log('[Export] Fichier écrit avec succès');
+                    toast({
+                        title: 'Export réussi',
+                        description: 'Vos préférences ont été exportées.',
+                        variant: 'success',
+                    });
+                } else {
+                    console.log('[Export] Dialogue annulé par l\'utilisateur');
+                }
+            } else {
+                // Fallback pour navigateur
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `startradfr_preferences_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                toast({
+                    title: 'Export réussi',
+                    description: 'Vos préférences ont été exportées en fichier JSON.',
+                    variant: 'success',
+                });
+            }
+        } catch (error: any) {
+            console.error('[Export] Erreur:', error);
+            toast({
+                title: 'Erreur d\'export',
+                description: error?.message || error?.toString() || 'Impossible d\'exporter les préférences',
+                variant: 'destructive',
+            });
+        }
+    };
+
+    // Import local - ouvrir dialogue pour choisir un fichier
+    const handleImportLocal = async () => {
+        try {
+            if (isInTauri) {
+                // Utiliser le dialogue natif Tauri
+                const { open } = await import('@tauri-apps/plugin-dialog');
+                const { invoke } = await import('@tauri-apps/api/core');
+
+                const filePath = await open({
+                    filters: [{
+                        name: 'JSON',
+                        extensions: ['json']
+                    }],
+                    multiple: false
+                });
+
+                if (filePath && typeof filePath === 'string') {
+                    const content = await invoke<string>('read_text_file', { path: filePath });
+                    const prefs = JSON.parse(content) as ExportedPreferences;
+
+                    if (!prefs.version || !prefs.sidebar || !prefs.theme || !prefs.stats) {
+                        throw new Error('Format de fichier invalide');
+                    }
+
+                    importPreferences(prefs);
+
+                    toast({
+                        title: 'Import réussi',
+                        description: 'Vos préférences ont été importées.',
+                        variant: 'success',
+                    });
+                }
+            } else {
+                // Fallback pour navigateur - utiliser l'input file
+                fileInputRef.current?.click();
+            }
+        } catch (error: any) {
+            toast({
+                title: 'Erreur d\'import',
+                description: error.message || 'Fichier invalide',
+                variant: 'destructive',
+            });
+        }
+    };
+
+    // Fallback import pour navigateur
+    const handleImportLocalFallback = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const content = e.target?.result as string;
+                const prefs = JSON.parse(content) as ExportedPreferences;
+
+                if (!prefs.version || !prefs.sidebar || !prefs.theme || !prefs.stats) {
+                    throw new Error('Format de fichier invalide');
+                }
+
+                importPreferences(prefs);
+
+                toast({
+                    title: 'Import réussi',
+                    description: 'Vos préférences ont été importées.',
+                    variant: 'success',
+                });
+            } catch (error: any) {
+                toast({
+                    title: 'Erreur d\'import',
+                    description: error.message || 'Fichier invalide',
+                    variant: 'destructive',
+                });
+            }
+        };
+        reader.readAsText(file);
+
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    };
+
+    // Sauvegarder les préférences dans le cloud
+    const handleSavePrefsToCloud = async () => {
+        if (!userId) return;
+        setPrefsSaving(true);
+        try {
+            const success = await saveToCloud(userId);
+            if (success) {
+                toast({
+                    title: 'Sauvegarde cloud réussie',
+                    description: 'Vos préférences ont été sauvegardées dans le cloud.',
+                    variant: 'success',
+                });
+            } else {
+                throw new Error('Échec de la sauvegarde');
+            }
+        } catch (error: any) {
+            toast({
+                title: 'Erreur',
+                description: error.message || 'Impossible de sauvegarder dans le cloud',
+                variant: 'destructive',
+            });
+        } finally {
+            setPrefsSaving(false);
+        }
+    };
+
+    // Ouvrir le dialogue pour charger les préférences cloud
+    const handleOpenCloudPrefsDialog = async () => {
+        if (!userId) return;
+        setPrefsLoading(true);
+        try {
+            const prefs = await loadFromCloud(userId);
+            if (prefs) {
+                setCloudPrefsPreview(prefs);
+                setShowCloudPrefsDialog(true);
+            } else {
+                toast({
+                    title: 'Aucune sauvegarde',
+                    description: 'Aucune préférence trouvée dans le cloud.',
+                    variant: 'default',
+                });
+            }
+        } catch (error: any) {
+            toast({
+                title: 'Erreur',
+                description: error.message || 'Impossible de charger depuis le cloud',
+                variant: 'destructive',
+            });
+        } finally {
+            setPrefsLoading(false);
+        }
+    };
+
+    // Confirmer et appliquer les préférences cloud
+    const handleConfirmLoadCloudPrefs = () => {
+        if (!cloudPrefsPreview) return;
+
+        importPreferences(cloudPrefsPreview);
+        setShowCloudPrefsDialog(false);
+        setCloudPrefsPreview(null);
+
+        toast({
+            title: 'Chargement réussi',
+            description: 'Vos préférences ont été restaurées depuis le cloud.',
+            variant: 'success',
+        });
+    };
+
+    const formatDate = (dateString: string) => {
+        const date = new Date(dateString);
+        return date.toLocaleString('fr-FR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+    };
 
     // Lancer le RSI Launcher
     const handleLaunchLauncher = async () => {
@@ -195,7 +504,7 @@ function Home() {
                                     Prêt à jouer en français ? Installez la traduction en un clic.
                                 </p>
                             </div>
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                                 <Link to="/traduction">
                                     <Button size="lg" className="gap-2 text-base px-6 shadow-lg hover:shadow-primary/25 transition-shadow">
                                         <Globe2 className="h-5 w-5" />
@@ -227,6 +536,29 @@ function Home() {
                                             <ExternalLink className="h-4 w-4" />
                                         </Button>
                                     )
+                                )}
+                                {/* Temps de jeu */}
+                                {isInTauri && playtime && playtime.session_count > 0 && (
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <div className="flex items-center gap-2 px-4 py-2 bg-background/60 border border-border/50 rounded-lg cursor-help">
+                                                    <Clock className="h-4 w-4 text-primary" />
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm font-semibold">{playtime.formatted}</span>
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {playtime.session_count} session{playtime.session_count > 1 ? 's' : ''} (depuis les logs)
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="bottom" className="max-w-xs">
+                                                <p className="text-sm">
+                                                    Temps calculé depuis les logs du jeu. Cette donnée peut être incomplète si vous avez formaté ou supprimé le dossier logbackups.
+                                                </p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
                                 )}
                             </div>
                         </div>
@@ -336,6 +668,44 @@ function Home() {
                 )}
             </div>
 
+            {/* Préférences app - barre compacte */}
+            {showContent && (
+                <div className="flex items-center gap-2 px-1 py-2 bg-muted/30 rounded-lg border border-border/30">
+                    <span className="text-xs text-muted-foreground ml-2">Sauvegardez vos préférences (thème, sidebar, stats) en local ou dans le cloud</span>
+                    <div className="flex-1" />
+                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={handleExportLocal}>
+                        <FileDown className="h-3 w-3" />
+                        Exporter
+                    </Button>
+                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={handleImportLocal}>
+                        <FileUp className="h-3 w-3" />
+                        Importer
+                    </Button>
+                    <input ref={fileInputRef} type="file" accept=".json" onChange={handleImportLocalFallback} className="hidden" />
+                    <div className="w-px h-5 bg-border" />
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5"
+                        onClick={handleSavePrefsToCloud}
+                        disabled={prefsSaving || isSyncing || !userId}
+                    >
+                        {prefsSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <CloudUpload className="h-3 w-3" />}
+                        {userId ? "Sauvegarder" : "Connexion requise"}
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5"
+                        onClick={handleOpenCloudPrefsDialog}
+                        disabled={prefsLoading || isSyncing || !userId}
+                    >
+                        {prefsLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <CloudDownload className="h-3 w-3" />}
+                        {userId ? "Restaurer" : "Connexion requise"}
+                    </Button>
+                </div>
+            )}
+
             {/* Section infos */}
             {showContent && (
                 <motion.div 
@@ -367,23 +737,23 @@ function Home() {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.5 }}
                         >
-                            <Card className="bg-background/40 h-full">
+                            <Card className="bg-background/40">
                                 <CardHeader className="pb-3">
-                        <CardTitle className="text-base flex items-center gap-2">
+                                    <CardTitle className="text-base flex items-center gap-2">
                                         <FileText className="h-4 w-4 text-primary" />
                                         Patchnotes StarTrad
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <RecentPatchNotes max={3} />
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="pb-4">
+                                    <RecentPatchNotes max={3} />
                                     <Link to="/patchnotes">
-                                        <Button variant="ghost" size="sm" className="w-full mt-3 text-xs">
+                                        <Button variant="ghost" size="sm" className="w-full mt-2 text-xs">
                                             Voir tout
                                             <ArrowRight className="h-3 w-3 ml-1" />
                                         </Button>
                                     </Link>
-                    </CardContent>
-                </Card>
+                                </CardContent>
+                            </Card>
                         </motion.div>
 
                         {/* Actualités */}
@@ -393,30 +763,30 @@ function Home() {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.6 }}
                         >
-                            <Card className="bg-background/40 h-full">
+                            <Card className="bg-background/40">
                                 <CardHeader className="pb-3">
                                     <CardTitle className="text-base flex items-center gap-2">
                                         <Newspaper className="h-4 w-4 text-primary" />
                                         Actualités Star Citizen
                                     </CardTitle>
-                    </CardHeader>
-                                <CardContent>
-                        <RecentActualites max={3} />
+                                </CardHeader>
+                                <CardContent className="pb-4">
+                                    <RecentActualites max={3} />
                                     <Link to="/actualites">
-                                        <Button variant="ghost" size="sm" className="w-full mt-3 text-xs">
-                                            Voir toutes les actualités
+                                        <Button variant="ghost" size="sm" className="w-full mt-2 text-xs">
+                                            Voir tout
                                             <ArrowRight className="h-3 w-3 ml-1" />
                                         </Button>
                                     </Link>
-                    </CardContent>
-                </Card>
+                                </CardContent>
+                            </Card>
                         </motion.div>
                     </motion.div>
                 </motion.div>
             )}
 
             {/* Footer hint */}
-            <motion.p 
+            <motion.p
                 className="text-center text-xs text-muted-foreground/60 pb-2 relative z-10 mt-auto"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -424,6 +794,75 @@ function Home() {
             >
                 💡 Astuce : Utilisez le menu à gauche pour naviguer rapidement
             </motion.p>
+
+            {/* Dialog de chargement des préférences cloud */}
+            <Dialog open={showCloudPrefsDialog} onOpenChange={setShowCloudPrefsDialog}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <CloudDownload className="h-5 w-5 text-primary" />
+                            Charger les préférences cloud
+                        </DialogTitle>
+                        <DialogDescription>
+                            Voulez-vous restaurer ces préférences ?
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {cloudPrefsPreview && (
+                        <div className="space-y-4 py-2">
+                            {/* Date de sauvegarde */}
+                            <div className="text-sm text-muted-foreground">
+                                Sauvegardée le : <span className="font-medium text-foreground">{formatDate(cloudPrefsPreview.exportedAt)}</span>
+                            </div>
+
+                            {/* Aperçu des préférences */}
+                            <div className="space-y-3">
+                                {/* Thème */}
+                                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                                    <Palette className="h-4 w-4 text-primary" />
+                                    <div className="flex-1">
+                                        <div className="text-sm font-medium">Thème</div>
+                                        <div className="text-xs text-muted-foreground">
+                                            Couleur : {cloudPrefsPreview.theme.primaryColor} • Mode : {cloudPrefsPreview.theme.mode}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Sidebar */}
+                                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                                    <PanelLeft className="h-4 w-4 text-primary" />
+                                    <div className="flex-1">
+                                        <div className="text-sm font-medium">Sidebar</div>
+                                        <div className="text-xs text-muted-foreground">
+                                            {cloudPrefsPreview.sidebar.isLocked ? 'Verrouillée' : 'Non verrouillée'} • {cloudPrefsPreview.sidebar.isCollapsed ? 'Réduite' : 'Étendue'}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Statistiques */}
+                                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                                    <BarChart3 className="h-4 w-4 text-primary" />
+                                    <div className="flex-1">
+                                        <div className="text-sm font-medium">Statistiques</div>
+                                        <div className="text-xs text-muted-foreground">
+                                            {cloudPrefsPreview.stats.translationInstallCount} installations • {cloudPrefsPreview.stats.cacheCleanCount} nettoyages cache
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <DialogFooter className="flex gap-2 sm:gap-0">
+                        <Button variant="outline" onClick={() => setShowCloudPrefsDialog(false)}>
+                            Annuler
+                        </Button>
+                        <Button onClick={handleConfirmLoadCloudPrefs}>
+                            Restaurer
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             </div>
     );

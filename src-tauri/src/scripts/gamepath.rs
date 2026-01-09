@@ -5,7 +5,9 @@ use std::env;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
+use std::time::SystemTime;
 use tauri::command;
+use chrono::{DateTime, Utc};
 
 fn get_log_file_path() -> Option<String> {
     if cfg!(target_os = "windows") {
@@ -265,4 +267,35 @@ pub fn launch_rsi_launcher() -> Result<(), String> {
         }
         None => Err("RSI Launcher non trouvé. Veuillez le télécharger.".to_string()),
     }
+}
+
+/// Récupère la date de modification du fichier global.ini (traduction)
+#[command]
+pub fn get_folder_creation_date(path: String) -> Option<String> {
+    let base_path = Path::new(&path);
+
+    // Chemin vers le global.ini
+    let global_ini_path = base_path
+        .join("data")
+        .join("Localization")
+        .join("french_(france)")
+        .join("global.ini");
+
+    if !global_ini_path.exists() {
+        return None;
+    }
+
+    // Récupérer les métadonnées du fichier
+    let metadata = match fs::metadata(&global_ini_path) {
+        Ok(m) => m,
+        Err(_) => return None,
+    };
+
+    // Récupérer la date de modification
+    let modified_time: SystemTime = metadata.modified().ok()?;
+
+    // Convertir en DateTime
+    let datetime: DateTime<Utc> = modified_time.into();
+
+    Some(datetime.to_rfc3339())
 }

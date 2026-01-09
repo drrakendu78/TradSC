@@ -14,8 +14,10 @@ export default function AdminElevateButton() {
         const check = async () => {
             try {
                 const res = await invoke<boolean>("is_running_as_admin");
+                console.log('[AdminButton] is_running_as_admin:', res);
                 setIsAdmin(res);
             } catch (error) {
+                console.error('[AdminButton] Erreur vérification admin:', error);
                 setIsAdmin(true);
             }
         };
@@ -25,11 +27,12 @@ export default function AdminElevateButton() {
     }, []);
 
     const shouldShow = !isAdmin || visibleOverride;
+    console.log('[AdminButton] shouldShow:', shouldShow, '(isAdmin:', isAdmin, ', visibleOverride:', visibleOverride, ')');
     if (!shouldShow) return null;
 
     return (
         <div
-            className="fixed bottom-4 right-4 z-50 w-[200px] h-10 flex items-center justify-end"
+            className="fixed bottom-4 right-4 z-[9999] w-[200px] h-10 flex items-center justify-end"
             onMouseEnter={() => setHover(true)}
             onMouseLeave={() => setHover(false)}
         >

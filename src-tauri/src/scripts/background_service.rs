@@ -8,6 +8,7 @@ use tauri_plugin_notification::NotificationExt;
 use crate::scripts::gamepath::get_star_citizen_versions;
 use crate::scripts::translation_functions::{apply_branding_to_local_file, is_game_translated, is_translation_up_to_date_async, update_translation_async};
 use crate::scripts::translation_preferences::load_translations_selected;
+use crate::scripts::offline_cache::{download_and_cache_all_translations, download_and_cache_all_translations_with_force, is_cache_empty_for_version};
 
 /// Configuration du service de tâche de fond
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -232,13 +233,37 @@ async fn check_and_update_translations(app: &AppHandle, lang: &str) -> Result<()
 
     let mut updates_count = 0;
 
-    // Pour chaque version du jeu
-    for (version_name, version_info) in version_paths.versions {
+    // Collecter les noms de version pour le premier lancement
+    let version_names: Vec<String> = version_paths.versions.keys().cloned().collect();
+
+    // Premier lancement: télécharger les 3 sources pour chaque version pour avoir une base
+    for version_name in &version_names {
+        if is_cache_empty_for_version(version_name) {
+            println!("[Background Service] Premier lancement détecté pour {} - téléchargement des 3 sources...", version_name);
+            match download_and_cache_all_translations_with_force(version_name, true).await {
+                Ok(cached) => {
+                    println!("[Background Service] {} source(s) téléchargée(s) pour {} (premier lancement)", cached, version_name);
+                }
+                Err(e) => {
+                    eprintln!("[Background Service] Erreur téléchargement initial pour {}: {}", version_name, e);
+                }
+            }
+        }
+    }
+
+    // Pour chaque version du jeu - vérification des mises à jour
+    for (version_name, version_info) in &version_paths.versions {
         let version_path = version_info.path.clone();
 
         // Vérifier si cette version a une traduction configurée
-        if let Some(translation_setting) = translations_obj.get(&version_name) {
+        if let Some(translation_setting) = translations_obj.get(version_name) {
             if let Some(link) = translation_setting.get("link").and_then(|v| v.as_str()) {
+                // Ignorer les liens cache: (mode hors-ligne) - pas de vérification de mise à jour possible
+                if link.starts_with("cache:") {
+                    println!("[Background Service] {} utilise le cache hors-ligne, pas de vérification de mise à jour", version_name);
+                    continue;
+                }
+
                 // Vérifier si la traduction est installée
                 if is_game_translated(version_path.clone(), lang.to_string()) {
                     // Appliquer le branding local si nécessaire (pour les installations existantes)
@@ -260,6 +285,17 @@ async fn check_and_update_translations(app: &AppHandle, lang: &str) -> Result<()
                             Ok(_) => {
                                 println!("[Background Service] Traduction mise à jour pour {}", version_name);
                                 updates_count += 1;
+
+                                // Mettre à jour le cache avec les nouvelles versions
+                                println!("[Background Service] Mise à jour du cache pour {}...", version_name);
+                                match download_and_cache_all_translations(version_name).await {
+                                    Ok(cached) => {
+                                        if cached > 0 {
+                                            println!("[Background Service] {} source(s) mise(s) en cache pour {}", cached, version_name);
+                                        }
+                                    }
+                                    Err(e) => eprintln!("[Background Service] Erreur mise à jour cache pour {}: {}", version_name, e),
+                                }
 
                                 // Émettre un event pour le frontend (fin de mise à jour)
                                 let _ = app.emit("translation-update-done", &version_name);

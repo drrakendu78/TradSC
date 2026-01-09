@@ -5,6 +5,7 @@ import { toFriendlyFsError } from "@/utils/fs-permissions";
 import openExternal from "@/utils/external";
 import { Download, Heart, ExternalLink } from "lucide-react";
 import { useState } from "react";
+import { useStatsStore } from "@/stores/stats-store";
 
 export function CharacterCard(
     { url, name, owner, downloads, likes, characterid, dnaurl }:
@@ -12,6 +13,7 @@ export function CharacterCard(
 ) {
     const { toast } = useToast();
     const [isDownloading, setIsDownloading] = useState(false);
+    const recordCharacterDownload = useStatsStore((state) => state.recordCharacterDownload);
 
     const openExternalLink = async (id: string) => {
         logger.log("Opening external link for character ID:", id);
@@ -23,6 +25,7 @@ export function CharacterCard(
         try {
             const res = await invoke("download_character", { dnaUrl: dnaurl, title: name });
             if (res) {
+                recordCharacterDownload();
                 toast({
                     title: "Preset téléchargé",
                     description: "Le preset a été ajouté dans vos versions.",
