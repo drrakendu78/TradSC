@@ -65,4 +65,22 @@ export async function openExternal(url: string): Promise<void> {
     await invoke("open_external", { url });
 }
 
+/**
+ * Ouvre un lien personnalisé défini par l'utilisateur sans restrictions de domaine.
+ * Uniquement pour les liens explicitement ajoutés par l'utilisateur.
+ */
+export async function openExternalCustom(url: string): Promise<void> {
+    try {
+        const u = new URL(url);
+        // Seulement autoriser http et https pour la sécurité
+        if (u.protocol !== "https:" && u.protocol !== "http:") {
+            console.warn(`Protocole non autorisé pour lien personnalisé: ${url}`);
+            return;
+        }
+        await invoke("open_external", { url });
+    } catch {
+        console.warn(`URL invalide pour lien personnalisé: ${url}`);
+    }
+}
+
 export default openExternal;

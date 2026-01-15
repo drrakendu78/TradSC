@@ -10,7 +10,10 @@ import { IconHome, IconBrandDiscord, IconCloud, IconBrandGithub, IconLanguage, I
 import { BrushCleaning, Download, Power, PowerOff, Loader2, RotateCcw, Monitor, Route, BarChart3, Calendar, Languages, Trash2, Save, Users } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { ColorPicker } from "@/components/custom/color-picker";
-import openExternal from "@/utils/external";
+import openExternal, { openExternalCustom } from "@/utils/external";
+import { useCustomLinksStore } from "@/stores/custom-links-store";
+import CustomLinkDialog, { getIconByName } from "./custom-link-dialog";
+import { Plus, Pencil } from "lucide-react";
 import { getBuildInfo, BuildInfo } from "@/utils/buildInfo";
 import {
     Dialog,
@@ -465,6 +468,11 @@ export function AppSidebar() {
     const [isExternalServicesExpanded, setIsExternalServicesExpanded] = useState(true);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
 
+    // Custom links
+    const { links: customLinks } = useCustomLinksStore();
+    const [customLinkDialogOpen, setCustomLinkDialogOpen] = useState(false);
+    const [editingLink, setEditingLink] = useState<{ id: string; name: string; url: string; icon?: string } | null>(null);
+
     useEffect(() => {
         getBuildInfo()
             .then(setBuildInfo)
@@ -908,27 +916,48 @@ export function AppSidebar() {
 
                     {/* Services externes */}
                     <div className="mb-2">
-                        <button
-                            onClick={() => setIsExternalServicesExpanded(!isExternalServicesExpanded)}
+                        <div
                             className={`
-                                w-full text-[10px] font-medium text-muted-foreground/70 uppercase tracking-widest 
+                                w-full text-[10px] font-medium text-muted-foreground/70 uppercase tracking-widest
                                 hover:text-muted-foreground transition-all duration-200 flex items-center gap-2 group
                                 ${isCollapsed ? "px-2 py-1 justify-center" : "px-3 py-1.5"}
                             `}
                             title={isCollapsed ? "Services externes" : undefined}
                         >
                             {isCollapsed ? (
-                                <span className="text-[9px]">•••</span>
+                                <button
+                                    onClick={() => setIsExternalServicesExpanded(!isExternalServicesExpanded)}
+                                    className="text-[9px]"
+                                >
+                                    •••
+                                </button>
                             ) : (
                                 <>
-                                    <span>Services Externes</span>
-                                    <ChevronDown 
-                                        size={12} 
-                                        className={`transition-transform duration-300 ${isExternalServicesExpanded ? '' : '-rotate-90'}`} 
-                                    />
+                                    <button
+                                        onClick={() => setIsExternalServicesExpanded(!isExternalServicesExpanded)}
+                                        className="flex items-center gap-2 flex-1"
+                                    >
+                                        <span>Services Externes</span>
+                                        <ChevronDown
+                                            size={12}
+                                            className={`transition-transform duration-300 ${isExternalServicesExpanded ? '' : '-rotate-90'}`}
+                                        />
+                                    </button>
+                                    {isExternalServicesExpanded && (
+                                        <button
+                                            onClick={() => {
+                                                setEditingLink(null);
+                                                setCustomLinkDialogOpen(true);
+                                            }}
+                                            className="p-1 rounded hover:bg-white/10 transition-colors"
+                                            title="Ajouter un lien"
+                                        >
+                                            <Plus size={12} />
+                                        </button>
+                                    )}
                                 </>
                         )}
-                        </button>
+                        </div>
                         {isExternalServicesExpanded && (
                             <ul className="space-y-0">
                             {externalServices.map((service) => (
@@ -966,8 +995,72 @@ export function AppSidebar() {
                                     </button>
                                 </li>
                             ))}
+
+                            {/* Liens personnalisés */}
+                            {customLinks.map((link) => (
+                                <li key={link.id}>
+                                    <button
+                                        type="button"
+                                        className={`
+                                            flex items-center gap-3 rounded-lg text-left group relative
+                                            transition-all duration-200 ease-out
+                                            ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"}
+                                            text-muted-foreground hover:bg-white/5 hover:text-foreground
+                                        `}
+                                        title={isCollapsed ? link.name : undefined}
+                                        onClick={() => openExternalCustom(link.url)}
+                                    >
+                                        <div className="flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110">
+                                            {(() => {
+                                                const IconComponent = getIconByName(link.icon);
+                                                return <IconComponent size={18} />;
+                                            })()}
+                                        </div>
+                                        {!isCollapsed && (
+                                            <>
+                                                <span className="text-sm font-normal flex-1 truncate">{link.name}</span>
+                                                <span
+                                                    role="button"
+                                                    tabIndex={0}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        e.preventDefault();
+                                                        setEditingLink(link);
+                                                        setCustomLinkDialogOpen(true);
+                                                    }}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter' || e.key === ' ') {
+                                                            e.stopPropagation();
+                                                            e.preventDefault();
+                                                            setEditingLink(link);
+                                                            setCustomLinkDialogOpen(true);
+                                                        }
+                                                    }}
+                                                    className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-white/10 transition-all"
+                                                    title="Modifier"
+                                                >
+                                                    <Pencil size={12} />
+                                                </span>
+                                            </>
+                                        )}
+                                        {isCollapsed && (
+                                            <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">
+                                                {link.name}
+                                                <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-1.5 h-1.5 bg-popover border-l border-b border-border rotate-45" />
+                                            </div>
+                                        )}
+                                    </button>
+                                </li>
+                            ))}
                         </ul>
                         )}
+
+                        {/* Dialog pour ajouter/modifier un lien */}
+                        <CustomLinkDialog
+                            open={customLinkDialogOpen}
+                            onOpenChange={setCustomLinkDialogOpen}
+                            editingLink={editingLink}
+                        />
                     </div>
                 </nav>
 

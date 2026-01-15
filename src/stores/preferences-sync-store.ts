@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { useSidebarStore } from "./sidebar-store";
 import { useThemeStore } from "./theme-store";
 import { useStatsStore } from "./stats-store";
+import { useCustomLinksStore, CustomLink } from "./custom-links-store";
 import { applyTheme } from "@/utils/custom-theme-provider";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -26,6 +27,9 @@ export interface ExportedPreferences {
         characterDownloadCount: number;
         firstUseDate: string | null;
         playtimeHours: number;
+    };
+    customLinks?: {
+        links: CustomLink[];
     };
 }
 
@@ -64,6 +68,7 @@ export const usePreferencesSyncStore = create<PreferencesSyncStore>((set, get) =
         const sidebarState = useSidebarStore.getState();
         const themeState = useThemeStore.getState();
         const statsState = useStatsStore.getState();
+        const customLinksState = useCustomLinksStore.getState();
 
         // Récupérer le mode du thème depuis localStorage
         const themeMode = localStorage.getItem("vite-ui-theme") || "dark";
@@ -107,6 +112,9 @@ export const usePreferencesSyncStore = create<PreferencesSyncStore>((set, get) =
                 firstUseDate: statsState.firstUseDate,
                 playtimeHours: playtimeHours,
             },
+            customLinks: {
+                links: customLinksState.links,
+            },
         };
     },
 
@@ -144,6 +152,12 @@ export const usePreferencesSyncStore = create<PreferencesSyncStore>((set, get) =
                 version: 0,
             };
             localStorage.setItem("stats-storage", JSON.stringify(statsData));
+
+            // Import custom links (si présent - compatibilité avec anciennes versions)
+            if (prefs.customLinks?.links) {
+                const customLinksStore = useCustomLinksStore.getState();
+                customLinksStore.setLinks(prefs.customLinks.links);
+            }
 
             set({ error: null });
         } catch (error) {

@@ -1,5 +1,17 @@
 # StarTrad FR - Version 3.1.2
 
+## Nouveautés
+
+### Liens personnalisés dans la sidebar
+- Ajoutez vos propres liens dans la section "Services Externes" via le bouton "+"
+- Choisissez parmi 21 icônes différentes pour personnaliser vos liens
+- Modifiez ou supprimez vos liens en cliquant sur l'icône crayon au survol
+- Les liens sont sauvegardés localement et peuvent être synchronisés avec le cloud via "Sauvegarder les préférences"
+
+### Instance unique
+- L'application ne peut plus être lancée plusieurs fois simultanément
+- Si vous tentez de relancer l'application, la fenêtre existante sera mise au premier plan
+
 ## Mises à jour automatiques
 
 ### Suppression automatique de l'installeur
