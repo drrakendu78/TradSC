@@ -6,6 +6,8 @@ use tauri::command;
 use chrono::{DateTime, Utc, NaiveDateTime};
 use regex::Regex;
 
+use crate::scripts::character_backup::list_character_backups;
+
 #[cfg(target_os = "windows")]
 use winreg::enums::*;
 #[cfg(target_os = "windows")]
@@ -27,13 +29,13 @@ pub struct AppStats {
 
 /// Récupère les statistiques réelles de l'application
 #[command]
-pub fn get_app_stats() -> Result<AppStats, String> {
+pub fn get_app_stats(app_handle: tauri::AppHandle) -> Result<AppStats, String> {
     let first_install_date = get_first_install_date();
     let days_since_install = first_install_date.as_ref().and_then(|date| {
         calculate_days_since(date)
     });
 
-    let local_backups_count = count_local_backups();
+    let local_backups_count = count_local_backups(&app_handle);
     let (translations_installed_count, translated_versions) = count_installed_translations();
 
     Ok(AppStats {
@@ -150,45 +152,13 @@ fn calculate_days_since(date_str: &str) -> Option<i64> {
     Some(duration.num_days())
 }
 
-/// Compte le nombre de backups locaux dans le dossier de sauvegarde
-fn count_local_backups() -> u32 {
-    // Essayer de lire le répertoire configuré
-    if let Some(backup_dir) = get_configured_backup_directory() {
-        if let Ok(entries) = fs::read_dir(&backup_dir) {
-            return entries
-                .filter_map(|e| e.ok())
-                .filter(|e| {
-                    e.path().is_dir() ||
-                    e.path().extension().map_or(false, |ext| ext == "zip")
-                })
-                .count() as u32;
-        }
+/// Compte le nombre de backups locaux en réutilisant list_character_backups
+fn count_local_backups(app_handle: &tauri::AppHandle) -> u32 {
+    // Réutiliser list_character_backups pour avoir exactement le même comptage
+    match list_character_backups(app_handle.clone()) {
+        Ok(backups) => backups.len() as u32,
+        Err(_) => 0,
     }
-    0
-}
-
-/// Récupère le répertoire de backup configuré depuis le fichier de config Tauri
-fn get_configured_backup_directory() -> Option<String> {
-    // Lire depuis le fichier de configuration Tauri
-    if let Ok(appdata) = std::env::var("APPDATA") {
-        let config_file = Path::new(&appdata)
-            .join("com.drrakendu78.startradfr")
-            .join("characters_backup_dir.txt");
-
-        if config_file.exists() {
-            if let Ok(content) = fs::read_to_string(&config_file) {
-                let trimmed = content.trim();
-                if !trimmed.is_empty() {
-                    return Some(trimmed.to_string());
-                }
-            }
-        }
-    }
-
-    // Fallback: répertoire par défaut dans Documents
-    dirs::document_dir().map(|d| {
-        d.join("StarTradFR").join("Backup de personnages").to_string_lossy().to_string()
-    })
 }
 
 /// Compte les traductions installées en vérifiant les fichiers global.ini

@@ -222,6 +222,7 @@ pub fn upload_backup_to_supabase(
     version: String,
 ) -> Result<String, String> {
     let supabase_url = "https://rronicslgyoubiofbinu.supabase.co";
+    let supabase_anon_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyb25pY3NsZ3lvdWJpb2ZiaW51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2MTQwNzIsImV4cCI6MjA4MDE5MDA3Mn0.YzsYpn0_2PTrCaqchZAixW_Fh-8iQLcHImgwGM3mGr4";
     let bucket_name = "user-backups";
 
     // Lire le fichier ZIP
@@ -238,6 +239,7 @@ pub fn upload_backup_to_supabase(
     let response = client
         .post(&format!("{}{}", supabase_url, file_path))
         .header("Authorization", format!("Bearer {}", access_token))
+        .header("apikey", supabase_anon_key)
         .header("Content-Type", "application/zip")
         .header("x-upsert", "true")
         .body(zip_data)
@@ -256,6 +258,7 @@ pub fn upload_backup_to_supabase(
 #[command]
 pub fn list_user_backups(user_id: String, access_token: String) -> Result<String, String> {
     let supabase_url = "https://rronicslgyoubiofbinu.supabase.co";
+    let supabase_anon_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyb25pY3NsZ3lvdWJpb2ZiaW51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2MTQwNzIsImV4cCI6MjA4MDE5MDA3Mn0.YzsYpn0_2PTrCaqchZAixW_Fh-8iQLcHImgwGM3mGr4";
     let bucket_name = "user-backups";
 
     let file_path = format!("/storage/v1/object/list/{}", bucket_name);
@@ -265,6 +268,7 @@ pub fn list_user_backups(user_id: String, access_token: String) -> Result<String
     let response = client
         .post(&format!("{}{}", supabase_url, file_path))
         .header("Authorization", format!("Bearer {}", access_token))
+        .header("apikey", supabase_anon_key)
         .header("Content-Type", "application/json")
         .json(&serde_json::json!({
             "prefix": prefix,
@@ -295,6 +299,7 @@ pub fn download_backup_from_supabase(
     access_token: String,
 ) -> Result<String, String> {
     let supabase_url = "https://rronicslgyoubiofbinu.supabase.co";
+    let supabase_anon_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyb25pY3NsZ3lvdWJpb2ZiaW51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2MTQwNzIsImV4cCI6MjA4MDE5MDA3Mn0.YzsYpn0_2PTrCaqchZAixW_Fh-8iQLcHImgwGM3mGr4";
     let bucket_name = "user-backups";
 
     let file_path = format!("/storage/v1/object/{}/{}", bucket_name, file_name);
@@ -303,6 +308,7 @@ pub fn download_backup_from_supabase(
     let response = client
         .get(&format!("{}{}", supabase_url, file_path))
         .header("Authorization", format!("Bearer {}", access_token))
+        .header("apikey", supabase_anon_key)
         .send()
         .map_err(|e| format!("Erreur lors du téléchargement: {}", e))?;
 
@@ -333,6 +339,7 @@ pub fn delete_backup_from_supabase(
     access_token: String,
 ) -> Result<(), String> {
     let supabase_url = "https://rronicslgyoubiofbinu.supabase.co";
+    let supabase_anon_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyb25pY3NsZ3lvdWJpb2ZiaW51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2MTQwNzIsImV4cCI6MjA4MDE5MDA3Mn0.YzsYpn0_2PTrCaqchZAixW_Fh-8iQLcHImgwGM3mGr4";
     let bucket_name = "user-backups";
 
     let file_path = format!("/storage/v1/object/{}/{}", bucket_name, file_name);
@@ -341,10 +348,112 @@ pub fn delete_backup_from_supabase(
     let response = client
         .delete(&format!("{}{}", supabase_url, file_path))
         .header("Authorization", format!("Bearer {}", access_token))
+        .header("apikey", supabase_anon_key)
         .send()
         .map_err(|e| format!("Erreur lors de la suppression: {}", e))?;
 
     if response.status().is_success() {
+        Ok(())
+    } else {
+        let error_text = response.text().unwrap_or_else(|_| "Erreur inconnue".to_string());
+        Err(format!("Erreur lors de la suppression: {}", error_text))
+    }
+}
+
+/// Sauvegarde les préférences JSON dans le cloud (DELETE puis POST pour écraser)
+#[command]
+pub fn save_preferences_to_cloud(
+    json_content: String,
+    user_id: String,
+    access_token: String,
+) -> Result<(), String> {
+    let supabase_url = "https://rronicslgyoubiofbinu.supabase.co";
+    let supabase_anon_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyb25pY3NsZ3lvdWJpb2ZiaW51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2MTQwNzIsImV4cCI6MjA4MDE5MDA3Mn0.YzsYpn0_2PTrCaqchZAixW_Fh-8iQLcHImgwGM3mGr4";
+    let bucket_name = "user-backups";
+    let file_name = format!("{}/preferences_app.json", user_id);
+    let file_path = format!("/storage/v1/object/{}/{}", bucket_name, file_name);
+
+    let client = reqwest::blocking::Client::new();
+
+    // Étape 1: Supprimer le fichier existant (ignorer erreur si n'existe pas)
+    let _ = client
+        .delete(&format!("{}{}", supabase_url, file_path))
+        .header("Authorization", format!("Bearer {}", access_token))
+        .header("apikey", supabase_anon_key)
+        .send();
+
+    // Étape 2: Créer le nouveau fichier
+    let response = client
+        .post(&format!("{}{}", supabase_url, file_path))
+        .header("Authorization", format!("Bearer {}", access_token))
+        .header("apikey", supabase_anon_key)
+        .header("Content-Type", "application/json")
+        .body(json_content)
+        .send()
+        .map_err(|e| format!("Erreur lors de l'upload: {}", e))?;
+
+    if response.status().is_success() {
+        Ok(())
+    } else {
+        let error_text = response.text().unwrap_or_else(|_| "Erreur inconnue".to_string());
+        Err(format!("Erreur lors de l'upload: {}", error_text))
+    }
+}
+
+/// Charge les préférences JSON depuis le cloud
+#[command]
+pub fn load_preferences_from_cloud(
+    user_id: String,
+    access_token: String,
+) -> Result<Option<String>, String> {
+    let supabase_url = "https://rronicslgyoubiofbinu.supabase.co";
+    let supabase_anon_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyb25pY3NsZ3lvdWJpb2ZiaW51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2MTQwNzIsImV4cCI6MjA4MDE5MDA3Mn0.YzsYpn0_2PTrCaqchZAixW_Fh-8iQLcHImgwGM3mGr4";
+    let bucket_name = "user-backups";
+    let file_name = format!("{}/preferences_app.json", user_id);
+    let file_path = format!("/storage/v1/object/{}/{}", bucket_name, file_name);
+
+    let client = reqwest::blocking::Client::new();
+    let response = client
+        .get(&format!("{}{}", supabase_url, file_path))
+        .header("Authorization", format!("Bearer {}", access_token))
+        .header("apikey", supabase_anon_key)
+        .send()
+        .map_err(|e| format!("Erreur lors du téléchargement: {}", e))?;
+
+    if response.status().is_success() {
+        let text = response.text()
+            .map_err(|e| format!("Erreur lors de la lecture: {}", e))?;
+        Ok(Some(text))
+    } else if response.status().as_u16() == 404 || response.status().as_u16() == 400 {
+        // Fichier non trouvé = pas de préférences sauvegardées
+        Ok(None)
+    } else {
+        let error_text = response.text().unwrap_or_else(|_| "Erreur inconnue".to_string());
+        Err(format!("Erreur lors du téléchargement: {}", error_text))
+    }
+}
+
+/// Supprime les préférences du cloud
+#[command]
+pub fn delete_preferences_from_cloud(
+    user_id: String,
+    access_token: String,
+) -> Result<(), String> {
+    let supabase_url = "https://rronicslgyoubiofbinu.supabase.co";
+    let supabase_anon_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyb25pY3NsZ3lvdWJpb2ZiaW51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2MTQwNzIsImV4cCI6MjA4MDE5MDA3Mn0.YzsYpn0_2PTrCaqchZAixW_Fh-8iQLcHImgwGM3mGr4";
+    let bucket_name = "user-backups";
+    let file_name = format!("{}/preferences_app.json", user_id);
+    let file_path = format!("/storage/v1/object/{}/{}", bucket_name, file_name);
+
+    let client = reqwest::blocking::Client::new();
+    let response = client
+        .delete(&format!("{}{}", supabase_url, file_path))
+        .header("Authorization", format!("Bearer {}", access_token))
+        .header("apikey", supabase_anon_key)
+        .send()
+        .map_err(|e| format!("Erreur lors de la suppression: {}", e))?;
+
+    if response.status().is_success() || response.status().as_u16() == 404 {
         Ok(())
     } else {
         let error_text = response.text().unwrap_or_else(|_| "Erreur inconnue".to_string());

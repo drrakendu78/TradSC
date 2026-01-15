@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Clock } from "lucide-react";
@@ -61,13 +62,14 @@ export default function RecentPatchNotes({ max = 3 }: { max?: number }) {
     return (
         <div className="space-y-2">
             {releases.slice(0, max).map((release, idx) => (
-                <div
+                <Link
                     key={release.tag_name || idx}
+                    to="/patchnotes"
                     className={`
-                        relative p-3 rounded-lg border transition-all duration-200
+                        block relative p-3 rounded-lg border transition-all duration-200 cursor-pointer
                         ${idx === 0
-                            ? 'bg-primary/10 border-primary/30 hover:border-primary/50'
-                            : 'bg-muted/30 border-border/50 hover:border-border'
+                            ? 'bg-primary/10 border-primary/30 hover:border-primary/50 hover:bg-primary/15'
+                            : 'bg-muted/30 border-border/50 hover:border-border hover:bg-muted/50'
                         }
                     `}
                 >
@@ -96,7 +98,7 @@ export default function RecentPatchNotes({ max = 3 }: { max?: number }) {
                             {formatDate(release.published_at)}
                         </div>
                     </div>
-                </div>
+                </Link>
             ))}
         </div>
     );

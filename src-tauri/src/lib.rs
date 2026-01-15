@@ -21,6 +21,7 @@ use scripts::character_backup::{
 use scripts::cloud_backup::{
     create_user_backup, restore_backup, upload_backup_to_supabase, list_user_backups,
     download_backup_from_supabase, delete_backup_from_supabase,
+    save_preferences_to_cloud, load_preferences_from_cloud, delete_preferences_from_cloud,
 };
 use scripts::oauth_callback::start_oauth_callback_server;
 use scripts::gamepath::{get_star_citizen_versions, check_rsi_launcher, launch_rsi_launcher, get_folder_creation_date};
@@ -45,7 +46,7 @@ use scripts::translation_functions::{
 };
 use scripts::translation_preferences::{load_translations_selected, save_translations_selected};
 use scripts::translations_links::{get_translation_by_setting, get_translation_last_updated, get_translations};
-use scripts::updater_functions::{download_and_install_update, download_and_install_update_immediate};
+use scripts::updater_functions::{download_and_install_update, download_and_install_update_immediate, trigger_immediate_install};
 use scripts::app_stats::{get_app_stats, get_playtime, debug_game_paths};
 use scripts::discord_presence::{
     connect_discord, disconnect_discord, update_discord_activity, get_discord_status,
@@ -332,6 +333,7 @@ pub fn run() {
             is_auto_startup_enabled,
                     download_and_install_update,
                     download_and_install_update_immediate,
+                    trigger_immediate_install,
             get_graphics_renderer,
             set_graphics_renderer,
             get_user_cfg_resolution,
@@ -342,6 +344,9 @@ pub fn run() {
             list_user_backups,
             download_backup_from_supabase,
             delete_backup_from_supabase,
+            save_preferences_to_cloud,
+            load_preferences_from_cloud,
+            delete_preferences_from_cloud,
             check_rsi_launcher,
             launch_rsi_launcher,
             get_folder_creation_date,

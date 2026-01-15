@@ -126,6 +126,7 @@ export default function RecentActualites({ max = 3 }: { max?: number }) {
         e.preventDefault();
         e.stopPropagation();
 
+        // Si l'URL n'est pas fournie, essayer de l'extraire
         let finalUrl = url;
         if (!finalUrl) {
             let itemXml = undefined;
@@ -138,13 +139,17 @@ export default function RecentActualites({ max = 3 }: { max?: number }) {
             finalUrl = getItemUrl(item, itemXml);
         }
 
-        if (!finalUrl || typeof finalUrl !== 'string' || finalUrl.trim() === '') {
+        if (!finalUrl || finalUrl.trim() === '') {
+            console.error('No URL provided for item:', item);
             return;
         }
+
+        console.log('Opening URL:', finalUrl);
 
         try {
             await invoke("open_external", { url: finalUrl.trim() });
         } catch (error) {
+            console.error('Error opening URL:', error);
             try {
                 const { open } = await import("@tauri-apps/plugin-shell");
                 await open(finalUrl.trim());
@@ -209,26 +214,44 @@ export default function RecentActualites({ max = 3 }: { max?: number }) {
                 const titleText = getText(item.title);
                 const category = getCategoryFromTitle(titleText);
 
+                const CardWrapper = url ? 'a' : 'div';
+                const wrapperProps = url ? {
+                    href: url,
+                    target: '_blank',
+                    rel: 'noopener noreferrer',
+                    onClick: async (e: React.MouseEvent) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (url) {
+                            await handleClick(item, e, url);
+                        }
+                    },
+                    className: `
+                        block relative rounded-lg border transition-all duration-200 overflow-hidden cursor-pointer no-underline group
+                        ${idx === 0
+                            ? 'bg-primary/10 border-primary/30 hover:border-primary/50 hover:bg-primary/15'
+                            : 'bg-muted/30 border-border/50 hover:border-border hover:bg-muted/50'
+                        }
+                    `
+                } : {
+                    className: `
+                        relative rounded-lg border transition-all duration-200 overflow-hidden group
+                        ${idx === 0
+                            ? 'bg-primary/10 border-primary/30 hover:border-primary/50 hover:bg-primary/15'
+                            : 'bg-muted/30 border-border/50 hover:border-border hover:bg-muted/50'
+                        }
+                    `
+                };
+
                 return (
-                    <div
-                        key={idx}
-                        onClick={(e) => url && handleClick(item, e, url)}
-                        className={`
-                            relative rounded-lg border transition-all duration-200 overflow-hidden
-                            ${url ? 'cursor-pointer' : ''}
-                            ${idx === 0
-                                ? 'bg-primary/10 border-primary/30 hover:border-primary/50'
-                                : 'bg-muted/30 border-border/50 hover:border-border'
-                            }
-                        `}
-                    >
+                    <CardWrapper key={idx} {...wrapperProps}>
                         <div className="flex items-stretch">
                             {imageUrl && (
                                 <div className="flex-shrink-0 w-24 overflow-hidden">
                                     <img
                                         src={imageUrl}
                                         alt={titleText}
-                                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                                         style={{ minHeight: '80px' }}
                                         onError={(e) => {
                                             (e.target as HTMLImageElement).style.display = 'none';
@@ -266,11 +289,11 @@ export default function RecentActualites({ max = 3 }: { max?: number }) {
                             </div>
                             {url && (
                                 <div className="flex items-center pr-3">
-                                    <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                                    <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                                 </div>
                             )}
                         </div>
-                    </div>
+                    </CardWrapper>
                 );
             })}
         </div>

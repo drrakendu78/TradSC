@@ -31,14 +31,18 @@ import {
     Clock,
     FileDown,
     FileUp,
+    Cloud,
     CloudUpload,
     CloudDownload,
     Loader2,
     Palette,
     PanelLeft,
-    BarChart3
+    BarChart3,
+    Trash2,
+    AlertCircle
 } from 'lucide-react';
 import { usePreferencesSyncStore, ExportedPreferences } from '@/stores/preferences-sync-store';
+import { useStatsStore } from '@/stores/stats-store';
 import { supabase } from '@/lib/supabase';
 import RecentPatchNotes from '@/components/custom/recent-patchnotes';
 import RecentActualites from '@/components/custom/recent-actualites';
@@ -143,6 +147,7 @@ function Home() {
     const [isInTauri, setIsInTauri] = useState(false);
     const [playtime, setPlaytime] = useState<PlaytimeStats | null>(null);
     const { toast } = useToast();
+    const { savedPlaytimeHours, setSavedPlaytimeHours } = useStatsStore();
 
     // Préférences app
     const {
@@ -150,14 +155,18 @@ function Home() {
         importPreferences,
         saveToCloud,
         loadFromCloud,
+        deleteFromCloud,
         isSyncing
     } = usePreferencesSyncStore();
     const [prefsSaving, setPrefsSaving] = useState(false);
-    const [prefsLoading, setPrefsLoading] = useState(false);
+    const [prefsDeleting, setPrefsDeleting] = useState(false);
     const [userId, setUserId] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [showCloudPrefsDialog, setShowCloudPrefsDialog] = useState(false);
+    const [showCloudPrefsManager, setShowCloudPrefsManager] = useState(false);
     const [cloudPrefsPreview, setCloudPrefsPreview] = useState<ExportedPreferences | null>(null);
+    const [hasCloudPrefs, setHasCloudPrefs] = useState(false);
+    const [checkingCloudPrefs, setCheckingCloudPrefs] = useState(false);
 
     // Vérifier si on est dans Tauri et si le RSI Launcher est installé
     useEffect(() => {
@@ -188,6 +197,11 @@ function Home() {
                     const stats = await invoke<PlaytimeStats>('get_playtime');
                     console.log('[Playtime] Stats:', stats);
                     setPlaytime(stats);
+
+                    // Sauvegarder le playtime si plus grand que le sauvegardé
+                    if (stats.total_hours > savedPlaytimeHours) {
+                        setSavedPlaytimeHours(stats.total_hours);
+                    }
                 } catch (error) {
                     console.error('Erreur lors de la récupération du temps de jeu:', error);
                 }
@@ -217,7 +231,7 @@ function Home() {
     // Export local - ouvrir dialogue pour choisir où enregistrer
     const handleExportLocal = async () => {
         try {
-            const prefs = exportPreferences();
+            const prefs = await exportPreferences();
             const json = JSON.stringify(prefs, null, 2);
 
             if (isInTauri) {
@@ -304,9 +318,12 @@ function Home() {
 
                     toast({
                         title: 'Import réussi',
-                        description: 'Vos préférences ont été importées.',
+                        description: 'Redémarrage pour appliquer les préférences...',
                         variant: 'success',
                     });
+
+                    // Recharger la page pour que les stores se rechargent depuis localStorage
+                    setTimeout(() => window.location.reload(), 1000);
                 }
             } else {
                 // Fallback pour navigateur - utiliser l'input file
@@ -340,9 +357,12 @@ function Home() {
 
                 toast({
                     title: 'Import réussi',
-                    description: 'Vos préférences ont été importées.',
+                    description: 'Redémarrage pour appliquer les préférences...',
                     variant: 'success',
                 });
+
+                // Recharger la page pour que les stores se rechargent depuis localStorage
+                setTimeout(() => window.location.reload(), 1000);
             } catch (error: any) {
                 toast({
                     title: 'Erreur d\'import',
@@ -358,7 +378,30 @@ function Home() {
         }
     };
 
-    // Sauvegarder les préférences dans le cloud
+    // Ouvrir le gestionnaire cloud
+    const handleOpenCloudManager = async () => {
+        if (!userId) return;
+        setShowCloudPrefsManager(true);
+        setCheckingCloudPrefs(true);
+        setCloudPrefsPreview(null);
+
+        try {
+            // Vérifier si des préférences existent et les charger
+            const prefs = await loadFromCloud(userId);
+            if (prefs) {
+                setCloudPrefsPreview(prefs);
+                setHasCloudPrefs(true);
+            } else {
+                setHasCloudPrefs(false);
+            }
+        } catch {
+            setHasCloudPrefs(false);
+        } finally {
+            setCheckingCloudPrefs(false);
+        }
+    };
+
+    // Sauvegarder les préférences dans le cloud (depuis le manager)
     const handleSavePrefsToCloud = async () => {
         if (!userId) return;
         setPrefsSaving(true);
@@ -370,6 +413,12 @@ function Home() {
                     description: 'Vos préférences ont été sauvegardées dans le cloud.',
                     variant: 'success',
                 });
+                // Recharger les préférences pour mettre à jour l'aperçu
+                const prefs = await loadFromCloud(userId);
+                if (prefs) {
+                    setCloudPrefsPreview(prefs);
+                    setHasCloudPrefs(true);
+                }
             } else {
                 throw new Error('Échec de la sauvegarde');
             }
@@ -384,30 +433,38 @@ function Home() {
         }
     };
 
-    // Ouvrir le dialogue pour charger les préférences cloud
-    const handleOpenCloudPrefsDialog = async () => {
+    // Supprimer les préférences du cloud
+    const handleDeleteCloudPrefs = async () => {
         if (!userId) return;
-        setPrefsLoading(true);
+        setPrefsDeleting(true);
         try {
-            const prefs = await loadFromCloud(userId);
-            if (prefs) {
-                setCloudPrefsPreview(prefs);
-                setShowCloudPrefsDialog(true);
-            } else {
+            const success = await deleteFromCloud(userId);
+            if (success) {
                 toast({
-                    title: 'Aucune sauvegarde',
-                    description: 'Aucune préférence trouvée dans le cloud.',
-                    variant: 'default',
+                    title: 'Suppression réussie',
+                    description: 'Vos préférences ont été supprimées du cloud.',
+                    variant: 'success',
                 });
+                setCloudPrefsPreview(null);
+                setHasCloudPrefs(false);
+            } else {
+                throw new Error('Échec de la suppression');
             }
         } catch (error: any) {
             toast({
                 title: 'Erreur',
-                description: error.message || 'Impossible de charger depuis le cloud',
+                description: error.message || 'Impossible de supprimer du cloud',
                 variant: 'destructive',
             });
         } finally {
-            setPrefsLoading(false);
+            setPrefsDeleting(false);
+        }
+    };
+
+    // Ouvrir le dialogue de confirmation pour charger les préférences cloud
+    const handleOpenCloudPrefsDialog = () => {
+        if (cloudPrefsPreview) {
+            setShowCloudPrefsDialog(true);
         }
     };
 
@@ -421,9 +478,12 @@ function Home() {
 
         toast({
             title: 'Chargement réussi',
-            description: 'Vos préférences ont été restaurées depuis le cloud.',
+            description: 'Redémarrage pour appliquer les préférences...',
             variant: 'success',
         });
+
+        // Recharger la page pour que les stores se rechargent depuis localStorage
+        setTimeout(() => window.location.reload(), 1000);
     };
 
     const formatDate = (dateString: string) => {
@@ -538,28 +598,42 @@ function Home() {
                                     )
                                 )}
                                 {/* Temps de jeu */}
-                                {isInTauri && playtime && playtime.session_count > 0 && (
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <div className="flex items-center gap-2 px-4 py-2 bg-background/60 border border-border/50 rounded-lg cursor-help">
-                                                    <Clock className="h-4 w-4 text-primary" />
-                                                    <div className="flex flex-col">
-                                                        <span className="text-sm font-semibold">{playtime.formatted}</span>
-                                                        <span className="text-xs text-muted-foreground">
-                                                            {playtime.session_count} session{playtime.session_count > 1 ? 's' : ''} (depuis les logs)
-                                                        </span>
+                                {isInTauri && ((playtime && playtime.session_count > 0) || savedPlaytimeHours > 0) && (() => {
+                                    // Calculer le max entre playtime calculé et sauvegardé
+                                    const calculatedHours = playtime?.total_hours || 0;
+                                    const maxHours = Math.max(calculatedHours, savedPlaytimeHours);
+                                    const hours = Math.floor(maxHours);
+                                    const minutes = Math.round((maxHours - hours) * 60);
+                                    const formattedTime = hours > 0 ? `${hours}h ${minutes}min` : `${minutes}min`;
+                                    const sessionCount = playtime?.session_count || 0;
+                                    const isFromSaved = savedPlaytimeHours > calculatedHours;
+
+                                    return (
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <div className="flex items-center gap-2 px-4 py-2 bg-background/60 border border-border/50 rounded-lg cursor-help">
+                                                        <Clock className="h-4 w-4 text-primary" />
+                                                        <div className="flex flex-col">
+                                                            <span className="text-sm font-semibold">{formattedTime}</span>
+                                                            <span className="text-xs text-muted-foreground">
+                                                                {isFromSaved ? 'Temps sauvegardé' : `${sessionCount} session${sessionCount > 1 ? 's' : ''}`}
+                                                            </span>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="bottom" className="max-w-xs">
-                                                <p className="text-sm">
-                                                    Temps calculé depuis les logs du jeu. Cette donnée peut être incomplète si vous avez formaté ou supprimé le dossier logbackups.
-                                                </p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                )}
+                                                </TooltipTrigger>
+                                                <TooltipContent side="bottom" className="max-w-xs">
+                                                    <p className="text-sm">
+                                                        {isFromSaved
+                                                            ? 'Temps de jeu restauré depuis votre sauvegarde cloud.'
+                                                            : 'Temps calculé depuis les logs du jeu. Cette donnée peut être incomplète si vous avez formaté ou supprimé le dossier logbackups.'
+                                                        }
+                                                    </p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    );
+                                })()}
                             </div>
                         </div>
                     </CardContent>
@@ -687,21 +761,11 @@ function Home() {
                         variant="outline"
                         size="sm"
                         className="h-7 text-xs gap-1.5"
-                        onClick={handleSavePrefsToCloud}
-                        disabled={prefsSaving || isSyncing || !userId}
+                        onClick={handleOpenCloudManager}
+                        disabled={isSyncing || !userId}
                     >
-                        {prefsSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <CloudUpload className="h-3 w-3" />}
-                        {userId ? "Sauvegarder" : "Connexion requise"}
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 text-xs gap-1.5"
-                        onClick={handleOpenCloudPrefsDialog}
-                        disabled={prefsLoading || isSyncing || !userId}
-                    >
-                        {prefsLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <CloudDownload className="h-3 w-3" />}
-                        {userId ? "Restaurer" : "Connexion requise"}
+                        <Cloud className="h-3 w-3" />
+                        {userId ? "Cloud" : "Connexion requise"}
                     </Button>
                 </div>
             )}
@@ -794,6 +858,112 @@ function Home() {
             >
                 💡 Astuce : Utilisez le menu à gauche pour naviguer rapidement
             </motion.p>
+
+            {/* Dialog du gestionnaire cloud */}
+            <Dialog open={showCloudPrefsManager} onOpenChange={setShowCloudPrefsManager}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Cloud className="h-5 w-5 text-primary" />
+                            Préférences Cloud
+                        </DialogTitle>
+                        <DialogDescription>
+                            Gérez vos préférences sauvegardées dans le cloud
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-2">
+                        {checkingCloudPrefs ? (
+                            <div className="flex items-center justify-center py-8">
+                                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                                <span className="ml-2 text-sm text-muted-foreground">Chargement...</span>
+                            </div>
+                        ) : hasCloudPrefs && cloudPrefsPreview ? (
+                            <>
+                                {/* Sauvegarde existante */}
+                                <div className="p-4 rounded-lg bg-muted/50 border border-border/50">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <CloudDownload className="h-4 w-4 text-primary" />
+                                        <span className="font-medium text-sm">Sauvegarde trouvée</span>
+                                    </div>
+                                    <div className="text-xs text-muted-foreground mb-3">
+                                        Sauvegardée le : <span className="font-medium text-foreground">{formatDate(cloudPrefsPreview.exportedAt)}</span>
+                                    </div>
+
+                                    {/* Aperçu compact */}
+                                    <div className="space-y-2 text-xs">
+                                        <div className="flex items-center gap-2">
+                                            <Palette className="h-3 w-3 text-muted-foreground" />
+                                            <span>Thème : {cloudPrefsPreview.theme.primaryColor} ({cloudPrefsPreview.theme.mode})</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <BarChart3 className="h-3 w-3 text-muted-foreground" />
+                                            <span>{cloudPrefsPreview.stats.translationInstallCount} installations, {cloudPrefsPreview.stats.backupCreatedCount} backups</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Actions */}
+                                <div className="flex flex-col gap-2">
+                                    <Button
+                                        variant="default"
+                                        className="w-full gap-2"
+                                        onClick={handleOpenCloudPrefsDialog}
+                                    >
+                                        <CloudDownload className="h-4 w-4" />
+                                        Restaurer ces préférences
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        className="w-full gap-2"
+                                        onClick={handleSavePrefsToCloud}
+                                        disabled={prefsSaving}
+                                    >
+                                        {prefsSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudUpload className="h-4 w-4" />}
+                                        Écraser avec mes préférences actuelles
+                                    </Button>
+                                    <Button
+                                        variant="destructive"
+                                        className="w-full gap-2"
+                                        onClick={handleDeleteCloudPrefs}
+                                        disabled={prefsDeleting}
+                                    >
+                                        {prefsDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                                        Supprimer du cloud
+                                    </Button>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                {/* Aucune sauvegarde */}
+                                <div className="flex flex-col items-center justify-center py-6 text-center">
+                                    <AlertCircle className="h-10 w-10 text-muted-foreground mb-3" />
+                                    <p className="text-sm font-medium">Aucune sauvegarde cloud</p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        Sauvegardez vos préférences pour les retrouver sur un autre appareil
+                                    </p>
+                                </div>
+
+                                <Button
+                                    variant="default"
+                                    className="w-full gap-2"
+                                    onClick={handleSavePrefsToCloud}
+                                    disabled={prefsSaving}
+                                >
+                                    {prefsSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudUpload className="h-4 w-4" />}
+                                    Sauvegarder mes préférences
+                                </Button>
+                            </>
+                        )}
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowCloudPrefsManager(false)}>
+                            Fermer
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Dialog de chargement des préférences cloud */}
             <Dialog open={showCloudPrefsDialog} onOpenChange={setShowCloudPrefsDialog}>

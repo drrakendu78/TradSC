@@ -228,6 +228,7 @@ export function useUpdater(config: UseUpdaterConfig = {}) {
                             setCountdown(30);
                             
                             // Fonction pour lancer l'installation immédiatement
+                            // Crée un fichier "flag" que le script batch détecte pour installer sans attendre
                             const launchImmediate = async () => {
                                 if (countdownRef.current) {
                                     clearInterval(countdownRef.current);
@@ -237,14 +238,13 @@ export function useUpdater(config: UseUpdaterConfig = {}) {
                                 if (toastIdRef.current) {
                                     dismissToast(toastIdRef.current);
                                 }
-                                
+
                                 try {
-                                    await invoke<string>("download_and_install_update_immediate", {
-                                        url: downloadUrl,
-                                    });
-                                    logger.info("Installation lancée immédiatement");
+                                    // Crée le fichier flag pour signaler au script batch d'installer maintenant
+                                    await invoke("trigger_immediate_install");
+                                    logger.info("Installation immédiate déclenchée via fichier flag");
                                 } catch (error) {
-                                    logger.error("Erreur lors du lancement immédiat:", error);
+                                    logger.error("Erreur lors du déclenchement de l'installation:", error);
                                     toast({
                                         title: "Erreur",
                                         description: `Impossible de lancer l'installation: ${error}`,

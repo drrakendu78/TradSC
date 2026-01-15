@@ -393,7 +393,7 @@ function SidebarUserProfile({ isCollapsed, onMenuOpenChange }: { isCollapsed: bo
                             bg-primary/10 hover:bg-primary/20 text-primary
                             ${isCollapsed ? "justify-center p-2 h-10 w-10 mx-auto" : "px-3 py-2.5 w-full"}
                         `}
-                        title={isCollapsed ? "Se connecter" : undefined}
+                        title={isCollapsed ? "Mon compte" : undefined}
                     >
                         <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/20 flex-shrink-0">
                             <LogIn className="w-4 h-4" />
@@ -401,15 +401,15 @@ function SidebarUserProfile({ isCollapsed, onMenuOpenChange }: { isCollapsed: bo
                         
                         {!isCollapsed && (
                             <div className="flex-1 text-left">
-                                <p className="text-sm font-medium">Se connecter</p>
-                                <p className="text-xs text-primary/70">Discord ou Email</p>
+                                <p className="text-sm font-medium">Mon compte</p>
+                                <p className="text-xs text-muted-foreground whitespace-nowrap">Connexion & Paramètres</p>
                             </div>
                         )}
 
                         {/* Tooltip collapsed */}
                         {isCollapsed && (
                             <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl pointer-events-none">
-                                Se connecter
+                                Mon compte
                             </div>
                         )}
                     </div>
@@ -1652,10 +1652,13 @@ interface AppStats {
 }
 
 function StatsSection() {
-    const { cacheCleanCount, characterDownloadCount } = useStatsStore();
+    const { cacheCleanCount, characterDownloadCount, getAppUsageDays, firstUseDate, backupCreatedCount } = useStatsStore();
     const [appStats, setAppStats] = useState<AppStats | null>(null);
     const [cloudBackupsCount, setCloudBackupsCount] = useState<number>(0);
     const [loading, setLoading] = useState(true);
+
+    // Utiliser le store (sync cloud) en priorité, sinon le backend
+    const appUsageDays = getAppUsageDays();
 
     useEffect(() => {
         const fetchStats = async () => {
@@ -1663,6 +1666,19 @@ function StatsSection() {
                 // Récupérer les stats depuis Rust
                 const stats = await invoke<AppStats>("get_app_stats");
                 setAppStats(stats);
+
+                // Si pas de firstUseDate dans le store mais le backend en a une, l'initialiser
+                if (!firstUseDate && stats.first_install_date) {
+                    // On stocke directement dans localStorage pour ne pas incrémenter les compteurs
+                    const currentStorage = localStorage.getItem("stats-storage");
+                    if (currentStorage) {
+                        const parsed = JSON.parse(currentStorage);
+                        if (!parsed.state.firstUseDate) {
+                            parsed.state.firstUseDate = stats.first_install_date;
+                            localStorage.setItem("stats-storage", JSON.stringify(parsed));
+                        }
+                    }
+                }
 
                 // Récupérer le nombre de backups cloud si connecté
                 const { data: { session } } = await supabase.auth.getSession();
@@ -1680,18 +1696,22 @@ function StatsSection() {
         };
 
         fetchStats();
-    }, []);
+    }, [firstUseDate]);
 
-    const totalBackups = (appStats?.local_backups_count || 0) + cloudBackupsCount;
+    // Utiliser backupCreatedCount du store (sync cloud) pour les backups locaux
+    const totalBackups = backupCreatedCount + cloudBackupsCount;
+
+    // Priorité : store (sync cloud) > backend (système)
+    const daysToShow = appUsageDays !== null ? appUsageDays : appStats?.days_since_install;
 
     const stats = [
         {
             icon: <Calendar className="h-4 w-4 text-primary" />,
             label: "Utilisation",
-            value: appStats?.days_since_install !== null && appStats?.days_since_install !== undefined
-                ? `${appStats.days_since_install} jour${appStats.days_since_install > 1 ? 's' : ''}`
+            value: daysToShow !== null && daysToShow !== undefined
+                ? `${daysToShow} jour${daysToShow > 1 ? 's' : ''}`
                 : "Nouveau",
-            description: "Depuis l'installation"
+            description: "Depuis la première utilisation"
         },
         {
             icon: <Languages className="h-4 w-4 text-blue-500" />,
@@ -1709,7 +1729,7 @@ function StatsSection() {
             icon: <Save className="h-4 w-4 text-green-500" />,
             label: "Backups",
             value: totalBackups.toString(),
-            description: `${appStats?.local_backups_count || 0} local${cloudBackupsCount > 0 ? ` + ${cloudBackupsCount} cloud` : ''}`
+            description: `${backupCreatedCount} local${cloudBackupsCount > 0 ? ` + ${cloudBackupsCount} cloud` : ''}`
         },
         {
             icon: <Users className="h-4 w-4 text-purple-500" />,

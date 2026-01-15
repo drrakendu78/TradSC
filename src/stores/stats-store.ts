@@ -14,11 +14,15 @@ interface StatsStore {
     // Première utilisation de l'app
     firstUseDate: string | null;
 
+    // Temps de jeu sauvegardé (pour sync cloud)
+    savedPlaytimeHours: number;
+
     // Actions
     recordTranslationInstall: (version: string) => void;
     recordCacheClean: () => void;
     recordBackupCreated: () => void;
     recordCharacterDownload: () => void;
+    setSavedPlaytimeHours: (hours: number) => void;
     getTranslationInstalledDays: (version: string) => number | null;
     getAppUsageDays: () => number | null;
 }
@@ -32,6 +36,7 @@ export const useStatsStore = create<StatsStore>()(
             backupCreatedCount: 0,
             characterDownloadCount: 0,
             firstUseDate: null,
+            savedPlaytimeHours: 0,
 
             recordTranslationInstall: (version: string) => set((state) => ({
                 translationInstallDates: {
@@ -56,6 +61,8 @@ export const useStatsStore = create<StatsStore>()(
                 characterDownloadCount: state.characterDownloadCount + 1,
                 firstUseDate: state.firstUseDate || new Date().toISOString(),
             })),
+
+            setSavedPlaytimeHours: (hours: number) => set({ savedPlaytimeHours: hours }),
 
             getTranslationInstalledDays: (version: string) => {
                 const date = get().translationInstallDates[version];

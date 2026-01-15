@@ -104,30 +104,57 @@ fn download_and_install_update_internal(url: String, app_handle: AppHandle, dela
             .and_then(|n| n.to_str())
             .unwrap_or("startradfr.exe");
         
-        // Créer le contenu du script batch (sans messages visibles)
-        // Délai configurable (30 secondes par défaut, 0 pour immédiat)
-        let delay_command = if delay > 0 {
-            format!("timeout /t {} /nobreak >nul", delay)
-        } else {
-            String::new()
-        };
-        
-        let batch_content = format!(
-            r#"@echo off
+        // Créer le contenu du script batch
+        // Utilise une boucle qui vérifie un fichier "flag" pour permettre l'installation immédiate
+        let batch_content = if delay > 0 {
+            // Avec délai : boucle qui vérifie le fichier flag chaque seconde
+            format!(
+                r#"@echo off
 chcp 65001 >nul 2>&1
-{}
+set FLAG_FILE=%TEMP%\startradfr_install_now.flag
+set /a counter=0
+:loop
+if exist "%FLAG_FILE%" goto install
+if %counter% geq {} goto install
+timeout /t 1 /nobreak >nul
+set /a counter+=1
+goto loop
+:install
+del /f /q "%FLAG_FILE%" >nul 2>&1
 taskkill /F /IM "{}" >nul 2>&1
 timeout /t 1 /nobreak >nul
 start /wait "" "{}" {}
 timeout /t 2 /nobreak >nul
+del /f /q "{}" >nul 2>&1
 start "" "{}"
 "#,
-            delay_command,
-            exe_name,
-            file_path.to_string_lossy(),
-            installer_args,
-            exe_path
-        );
+                delay,
+                exe_name,
+                file_path.to_string_lossy(),
+                installer_args,
+                file_path.to_string_lossy(),
+                exe_path
+            )
+        } else {
+            // Sans délai : installation immédiate
+            format!(
+                r#"@echo off
+chcp 65001 >nul 2>&1
+del /f /q "%TEMP%\startradfr_install_now.flag" >nul 2>&1
+taskkill /F /IM "{}" >nul 2>&1
+timeout /t 1 /nobreak >nul
+start /wait "" "{}" {}
+timeout /t 2 /nobreak >nul
+del /f /q "{}" >nul 2>&1
+start "" "{}"
+"#,
+                exe_name,
+                file_path.to_string_lossy(),
+                installer_args,
+                file_path.to_string_lossy(),
+                exe_path
+            )
+        };
         
         // Écrire le script batch
         let mut file = fs::File::create(&batch_file)
@@ -180,4 +207,21 @@ Set WshShell = Nothing
     }
 
     Ok(file_path.to_string_lossy().to_string())
+}
+
+/// Crée le fichier flag pour déclencher l'installation immédiate
+/// Le script batch en cours détectera ce fichier et lancera l'installation
+#[command]
+pub fn trigger_immediate_install() -> Result<(), String> {
+    let temp_dir = std::env::temp_dir();
+    let flag_file = temp_dir.join("startradfr_install_now.flag");
+
+    println!("[Updater] Création du fichier flag pour installation immédiate: {}", flag_file.display());
+
+    fs::write(&flag_file, "install now")
+        .map_err(|e| format!("Erreur lors de la création du fichier flag: {}", e))?;
+
+    println!("[Updater] Fichier flag créé, l'installation va démarrer");
+
+    Ok(())
 }
