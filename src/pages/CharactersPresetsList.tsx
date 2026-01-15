@@ -6,8 +6,9 @@ import { RemoteCharactersPresetsList, Row } from "@/types/charactersList";
 import { CharacterCard } from '@/components/custom/character-card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Download, Search, TrendingUp, Clock, Loader2 } from 'lucide-react';
+import { Download, Search, TrendingUp, Clock, Loader2, ExternalLink } from 'lucide-react';
 import logger from "@/utils/logger";
+import openExternal from "@/utils/external";
 
 function CharactersPresetsList() {
     const { toast } = useToast();
@@ -114,14 +115,24 @@ function CharactersPresetsList() {
         };
     }, [getCharacters, hasMore, isLoading]);
 
+    // Auto-load more if content doesn't fill the viewport
+    useEffect(() => {
+        const el = gridRef.current;
+        if (!el || isLoading || !hasMore) return;
+        // If content doesn't overflow, load more
+        if (el.scrollHeight <= el.clientHeight && charactersPresets.length > 0) {
+            getCharacters();
+        }
+    }, [charactersPresets.length, hasMore, isLoading, getCharacters]);
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
-            className="flex flex-col w-full h-full p-4 overflow-hidden"
+            className="flex flex-col w-full h-full min-h-0 p-4 overflow-hidden"
         >
-            <div className="flex flex-col gap-4 h-full">
+            <div className="flex flex-col gap-4 h-full min-h-0">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -133,6 +144,21 @@ function CharactersPresetsList() {
                             <p className="text-sm text-muted-foreground">Téléchargez des presets de la communauté SC Characters</p>
                         </div>
                     </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                            try {
+                                await openExternal("https://www.star-citizen-characters.com/");
+                            } catch {
+                                window.open("https://www.star-citizen-characters.com/", "_blank", "noopener,noreferrer");
+                            }
+                        }}
+                        className="gap-2"
+                    >
+                        <ExternalLink className="h-4 w-4" />
+                        Ouvrir dans le navigateur
+                    </Button>
                 </div>
 
                 {/* Search & Filter */}
@@ -188,34 +214,36 @@ function CharactersPresetsList() {
                 {/* Grid */}
                 <div
                     ref={gridRef}
-                    className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 flex-1 overflow-y-auto pr-2"
+                    className="max-h-[calc(100vh-180px)] overflow-y-auto pr-2"
                 >
-                    {charactersPresets.length === 0 && isLoading && Array.from({ length: 10 }).map((_, i) => (
-                        <div key={`skeleton-${i}`} className="aspect-[3/4] rounded-xl bg-muted/30 animate-pulse" />
-                    ))}
-                    {charactersPresets.map((character, index) => {
-                        const batchSize = 10;
-                        const batchIndex = index % batchSize;
-                        return (
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                transition={{ duration: 0.3, delay: 0.03 * batchIndex }}
-                                className="aspect-[3/4]"
-                                key={character.id}
-                            >
-                                <CharacterCard
-                                    url={character.previewUrl}
-                                    name={character.title}
-                                    owner={character.user.name}
-                                    characterid={character.id}
-                                    downloads={character._count.characterDownloads}
-                                    likes={character._count.characterLikes}
-                                    dnaurl={character.dnaUrl}
-                                />
-                            </motion.div>
-                        );
-                    })}
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                        {charactersPresets.length === 0 && isLoading && Array.from({ length: 10 }).map((_, i) => (
+                            <div key={`skeleton-${i}`} className="aspect-[3/4] rounded-xl bg-muted/30 animate-pulse" />
+                        ))}
+                        {charactersPresets.map((character, index) => {
+                            const batchSize = 10;
+                            const batchIndex = index % batchSize;
+                            return (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ duration: 0.3, delay: 0.03 * batchIndex }}
+                                    className="aspect-[3/4]"
+                                    key={character.id}
+                                >
+                                    <CharacterCard
+                                        url={character.previewUrl}
+                                        name={character.title}
+                                        owner={character.user.name}
+                                        characterid={character.id}
+                                        downloads={character._count.characterDownloads}
+                                        likes={character._count.characterLikes}
+                                        dnaurl={character.dnaUrl}
+                                    />
+                                </motion.div>
+                            );
+                        })}
+                    </div>
                 </div>
 
                 {/* Loading / End indicators */}

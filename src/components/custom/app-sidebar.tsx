@@ -143,16 +143,8 @@ const socialLinks: NavigationItem[] = [
     }
 ];
 
-// Services externes
-const externalServices: NavigationItem[] = [
-    {
-        id: "sc-characters",
-        name: "SC Characters",
-        icon: <IconCloud size={18} />,
-        href: "https://www.star-citizen-characters.com/",
-        tooltip: "SC Characters (Presets)"
-    }
-];
+// Services externes (liens personnalisés uniquement maintenant)
+const externalServices: NavigationItem[] = [];
 
 // Composant profil utilisateur pour la sidebar
 function SidebarUserProfile({ isCollapsed, onMenuOpenChange }: { isCollapsed: boolean; onMenuOpenChange?: (open: boolean) => void }) {

@@ -72,7 +72,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                         <span className='text-primary font-bold'>|</span>
                         <p className='font-bold'>StarTrad FR {version} {path ? `- ${path[0].toUpperCase() + path.slice(1)}` : null}</p>
                     </div>
-                    <div className="flex w-full h-full" style={{ maxHeight: '100%', height: '100%', minHeight: 0, overflow: 'hidden' }}>
+                    <div className="flex flex-1 w-full min-h-0" style={{ overflow: 'hidden' }}>
                         {children}
                     </div>
                 </div>

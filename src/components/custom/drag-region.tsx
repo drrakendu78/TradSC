@@ -17,10 +17,23 @@ export function DragRegion({ children, className = '', style, ...props }: DragRe
 
     const handleMouseDown = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      const isInteractive = ['BUTTON', 'A', 'INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName) || 
+      const isInteractive = ['BUTTON', 'A', 'INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName) ||
                           target.closest('button, a, input, select, textarea, [role="button"]');
-      
-      if (!isInteractive) {
+
+      // Check if target or parent is scrollable
+      const isInScrollable = (element: HTMLElement | null): boolean => {
+        while (element) {
+          const style = window.getComputedStyle(element);
+          const overflowY = style.overflowY;
+          if ((overflowY === 'auto' || overflowY === 'scroll') && element.scrollHeight > element.clientHeight) {
+            return true;
+          }
+          element = element.parentElement;
+        }
+        return false;
+      };
+
+      if (!isInteractive && !isInScrollable(target)) {
         appWindow.startDragging();
       } else {
         startPosRef.current = { x: e.clientX, y: e.clientY };
@@ -30,9 +43,30 @@ export function DragRegion({ children, className = '', style, ...props }: DragRe
 
     const handleMouseMove = (e: MouseEvent) => {
       if (isMouseDownRef.current && startPosRef.current) {
+        const target = e.target as HTMLElement;
+
+        // Check if target or parent is scrollable
+        const isInScrollable = (element: HTMLElement | null): boolean => {
+          while (element) {
+            const style = window.getComputedStyle(element);
+            const overflowY = style.overflowY;
+            if ((overflowY === 'auto' || overflowY === 'scroll') && element.scrollHeight > element.clientHeight) {
+              return true;
+            }
+            element = element.parentElement;
+          }
+          return false;
+        };
+
+        if (isInScrollable(target)) {
+          isMouseDownRef.current = false;
+          startPosRef.current = null;
+          return;
+        }
+
         const deltaX = Math.abs(e.clientX - startPosRef.current.x);
         const deltaY = Math.abs(e.clientY - startPosRef.current.y);
-        
+
         if (deltaX > 5 || deltaY > 5) {
           appWindow.startDragging();
           isMouseDownRef.current = false;
