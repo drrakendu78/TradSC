@@ -32,3 +32,10 @@ todo.mdnul
 node_modules/
 target/
 dist/
+
+# Patchnotes et checksums (gardés en local uniquement)
+PATCHNOTES_*.md
+checksums_*.txt
+CHECKSUMS_*.txt
+DEV_NOTES.txt
+nul
