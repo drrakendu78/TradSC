@@ -282,7 +282,13 @@ fn hash_capture_page() -> String {
         document.getElementById('title').className = 'success';
         document.getElementById('title').innerHTML = 'Connexion <span>réussie</span>';
         document.getElementById('message').textContent = 'Vous pouvez fermer cette fenêtre et retourner dans l\'application.';
-        setTimeout(function() {{ window.close(); }}, 2000);
+        // Déclencher le deep link pour ouvrir l'application
+        var params = window.location.search || ('?' + window.location.hash.substring(1));
+        if (params && params !== '?') {{
+          var deepLinkUrl = 'startradfr://auth/callback' + params;
+          setTimeout(function() {{ window.location.href = deepLinkUrl; }}, 500);
+        }}
+        setTimeout(function() {{ window.close(); }}, 3000);
       }}
       function showError(msg) {{
         document.getElementById('iconLoader').style.display = 'none';
@@ -335,7 +341,21 @@ fn success_page() -> String {
   </div>
   <div class="footer">StarTrad FR - Justitia Gold Guard</div>
   {}
-  <script>setTimeout(function() {{ window.close(); }}, 2000);</script>
+  <script>
+    (function() {{
+      // Déclencher le deep link pour ouvrir l'application
+      var params = window.location.search;
+      if (params) {{
+        var deepLinkUrl = 'startradfr://auth/callback' + params;
+        // Attendre un peu avant de déclencher le deep link
+        setTimeout(function() {{
+          window.location.href = deepLinkUrl;
+        }}, 500);
+      }}
+      // Fermer la fenêtre après un délai
+      setTimeout(function() {{ window.close(); }}, 3000);
+    }})();
+  </script>
 </body>
 </html>"#, get_base_styles(), get_animated_bg(), get_stars_script())
 }

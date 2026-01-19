@@ -43,7 +43,13 @@ export default function UserMenuButton() {
 
     const handleSignOut = async () => {
         try {
-            await supabase.auth.signOut();
+            console.log('Déconnexion en cours...');
+            const { error } = await supabase.auth.signOut({ scope: 'global' });
+            if (error) {
+                console.error('Erreur signOut:', error);
+            } else {
+                console.log('Déconnexion réussie');
+            }
             setUser(null);
         } catch (error) {
             console.error('Erreur lors de la déconnexion:', error);

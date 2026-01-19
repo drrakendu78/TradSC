@@ -58,7 +58,8 @@ use scripts::offline_cache::{
     delete_cached_translation, clear_translation_cache, is_translation_cached,
     get_translation_cache_info, open_translation_cache_folder, cache_all_installed_translations,
 };
-use tauri::{command, Manager};
+use tauri::{command, Emitter, Manager};
+use tauri_plugin_deep_link::DeepLinkExt;
 use window_vibrancy::apply_acrylic;
 
 #[command]
@@ -212,6 +213,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_deep_link::init())
         .setup(|app| {
             let window = app
                 .get_webview_window("main")
@@ -263,6 +265,35 @@ pub fn run() {
             if let Err(e) = setup_system_tray(&app.handle()) {
                 eprintln!("Échec de la configuration du system tray: {}", e);
             }
+
+            // Configurer le handler pour les deep links (startradfr://)
+            let app_handle = app.handle().clone();
+            app.deep_link().on_open_url(move |event| {
+                let urls = event.urls();
+                for url in urls {
+                    // Vérifier si c'est un callback OAuth
+                    if url.scheme() == "startradfr" {
+                        let path = url.path();
+                        if path == "/auth/callback" || path == "auth/callback" {
+                            // Extraire les paramètres de l'URL
+                            let query = url.query().unwrap_or("");
+                            println!("[Deep Link] OAuth callback reçu: {}", query);
+
+                            // Émettre l'événement oauth-callback comme le fait le serveur local
+                            if let Err(e) = app_handle.emit("oauth-callback", query.to_string()) {
+                                eprintln!("[Deep Link] Erreur émission événement: {}", e);
+                            }
+
+                            // Afficher et focus la fenêtre
+                            if let Some(window) = app_handle.get_webview_window("main") {
+                                let _ = window.show();
+                                let _ = window.unminimize();
+                                let _ = window.set_focus();
+                            }
+                        }
+                    }
+                }
+            });
 
             // Vérifier si l'app a été lancée avec le flag --minimized (depuis le démarrage)
             let args: Vec<String> = std::env::args().collect();
