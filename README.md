@@ -1,8 +1,8 @@
 <div align="center">
 
-# 🚀 StarTrad FR
+# StarTrad FR
 
-_Traduction française pour Star Citizen - Version 2
+_Traduction française pour Star Citizen - Version 3_
 
 [![Release](https://img.shields.io/github/v/release/drrakendu78/TradSC?style=for-the-badge&logo=github&logoColor=white)](https://github.com/drrakendu78/TradSC/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/drrakendu78/TradSC/total?style=for-the-badge&logo=download&logoColor=white)](https://github.com/drrakendu78/TradSC/releases)
@@ -13,181 +13,185 @@ _Traduction française pour Star Citizen - Version 2
 
 **StarTrad FR** est une application desktop moderne et gratuite pour gérer la traduction française de Star Citizen. Développée avec Tauri 2, React et TypeScript, elle offre une interface intuitive et de nombreuses fonctionnalités pour améliorer votre expérience de jeu.
 
-> 💡 **Note** : StarTrad FR est basé sur [MultitoolV2](https://github.com/Onivoid/MultitoolV2) développé par [Onivoid](https://github.com/Onivoid), adapté et spécialisé pour la traduction française de Star Citizen.
+> **Note** : StarTrad FR est basé sur [MultitoolV2](https://github.com/Onivoid/MultitoolV2) développé par [Onivoid](https://github.com/Onivoid), adapté et spécialisé pour la traduction française de Star Citizen.
 
 </div>
 
-## ✨ Fonctionnalités
+## Fonctionnalités
 
-### 🌍 **Traduction Française**
+### Traduction Française
 
--   Installation de traductions françaises pour Star Citizen
--   **SCEFRA** : Traduction française principale
--   **Communauté Hugo Lisoir** : Traduction des circuspes
--   Support de multiples sources de traduction
--   Vérification automatique des mises à jour des traductions
--   Désinstallation propre en un clic
--   Gestion des traductions FR/EN avec basculement facile
--   Sélection parmi plusieurs traductions disponibles via menu déroulant
+- Installation de traductions françaises pour Star Citizen (LIVE, PTU, EPTU, TECH-PREVIEW)
+- **SCEFRA** : Traduction française principale
+- **Communauté Hugo Lisoir** : Traduction des circuspes
+- Support de multiples sources de traduction
+- Vérification automatique des mises à jour des traductions en arrière-plan
+- Désinstallation propre en un clic
+- Sélection parmi plusieurs traductions disponibles via menu déroulant
+- **Cache hors-ligne** : Sauvegarde locale des traductions pour installation sans internet
 
-### 🔄 **Mises à Jour Automatiques**
+### Cloud & Synchronisation
 
--   ✨ **Vérification automatique au démarrage** : L'application vérifie automatiquement les mises à jour disponibles
--   📥 **Téléchargement direct** : Le bouton GitHub télécharge directement le fichier d'installation (.msi) si une mise à jour est disponible
--   🎯 **Priorisation intelligente** : Le système privilégie automatiquement le fichier .msi pour une installation plus propre
--   ⚡ **Mode silencieux** : Vérification en arrière-plan sans notification si aucune mise à jour n'est disponible
+- **Connexion Discord** : Authentification sécurisée via OAuth Discord
+- **Deep Link Protocol** : Popup navigateur "Ouvrir StarTrad FR ?" pour une connexion fluide
+- **Sauvegarde cloud** : Sauvegardez vos personnages et configurations dans le cloud
+- **Synchronisation des préférences** : Retrouvez vos paramètres sur tous vos appareils
+- **Restauration cloud** : Téléchargez et restaurez vos sauvegardes à tout moment
 
-### 🧹 **Gestion du Cache**
+### Discord Rich Presence
 
--   Nettoyage du cache Star Citizen
--   Analyse de l'espace disque utilisé
--   Ouverture rapide des dossiers système
+- Affichage de votre activité StarTrad FR sur Discord
+- Statut personnalisé selon l'action en cours (traduction, configuration, etc.)
+- Reconnexion automatique en cas de déconnexion Discord
+- Activation/désactivation dans les paramètres
 
-### 👥 **Gestion des Personnages**
+### Mises à Jour Automatiques
 
--   **Presets locaux** : Gestion, Duplication et Suppression de vos personnages
--   **Presets en ligne** : Téléchargement depuis Star Citizen Characters
--   **Sauvegarde automatique** : Création de sauvegardes de vos configurations de personnages
--   **Restauration multi-versions** : Restauration vers différentes versions du jeu (LIVE, PTU, etc.)
--   Duplication et organisation des presets
--   Prévisualisation des personnages (Images fournies par Star Citizen Characters)
+- Vérification automatique au démarrage de l'application
+- Service de fond pour vérifier les mises à jour des traductions
+- Téléchargement direct du fichier d'installation (.msi)
+- Mode silencieux : vérification en arrière-plan sans interruption
 
-### ⌨️ **Gestion des Bindings**
+### Gestion du Cache
 
--   Import de bindings : Importation de fichiers XML de configuration des contrôles
--   Liste des bindings : Affichage de tous les bindings installés
--   Suppression : Suppression facile des bindings non désirés
--   Ouverture du dossier : Accès rapide au dossier des bindings
+- Nettoyage du cache Star Citizen (shaders, builds, etc.)
+- Analyse de l'espace disque utilisé par dossier
+- Ouverture rapide des dossiers système
 
-### 📰 **Actualités Star Citizen**
+### Gestion des Personnages
 
--   Flux RSS intégré : Affichage des dernières actualités Star Citizen depuis le flux RSS officiel
--   Images des articles : Affichage des images associées aux articles
--   Liens cliquables : Ouverture des articles dans le navigateur par défaut
--   Widget d'accueil : Affichage des 3 dernières actualités sur la page d'accueil
+- **Presets locaux** : Gestion, duplication et suppression de vos personnages
+- **Presets en ligne** : Téléchargement depuis Star Citizen Characters
+- **Sauvegarde automatique** : Création de sauvegardes de vos configurations
+- **Restauration multi-versions** : Restauration vers différentes versions du jeu
+- Prévisualisation des personnages (images fournies par Star Citizen Characters)
 
-### 📋 **Patchnotes & Suivi**
+### Gestion des Bindings
 
--   Suivi en temps réel des mises à jour du projet
--   Historique des commits et changements
--   Notifications automatiques des nouvelles versions
+- Import de fichiers XML de configuration des contrôles
+- Liste de tous les bindings installés
+- Suppression facile des bindings non désirés
+- Ouverture rapide du dossier des bindings
 
-### 🎨 **Interface Moderne**
+### RSI Launcher
 
--   **Personnalisation** : Couleurs et thèmes personnalisables
--   **Navigation fluide** : Sidebar avec accès rapide
--   **Transparence** : Effets visuels modernes (Windows)
--   **Mode sombre/clair** : Basculement facile entre les thèmes
+- Détection automatique du RSI Launcher installé
+- Lancement rapide du launcher depuis l'application
+- Affichage du statut d'installation
+
+### Paramètres Graphiques
+
+- Configuration du renderer graphique (DX11, DX12, Vulkan)
+- Gestion de la résolution dans user.cfg
+- Application des paramètres sans ouvrir le jeu
+
+### Actualités Star Citizen
+
+- Flux RSS intégré avec les dernières actualités
+- Affichage des images des articles
+- Liens cliquables vers les articles complets
+- Widget d'accueil avec les 3 dernières actualités
+
+### Patchnotes & Suivi
+
+- Suivi en temps réel des mises à jour du projet
+- Historique des commits et changements
+- Interface dédiée aux patchnotes
+
+### Interface & Expérience
+
+- **Thèmes personnalisables** : Couleurs et styles au choix
+- **Mode sombre/clair** : Basculement facile
+- **Transparence** : Effets visuels modernes (Windows Acrylic)
+- **System Tray** : Minimisation dans la barre des tâches
+- **Instance unique** : Une seule instance de l'application à la fois
+- **Démarrage automatique** : Option pour lancer au démarrage de Windows
+- **Démarrage minimisé** : Lancement discret dans le tray
+- **Liens personnalisés** : Ajoutez vos propres liens dans la sidebar
 
 ---
 
-## 📥 Installation
+## Installation
 
-### 🏆 **RECOMMANDÉ - Version Portable**
+### Version Portable (Recommandée)
 
 _Aucune installation, aucun avertissement Windows_
 
-```bash
-1. Téléchargez StarTrad_FR-Portable_2.0.3.exe
+1. Téléchargez `startradfr.exe` depuis les [Releases](https://github.com/drrakendu78/TradSC/releases/latest)
 2. Lancez directement le fichier
-3. Profitez ! ✨
-```
+3. Profitez !
 
-### 💾 **Installation Standard (MSI)**
+### Installation Standard (MSI/NSIS)
 
-_Installation système classique - Recommandé pour les mises à jour automatiques_
+_Installation système - Recommandé pour les mises à jour automatiques_
 
-```bash
-1. Téléchargez StarTrad FR_2.0.3_x64_fr-FR.msi
-2. Si SmartScreen : "Plus d'infos" → "Exécuter quand même"
+1. Téléchargez `StarTrad FR_x.x.x_x64-setup.exe` ou `StarTrad FR_x.x.x_x64_fr-FR.msi`
+2. Si SmartScreen apparaît : "Plus d'infos" → "Exécuter quand même"
 3. Suivez l'assistant d'installation
-```
 
-### ⚠️ **Message « Windows a protégé votre ordinateur » lors de l'installation**
+### Message « Windows a protégé votre ordinateur »
 
-Si Windows affiche un message bleu « Windows a protégé votre ordinateur » lors du lancement du fichier `.msi`, voici comment forcer l'exécution :
+Si Windows affiche ce message lors de l'installation :
 
-1. Double-cliquez sur le fichier que vous souhaitez ouvrir.
-2. Sur la fenêtre bleue, cliquez sur **Informations complémentaires**
-3. Puis cliquez sur **Exécuter quand même** en bas de la fenêtre
+1. Cliquez sur **Informations complémentaires**
+2. Cliquez sur **Exécuter quand même**
 
-Windows ouvrira alors le fichier et l'installation pourra continuer normalement.
-
-> **Astuce :** Les prochaines mises à jour seront proposées automatiquement dans l'application grâce au système d'auto-update.
+> **Note** : L'application n'est pas signée car les certificats coûtent ~300€/an. Le code source est entièrement open-source et auditable.
 
 ---
 
-## ⚠️ Sécurité & Transparence
+## Sécurité & Transparence
 
-### 🔓 **Pourquoi "Application non-signée" ?**
+### Pourquoi "Application non-signée" ?
 
 Cette application est **100% gratuite et open-source**. Les certificats de signature coûtent ~300€/an, ce qui va à l'encontre de la philosophie de gratuité totale.
 
-**Au lieu d'une signature payante, ce projet offre :**
+| Ce Projet | Apps Fermées |
+| --- | --- |
+| Code source public | Code fermé |
+| Builds reproductibles | Processus opaque |
+| Checksums SHA256 | Confiance aveugle |
+| Communauté active | Support payant |
+| Gratuit à vie | Modèle freemium |
 
-| ✅ **Ce Modèle**             | ❌ **Apps Fermées**  |
-| ---------------------------- | -------------------- |
-| 🔍 **Code source public**    | 🔒 Code fermé        |
-| 🏗️ **Builds reproductibles** | ❓ Processus opaque  |
-| 🛡️ **Checksums SHA256**      | ⚠️ Confiance aveugle |
-| 👥 **Communauté active**     | 📞 Support payant    |
-| 🆓 **Gratuit à vie**         | 💰 Modèle freemium   |
-
-### 🔐 **Vérifications de Sécurité**
+### Vérification d'intégrité
 
 ```powershell
-# Vérifier l'intégrité du fichier téléchargé
-Get-FileHash "StarTrad FR_2.0.3_x64_fr-FR.msi" -Algorithm SHA256
-Get-FileHash "StarTrad_FR-Portable_2.0.3.exe" -Algorithm SHA256
-
-# Comparer avec le checksum fourni dans la release
+# Vérifier le checksum du fichier téléchargé
+Get-FileHash "StarTrad FR_3.1.4_x64-setup.exe" -Algorithm SHA256
 ```
-
-**Checksums SHA256 pour la version 2.0.3 :**
-
-- **MSI** : `495662aa563a14a9db8a03037c01236a91d4edcd57152d72e15cc08334d58518`
-- **EXE Setup** : `2c9e6b98eaf4e22b80eaa15757713b982aa80a689080b43c0991ad140d12170a`
-- **Portable** : `118d1eeb27684b1895169ef8eabad7299a719103d3211f9a6d136b2fe0a85be8`
 
 **Garanties :**
 
--   ✅ Code source entièrement auditable
--   ✅ Builds GitHub Actions publics
--   ✅ Aucune collecte de données personnelles
--   ✅ Aucune communication réseau non documentée
-
-📖 **Consultez notre Politique de confidentialité :** [PRIVACY.md](PRIVACY.md)
+- Code source entièrement auditable
+- Builds GitHub Actions publics
+- Aucune collecte de données personnelles
+- Aucune communication réseau non documentée
 
 ---
 
-## 🛠️ Technologies
+## Technologies
 
 <div align="center">
 
-| Frontend                                                                                                                | Backend                                                                                            | Build & Deploy                                                                                                                | Qualité                                                                                                           |
-| ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| ![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black)                      | ![Rust](https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white)    | ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=for-the-badge&logo=github-actions&logoColor=white) | ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white) |
-| ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)       | ![Tauri](https://img.shields.io/badge/Tauri_2-FFC131?style=for-the-badge&logo=tauri&logoColor=black) | ![PowerShell](https://img.shields.io/badge/PowerShell-5391FE?style=for-the-badge&logo=powershell&logoColor=white)             | ![ESLint](https://img.shields.io/badge/ESLint-4B32C3?style=for-the-badge&logo=eslint&logoColor=white)             |
-| ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white) | ![Tokio](https://img.shields.io/badge/Tokio-000000?style=for-the-badge&logo=rust&logoColor=white)  | ![pnpm](https://img.shields.io/badge/pnpm-F69220?style=for-the-badge&logo=pnpm&logoColor=white)                                | ![Prettier](https://img.shields.io/badge/Prettier-F7B93E?style=for-the-badge&logo=prettier&logoColor=black)       |
+| Frontend | Backend | Build & Deploy | Qualité |
+| --- | --- | --- | --- |
+| ![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black) | ![Rust](https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white) | ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=for-the-badge&logo=github-actions&logoColor=white) | ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white) |
+| ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white) | ![Tauri](https://img.shields.io/badge/Tauri_2-FFC131?style=for-the-badge&logo=tauri&logoColor=black) | ![PowerShell](https://img.shields.io/badge/PowerShell-5391FE?style=for-the-badge&logo=powershell&logoColor=white) | ![ESLint](https://img.shields.io/badge/ESLint-4B32C3?style=for-the-badge&logo=eslint&logoColor=white) |
+| ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white) | ![Tokio](https://img.shields.io/badge/Tokio-000000?style=for-the-badge&logo=rust&logoColor=white) | ![pnpm](https://img.shields.io/badge/pnpm-F69220?style=for-the-badge&logo=pnpm&logoColor=white) | ![Prettier](https://img.shields.io/badge/Prettier-F7B93E?style=for-the-badge&logo=prettier&logoColor=black) |
 
 </div>
 
 ---
 
-## 🚀 Démarrage Rapide
+## Démarrage Rapide
 
 ### Pour les Utilisateurs
 
 ```bash
 # Télécharger depuis les releases GitHub
 https://github.com/drrakendu78/TradSC/releases/latest
-
-# Ou télécharger directement le portable
-curl -L -o StarTrad_FR-Portable.exe https://github.com/drrakendu78/TradSC/releases/latest/download/StarTrad_FR-Portable_2.0.3.exe
-.\StarTrad_FR-Portable.exe
 ```
-
-> Vous pouvez aussi télécharger depuis les [GitHub Releases](https://github.com/drrakendu78/TradSC/releases)
 
 ### Pour les Développeurs
 
@@ -206,104 +210,95 @@ pnpm tauri dev
 pnpm tauri build
 ```
 
-👀 **Pour les instructions de build détaillées :** [BUILD.md](BUILD.md)
+---
+
+## Prérequis (Développement)
+
+- Node.js (version 18 ou supérieure)
+- Rust (dernière version stable)
+- pnpm (gestionnaire de paquets)
+- Visual Studio C++ Build Tools
+- WebView2
 
 ---
 
-## 📋 Prérequis
+## Communauté & Support
 
--   Node.js (version 16 ou supérieure)
--   Rust (dernière version stable)
--   pnpm (gestionnaire de paquets)
--   Visual Studio C++ Build Tools
--   WebView2
+### Partenaires & Sources de Traduction
 
-📖 **Guide d'installation des outils de build :** [INSTALL_BUILD_TOOLS.md](INSTALL_BUILD_TOOLS.md)
+- **[SCEFRA](https://discord.com/invite/DccQN8BN2V)** - Traductions françaises de Star Citizen
+- **Communauté Hugo Lisoir** - Traduction des circuspes
+- **[Star Citizen Characters](https://www.star-citizen-characters.com/)** - Base de données de presets
 
----
-
-## 📊 Statistiques
-
-<div align="center">
-
-![GitHub language count](https://img.shields.io/github/languages/count/drrakendu78/TradSC?style=for-the-badge)
-![GitHub top language](https://img.shields.io/github/languages/top/drrakendu78/TradSC?style=for-the-badge)
-![GitHub code size](https://img.shields.io/github/languages/code-size/drrakendu78/TradSC?style=for-the-badge)
-![GitHub commit activity](https://img.shields.io/github/commit-activity/m/drrakendu78/TradSC?style=for-the-badge)
-
-</div>
-
----
-
-## 💬 Communauté & Support
-
-### 🤝 Partenaires & Sources de Traduction
-
--   **[SCEFRA](https://discord.com/invite/DccQN8BN2V)** - Traductions françaises de Star Citizen
--   **Communauté Hugo Lisoir** - Traduction des circuspes
--   **[Star Citizen Characters](https://www.star-citizen-characters.com/)** - Base de données de presets
-
-### 📞 Support
+### Support
 
 Pour obtenir de l'aide ou signaler un bug :
 
--   Ouvrez une [Issue](https://github.com/drrakendu78/TradSC/issues) sur GitHub
+- Ouvrez une [Issue](https://github.com/drrakendu78/TradSC/issues) sur GitHub
 
 ---
 
-## 🤝 Contribution
+## Contribution
 
-### Comment contribuer ?
-
-1. 🍴 **Fork** le projet
-2. 🌿 **Créez** votre branche feature (`git checkout -b feature/AmazingFeature`)
-3. 💾 **Committez** vos changements (`git commit -m 'Add: Amazing Feature'`)
-4. 📤 **Push** vers la branche (`git push origin feature/AmazingFeature`)
-5. 🔀 **Ouvrez** une Pull Request
-
-📖 **Guide détaillé :** [CONTRIBUTING.md](CONTRIBUTING.md)
+1. **Fork** le projet
+2. **Créez** votre branche feature (`git checkout -b feature/AmazingFeature`)
+3. **Committez** vos changements (`git commit -m 'Add: Amazing Feature'`)
+4. **Push** vers la branche (`git push origin feature/AmazingFeature`)
+5. **Ouvrez** une Pull Request
 
 ---
 
-## 📄 Licence
+## Licence
 
 Ce projet est sous licence **MIT** - voir le fichier [LICENSE](LICENSE) pour plus de détails.
 
 ---
 
-## 📝 Changelog
+## Changelog Récent
 
-### Version 2.0.3
+### Version 3.1.4
+- Deep Link Protocol `startradfr://` pour OAuth Discord
+- Popup "Ouvrir StarTrad FR ?" dans le navigateur
+- Correction de la déconnexion
 
--   ✨ Vérification automatique des mises à jour au démarrage
--   📥 Téléchargement direct du fichier .msi depuis GitHub
--   🎯 Priorisation intelligente des fichiers de mise à jour
--   🔧 Corrections de bugs et améliorations techniques
+### Version 3.1.3
+- Correction du scroll sur les presets
+- Correction du bouton navigateur sur les actualités
 
-📖 **Voir le changelog complet :** [CHANGELOG_V2.md](CHANGELOG_V2.md)  
-📋 **Notes de version détaillées :** [PATCHNOTES_2.0.3.md](PATCHNOTES_2.0.3.md)
+### Version 3.1.2
+- Correction de l'auto-update
+- Synchronisation cloud des préférences
+- Amélioration des actualités
+
+### Version 3.1.1
+- Auto-reconnexion Discord RPC
+- Correction des sauvegardes cloud
+
+### Version 3.1.0
+- Synchronisation cloud des préférences
+- Nouvelle UI patchnotes et actualités
 
 ---
 
-## ❤️ Remerciements
+## Remerciements
 
 <div align="center">
 
-**Développé avec 💜 par [Drrakendu78](https://github.com/drrakendu78)**
+**Développé avec passion par [Drrakendu78](https://github.com/drrakendu78)**
 
-### 🙏 Crédits
+### Crédits
 
 **StarTrad FR** est basé sur **[MultitoolV2](https://github.com/Onivoid/MultitoolV2)** développé par **[Onivoid](https://github.com/Onivoid)**.
 
-Un grand merci à **Onivoid** pour avoir créé cette base solide et open-source qui a permis le développement de StarTrad FR !
+Un grand merci à **Onivoid** pour avoir créé cette base solide et open-source !
 
-_Un grand merci également à la communauté Star Citizen française et aux contributeurs qui participent à ce projet !_
+_Merci également à la communauté Star Citizen française et aux contributeurs !_
 
 [![Contributors](https://img.shields.io/github/contributors/drrakendu78/TradSC?style=for-the-badge)](https://github.com/drrakendu78/TradSC/graphs/contributors)
 
 ---
 
-### 🌟 Si ce projet vous aide, n'hésitez pas à lui donner une étoile !
+### Si ce projet vous aide, n'hésitez pas à lui donner une étoile !
 
 [![Star History Chart](https://api.star-history.com/svg?repos=drrakendu78/TradSC&type=Date)](https://star-history.com/#drrakendu78/TradSC&Date)
 
