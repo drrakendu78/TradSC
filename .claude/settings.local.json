@@ -17,7 +17,18 @@
       "Bash(git stash:*)",
       "Bash(find:*)",
       "Bash(npx tsc:*)",
-      "Bash(cargo check:*)"
+      "Bash(cargo check:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(dir:*)",
+      "Bash(git reset:*)",
+      "Bash(cargo search:*)",
+      "Bash(Select-Object Name)",
+      "Bash(git -C \"c:\\\\Users\\\\djame\\\\Documents\\\\projet\\\\TradSC-main\" log --oneline --all -- \"src/pages/CharactersPresetsList.tsx\")",
+      "Bash(npm install:*)",
+      "Bash(git ls-files:*)",
+      "Bash(git rm:*)",
+      "Bash(timeout:*)",
+      "Bash(node scripts/update-version.js:*)"
     ]
   }
 }
