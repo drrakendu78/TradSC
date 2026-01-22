@@ -124,7 +124,7 @@ const socialLinks: NavigationItem[] = [
         id: "discord",
         name: "Discord",
         icon: <IconBrandDiscord size={18} />,
-        href: "https://discord.gg/gr2Y2gQbnh",
+        href: "https://discord.startrad.link/",
         tooltip: "Discord"
     },
     {

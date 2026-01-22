@@ -19,47 +19,39 @@ const UTF8_BOM: &[u8] = &[0xEF, 0xBB, 0xBF];
 
 /// Applique le branding StarTrad FR directement sur le contenu (sans vérifier le lien)
 fn apply_startrad_branding_direct(content: &str) -> String {
-    // Note: l'apostrophe dans le fichier INI est U+2019 (') et non U+0027 (')
-    let search_text1 = "l\u{2019}application Multitool";
-    let replace_text1 = "l\u{2019}application StarTrad FR";
+    // Remplacer tous les "Multitool" par "StarTrad FR" (SCEFRA)
+    let result = content.replace("Multitool", "StarTrad FR");
 
-    let search_text2 = "n\u{2019}hésitez pas à les signaler sur le Discord SCEFRA (lien sur Multitool)";
-    let replace_text2 = "n\u{2019}hésitez pas à les signaler sur Discord pseudo drrakendu78";
-
-    // Branding SCEFRA (texte Information dans le jeu)
-    let search_text6 = "<EM4>Information Multitool :</EM4>";
-    let replace_text6 = "<EM4>Information StarTrad FR :</EM4>";
+    // Remplacer les mentions Discord SCEFRA par le contact StarTrad FR
+    let result = result.replace(
+        "Discord SCEFRA (SCEFRA sur StarTrad FR)",
+        "Discord pseudo drrakendu78 ou sur discord.startrad.link"
+    );
 
     // Branding Circuspes (commentaire en haut du fichier)
-    let search_text3 = "; Lien pour télécharger le fichier et informations : https://traduction.circuspes.fr/download/";
-    let replace_text3 = "; Téléchargé via StarTrad FR (Traduction Circuspes) - Besoin d'aide ? Discord: drrakendu78";
+    let result = result.replace(
+        "; Lien pour télécharger le fichier et informations : https://traduction.circuspes.fr/download/",
+        "; Téléchargé via StarTrad FR (Traduction Circuspes) - Besoin d'aide ? Discord: drrakendu78"
+    );
 
     // Branding Circuspes (texte dans le jeu)
-    let search_text4 = "Initiative de traduction communautaire francophone";
-    let replace_text4 = "Téléchargé via StarTrad FR (Traduction Circuspes) - Besoin d'aide ? Discord: drrakendu78";
+    let result = result.replace(
+        "Initiative de traduction communautaire francophone",
+        "Téléchargé via StarTrad FR (Traduction Circuspes) - Besoin d'aide ? Discord: drrakendu78"
+    );
 
     // Supprimer le lien Circuspes dans le texte du jeu
-    let search_text5 = " : https://traduction.circuspes.fr/download/";
-    let replace_text5 = "";
-
-    content
-        .replace(search_text1, replace_text1)
-        .replace(search_text2, replace_text2)
-        .replace(search_text6, replace_text6)
-        .replace(search_text3, replace_text3)
-        .replace(search_text4, replace_text4)
-        .replace(search_text5, replace_text5)
+    result.replace(" : https://traduction.circuspes.fr/download/", "")
 }
 
 /// Vérifie si le fichier local a besoin du branding
 fn needs_branding(content: &str) -> bool {
-    let search_text1 = "l\u{2019}application Multitool";
-    let search_text2 = "n\u{2019}hésitez pas à les signaler sur le Discord SCEFRA (lien sur Multitool)";
-    let search_text3 = "; Lien pour télécharger le fichier et informations : https://traduction.circuspes.fr/download/";
-    let search_text4 = "Initiative de traduction communautaire francophone";
-    let search_text5 = " : https://traduction.circuspes.fr/download/";
-    let search_text6 = "<EM4>Information Multitool :</EM4>";
-    content.contains(search_text1) || content.contains(search_text2) || content.contains(search_text3) || content.contains(search_text4) || content.contains(search_text5) || content.contains(search_text6)
+    // SCEFRA: vérifie si "Multitool" est présent
+    // Circuspes: vérifie les textes spécifiques
+    content.contains("Multitool")
+        || content.contains("; Lien pour télécharger le fichier et informations : https://traduction.circuspes.fr/download/")
+        || content.contains("Initiative de traduction communautaire francophone")
+        || content.contains(" : https://traduction.circuspes.fr/download/")
 }
 
 /// Applique le branding StarTrad FR à un fichier local existant
@@ -117,21 +109,14 @@ fn apply_startrad_branding(content: &str, translation_link: &str) -> String {
 
     let mut result = content.to_string();
 
-    // Branding SCFRA
+    // Branding SCEFRA: remplacer tous les "Multitool" par "StarTrad FR"
     if is_scefra {
-        let search_text1 = "l\u{2019}application Multitool";
-        let replace_text1 = "l\u{2019}application StarTrad FR";
-
-        let search_text2 = "n\u{2019}hésitez pas à les signaler sur le Discord SCEFRA (lien sur Multitool)";
-        let replace_text2 = "n\u{2019}hésitez pas à les signaler sur Discord pseudo drrakendu78";
-
-        let search_text6 = "<EM4>Information Multitool :</EM4>";
-        let replace_text6 = "<EM4>Information StarTrad FR :</EM4>";
-
-        result = result
-            .replace(search_text1, replace_text1)
-            .replace(search_text2, replace_text2)
-            .replace(search_text6, replace_text6);
+        result = result.replace("Multitool", "StarTrad FR");
+        // Remplacer les mentions Discord SCEFRA par le contact StarTrad FR
+        result = result.replace(
+            "Discord SCEFRA (SCEFRA sur StarTrad FR)",
+            "Discord pseudo drrakendu78 ou sur discord.startrad.link"
+        );
     }
 
     // Branding Circuspes
