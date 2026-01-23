@@ -2,7 +2,7 @@ import { getVersion } from "@tauri-apps/api/app";
 
 export interface BuildInfo {
     version: string;
-    distribution: "github" | "microsoft-store" | "unknown";
+    distribution: "github" | "microsoft-store" | "portable" | "unknown";
     isSigned: boolean;
     isPortable: boolean;
     canAutoUpdate: boolean;
@@ -30,7 +30,7 @@ export function detectDistribution(): BuildInfo["distribution"] {
     }
 
     if (process.env.TAURI_ENV_PORTABLE === "true") {
-        return "github";
+        return "portable";
     }
 
     try {
