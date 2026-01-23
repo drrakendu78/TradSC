@@ -102,19 +102,19 @@ jobs:
                   $checksums | Out-File -FilePath "builds/checksums.txt" -Encoding utf8
                   Write-Host "✅ Checksums créés" -ForegroundColor Green
 
-            - name: Create Updater Artifact (MSI.zip for tauri-plugin-updater)
+            - name: Create Updater Artifact (NSIS.zip for tauri-plugin-updater)
               run: |
                   Write-Host "📦 Création de l'artifact pour tauri-plugin-updater..." -ForegroundColor Cyan
 
                   $version = "${{ github.ref_name }}".TrimStart('v')
-                  $msiPath = "builds/installer/StarTradFR-Installer.msi"
+                  $nsisPath = "builds/StarTrad.FR_${version}_x64-setup.exe"
 
-                  if (Test-Path $msiPath) {
-                      # Format attendu par tauri-plugin-updater: ProductName_version_arch_locale.msi.zip
-                      $zipName = "StarTrad FR_${version}_x64_fr-FR.msi.zip"
+                  if (Test-Path $nsisPath) {
+                      # Format attendu par tauri-plugin-updater: ProductName_version_arch_locale.nsis.zip
+                      $zipName = "StarTrad.FR_${version}_x64-setup.nsis.zip"
                       $zipPath = "builds/$zipName"
 
-                      Compress-Archive -Path $msiPath -DestinationPath $zipPath -Force
+                      Compress-Archive -Path $nsisPath -DestinationPath $zipPath -Force
                       Write-Host "✅ Updater artifact créé: $zipName" -ForegroundColor Green
 
                       # Ajouter le checksum
@@ -122,7 +122,7 @@ jobs:
                       Add-Content -Path "builds/checksums.txt" -Value "$hash  $zipName"
                       Write-Host "✅ Checksum ajouté pour $zipName" -ForegroundColor Green
                   } else {
-                      Write-Host "❌ MSI non trouvé pour créer l'artifact updater" -ForegroundColor Red
+                      Write-Host "❌ NSIS non trouvé pour créer l'artifact updater" -ForegroundColor Red
                       exit 1
                   }
 
@@ -134,7 +134,7 @@ jobs:
                   $portable = "builds/StarTradFR-Portable.exe"
                   $setup = "builds/StarTrad.FR_${version}_x64-setup.exe"
                   $installer = "builds/installer/StarTradFR-Installer.msi"
-                  $updater = "builds/StarTrad FR_${version}_x64_fr-FR.msi.zip"
+                  $updater = "builds/StarTrad.FR_${version}_x64-setup.nsis.zip"
 
                   if (Test-Path $portable) {
                       Write-Host "✅ Portable: $([math]::Round((Get-Item $portable).Length / 1MB, 2)) MB" -ForegroundColor Green
@@ -150,15 +150,15 @@ jobs:
                       exit 1
                   }
 
+                  $installer = "builds/installer/StarTradFR-Installer.msi"
                   if (Test-Path $installer) {
                       Write-Host "✅ MSI Installer: $([math]::Round((Get-Item $installer).Length / 1MB, 2)) MB" -ForegroundColor Green
                   } else {
-                      Write-Host "❌ MSI Installer manquant" -ForegroundColor Red
-                      exit 1
+                      Write-Host "⚠️ MSI Installer manquant (optionnel)" -ForegroundColor Yellow
                   }
 
                   if (Test-Path $updater) {
-                      Write-Host "✅ Updater ZIP: $([math]::Round((Get-Item $updater).Length / 1MB, 2)) MB" -ForegroundColor Green
+                      Write-Host "✅ NSIS ZIP (updater): $([math]::Round((Get-Item $updater).Length / 1MB, 2)) MB" -ForegroundColor Green
                   } else {
                       Write-Host "❌ Updater ZIP manquant" -ForegroundColor Red
                       exit 1
@@ -179,7 +179,8 @@ jobs:
                   ## Telechargements
 
                   - **StarTradFR-Portable.exe** - Recommande, aucune installation requise
-                  - **StarTradFR-Installer.msi** - Installation classique Windows
+                  - **StarTrad.FR_x.x.x_x64-setup.exe** - Installateur NSIS
+                  - **StarTradFR-Installer.msi** - Installation classique Windows (alternatif)
 
                   ## Note Windows SmartScreen
 
@@ -205,7 +206,7 @@ jobs:
                       builds/StarTradFR-Portable.exe
                       builds/StarTrad.FR_*_x64-setup.exe
                       builds/installer/StarTradFR-Installer.msi
-                      builds/StarTrad FR_*_x64_fr-FR.msi.zip
+                      builds/StarTrad.FR_*_x64-setup.nsis.zip
                       builds/checksums.txt
                   prerelease: false
                   generate_release_notes: false
@@ -221,7 +222,8 @@ jobs:
                   Write-Host ""
                   Write-Host "📦 Artifacts:" -ForegroundColor Yellow
                   Write-Host "  • StarTradFR-Portable.exe" -ForegroundColor White
+                  Write-Host "  • StarTrad.FR_*_x64-setup.exe (NSIS)" -ForegroundColor White
                   Write-Host "  • StarTradFR-Installer.msi" -ForegroundColor White
-                  Write-Host "  • StarTrad FR_*_x64_fr-FR.msi.zip (Auto-updater)" -ForegroundColor Green
+                  Write-Host "  • StarTrad.FR_*_x64-setup.nsis.zip (Auto-updater)" -ForegroundColor Green
                   Write-Host ""
                   Write-Host "🌐 https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}" -ForegroundColor Blue
