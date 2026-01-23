@@ -83,6 +83,7 @@ class UpdateService {
     private async canUpdate(): Promise<boolean> {
         try {
             const buildInfo = await getBuildInfo();
+            logger.info(`[UpdateService] buildInfo: distribution=${buildInfo.distribution}, canAutoUpdate=${buildInfo.canAutoUpdate}, version=${buildInfo.version}`);
 
             if (buildInfo.distribution === "microsoft-store") {
                 logger.info(
@@ -125,6 +126,7 @@ class UpdateService {
         }
 
         const canUpdate = await this.canUpdate();
+        logger.info(`[UpdateService] canUpdate = ${canUpdate}`);
         if (!canUpdate) {
             if (!silent) {
                 logger.info(
@@ -137,9 +139,10 @@ class UpdateService {
         this.setState({ checking: true, error: null });
 
         try {
-            logger.info("Vérification des mises à jour...");
+            logger.info("[UpdateService] Appel de check() de tauri-plugin-updater...");
 
             const update = await check();
+            logger.info(`[UpdateService] Résultat check(): ${update ? 'mise à jour trouvée' : 'pas de mise à jour'}`);
 
             if (update) {
                 logger.info(
@@ -168,8 +171,10 @@ class UpdateService {
                 return null;
             }
         } catch (error) {
+            // Log l'erreur complète pour le débogage
+            logger.error("[UpdateService] Erreur complète:", error);
             const errorMessage =
-                error instanceof Error ? error.message : "Erreur inconnue";
+                error instanceof Error ? error.message : String(error);
             logger.error(
                 "Erreur lors de la vérification des mises à jour:",
                 errorMessage,

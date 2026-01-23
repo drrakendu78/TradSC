@@ -126,6 +126,32 @@ jobs:
                       exit 1
                   }
 
+            - name: Create latest.json for tauri-plugin-updater
+              run: |
+                  Write-Host "📦 Création de latest.json pour tauri-plugin-updater..." -ForegroundColor Cyan
+
+                  $version = "${{ github.ref_name }}".TrimStart('v')
+                  $zipName = "StarTrad.FR_${version}_x64-setup.nsis.zip"
+                  $downloadUrl = "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/$zipName"
+                  $pubDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+
+                  # Créer le JSON au format attendu par tauri-plugin-updater
+                  $latestJson = @{
+                      version = $version
+                      notes = "Mise à jour vers la version $version"
+                      pub_date = $pubDate
+                      platforms = @{
+                          "windows-x86_64" = @{
+                              signature = ""
+                              url = $downloadUrl
+                          }
+                      }
+                  } | ConvertTo-Json -Depth 4
+
+                  $latestJson | Out-File -FilePath "builds/latest.json" -Encoding utf8
+                  Write-Host "✅ latest.json créé" -ForegroundColor Green
+                  Write-Host $latestJson -ForegroundColor Yellow
+
             - name: Verify Build Artifacts
               run: |
                   Write-Host "=== Vérification des artifacts ===" -ForegroundColor Cyan
@@ -207,6 +233,7 @@ jobs:
                       builds/StarTrad.FR_*_x64-setup.exe
                       builds/installer/StarTradFR-Installer.msi
                       builds/StarTrad.FR_*_x64-setup.nsis.zip
+                      builds/latest.json
                       builds/checksums.txt
                   prerelease: false
                   generate_release_notes: false

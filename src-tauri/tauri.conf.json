@@ -54,7 +54,7 @@
         "updater": {
             "active": true,
             "endpoints": [
-                "https://api.github.com/repos/drrakendu78/TradSC/releases/latest"
+                "https://github.com/drrakendu78/TradSC/releases/latest/download/latest.json"
             ],
             "dialog": false,
             "pubkey": "",

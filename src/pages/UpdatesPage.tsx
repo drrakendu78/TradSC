@@ -1,18 +1,44 @@
 import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useUpdater } from '@/hooks/useUpdater';
-import { Download, Github, Store, AlertTriangle } from 'lucide-react';
+import { updateService, UpdateState } from '@/services/updateService';
+import { Download, Github, Store, AlertTriangle, RefreshCw } from 'lucide-react';
 import openExternal from '@/utils/external';
 import { formatVersion, getAppVersionSync } from '@/utils/version';
+import { detectDistribution } from '@/utils/buildInfo';
 
 export default function UpdatesPage() {
-    const updater = useUpdater({
-        checkOnStartup: true,
-        enableAutoUpdater: true,
-        githubRepo: 'drrakendu78/TradSC'
-    });
+    const [updateState, setUpdateState] = useState<UpdateState>(updateService.getState());
+    const distribution = detectDistribution();
+
+    useEffect(() => {
+        const unsubscribe = updateService.subscribe((state) => {
+            setUpdateState(state);
+        });
+        return unsubscribe;
+    }, []);
+
+    const handleCheckForUpdates = async () => {
+        try {
+            await updateService.checkForUpdate(false);
+        } catch (error) {
+            console.error('Erreur vérification mise à jour:', error);
+        }
+    };
+
+    const handleInstallUpdate = async () => {
+        try {
+            if (updateState.downloaded) {
+                await updateService.installAndRelaunch();
+            } else if (updateState.available) {
+                await updateService.downloadUpdate();
+            }
+        } catch (error) {
+            console.error('Erreur installation mise à jour:', error);
+        }
+    };
 
     const currentVersion = formatVersion(getAppVersionSync());
 
@@ -25,7 +51,7 @@ export default function UpdatesPage() {
     };
 
     const getDistributionInfo = () => {
-        switch (updater.distribution) {
+        switch (distribution) {
             case 'microsoft-store':
                 return {
                     name: 'Microsoft Store',
@@ -113,15 +139,19 @@ export default function UpdatesPage() {
 
                     <div className="flex items-center gap-2">
                         <Button
-                            onClick={() => updater.checkForUpdates(false)}
-                            disabled={updater.isChecking}
+                            onClick={handleCheckForUpdates}
+                            disabled={updateState.checking || updateState.downloading}
                             className="flex items-center gap-2"
                         >
-                            <Download className="h-4 w-4" />
-                            {updater.isChecking ? 'Vérification...' : 'Vérifier les mises à jour'}
+                            {updateState.checking ? (
+                                <RefreshCw className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Download className="h-4 w-4" />
+                            )}
+                            {updateState.checking ? 'Vérification...' : 'Vérifier les mises à jour'}
                         </Button>
 
-                        {updater.distribution === 'microsoft-store' ? (
+                        {distribution === 'microsoft-store' ? (
                             <Button
                                 variant="outline"
                                 onClick={handleOpenStore}
@@ -130,35 +160,59 @@ export default function UpdatesPage() {
                                 <Store className="h-4 w-4" />
                                 Ouvrir le Store
                             </Button>
+                        ) : updateState.available || updateState.downloaded ? (
+                            <Button
+                                variant={updateState.downloaded ? "default" : "outline"}
+                                onClick={handleInstallUpdate}
+                                disabled={updateState.downloading || updateState.installing}
+                                className="flex items-center gap-2"
+                            >
+                                {updateState.downloading || updateState.installing ? (
+                                    <RefreshCw className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Download className="h-4 w-4" />
+                                )}
+                                {updateState.installing
+                                    ? 'Installation...'
+                                    : updateState.downloading
+                                    ? 'Téléchargement...'
+                                    : updateState.downloaded
+                                    ? `Installer v${updateState.updateInfo?.version}`
+                                    : `Télécharger v${updateState.updateInfo?.version}`}
+                            </Button>
                         ) : (
                             <Button
                                 variant="outline"
-                                onClick={() => {
-                                    // Si une mise à jour est disponible, télécharger directement
-                                    // (surtout si l'auto-update a échoué ou n'est pas disponible)
-                                    if (updater.updateAvailable && updater.updateInfo?.downloadUrl) {
-                                        updater.downloadUpdateDirectly();
-                                    } else {
-                                        // Sinon, ouvrir GitHub normalement
-                                        handleOpenGitHub();
-                                    }
-                                }}
+                                onClick={handleOpenGitHub}
                                 className="flex items-center gap-2"
                             >
                                 <Github className="h-4 w-4" />
-                                {updater.updateAvailable && updater.updateInfo?.downloadUrl
-                                    ? `Télécharger ${formatVersion(updater.latestVersion || '')}`
-                                    : updater.latestVersion
-                                    ? `Télécharger ${formatVersion(updater.latestVersion)}`
-                                    : 'Voir sur GitHub'}
+                                Voir sur GitHub
                             </Button>
                         )}
                     </div>
 
-                    {updater.error && (
+                    {/* État de la mise à jour */}
+                    {updateState.available && !updateState.downloaded && (
+                        <div className="p-3 bg-green-100 dark:bg-green-900 rounded-md">
+                            <p className="text-sm text-green-800 dark:text-green-200">
+                                🎉 Mise à jour disponible: v{updateState.updateInfo?.version}
+                            </p>
+                        </div>
+                    )}
+
+                    {updateState.downloaded && (
+                        <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-md">
+                            <p className="text-sm text-blue-800 dark:text-blue-200">
+                                ✅ Mise à jour téléchargée et prête à installer: v{updateState.updateInfo?.version}
+                            </p>
+                        </div>
+                    )}
+
+                    {updateState.error && (
                         <div className="p-3 bg-red-100 dark:bg-red-900 rounded-md">
                             <p className="text-sm text-red-800 dark:text-red-200">
-                                Erreur: {updater.error}
+                                Erreur: {updateState.error}
                             </p>
                         </div>
                     )}
@@ -166,7 +220,7 @@ export default function UpdatesPage() {
             </Card>
 
             {/* Microsoft Store - Info spécifique */}
-            {updater.distribution === 'microsoft-store' && (
+            {distribution === 'microsoft-store' && (
                 <Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
@@ -194,7 +248,7 @@ export default function UpdatesPage() {
             )}
 
             {/* GitHub/Portable - Info spécifique */}
-            {(updater.distribution === 'github' || updater.distribution === 'portable') && (
+            {(distribution === 'github' || distribution === 'portable') && (
                 <Card className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-orange-800 dark:text-orange-200">
@@ -213,7 +267,7 @@ export default function UpdatesPage() {
                             <p className="text-sm">
                                 🛡️ <strong>Checksums SHA256</strong> - Vérification d'intégrité
                             </p>
-                            {updater.distribution === 'portable' && (
+                            {distribution === 'portable' && (
                                 <p className="text-sm">
                                     📦 <strong>Version portable</strong> - Pas d'installation requise
                                 </p>
@@ -233,7 +287,7 @@ export default function UpdatesPage() {
                     </CardHeader>
                     <CardContent className="text-yellow-700 dark:text-yellow-300">
                         <div className="space-y-1 text-xs">
-                            <p>Distribution détectée: <strong>{updater.distribution}</strong></p>
+                            <p>Distribution détectée: <strong>{distribution}</strong></p>
                             <p>TAURI_ENV_MS_STORE: <strong>{process.env.TAURI_ENV_MS_STORE || 'undefined'}</strong></p>
                             <p>TAURI_ENV_PORTABLE: <strong>{process.env.TAURI_ENV_PORTABLE || 'undefined'}</strong></p>
                             <p>TAURI_ENV_DISTRIBUTION: <strong>{process.env.TAURI_ENV_DISTRIBUTION || 'undefined'}</strong></p>
