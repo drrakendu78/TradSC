@@ -1,7 +1,7 @@
 {
     "name": "startradfr",
     "private": true,
-    "version": "3.1.6",
+    "version": "3.1.8",
     "type": "module",
     "proxy": "https://multitool.onivoid.fr",
     "scripts": {
@@ -31,6 +31,8 @@
         "@tauri-apps/api": "^2.1.1",
         "@tauri-apps/plugin-deep-link": "^2.4.6",
         "@tauri-apps/plugin-dialog": "~2.4.0",
+        "@tauri-apps/plugin-notification": "^2.3.3",
+        "@tauri-apps/plugin-process": "^2.3.1",
         "@tauri-apps/plugin-shell": "^2.0.1",
         "@tauri-apps/plugin-updater": "~2.9.0",
         "axios": "^1.8.4",

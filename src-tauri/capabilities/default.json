@@ -11,6 +11,14 @@
     "core:window:allow-close",
     "core:window:allow-minimize",
     "core:window:allow-maximize",
-    "core:window:allow-start-dragging"
+    "core:window:allow-start-dragging",
+    "core:window:allow-inner-size",
+    "core:window:allow-set-size",
+    "core:window:allow-is-focused",
+    "core:event:default",
+    "updater:default",
+    "notification:default",
+    "process:allow-restart",
+    "process:allow-exit"
   ]
 }

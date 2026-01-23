@@ -10,6 +10,7 @@ import { useUpdater } from '@/hooks/useUpdater';
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useSidebarStore } from '@/stores/sidebar-store';
 import { BackgroundVideo } from '@/components/custom/background-video';
+import { getCurrentWindow, PhysicalSize } from '@tauri-apps/api/window';
 
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
@@ -18,14 +19,44 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     const [path, setPath] = useState<string>('');
     const version = formatVersion(getAppVersionSync());
     const { isLocked, toggleLock } = useSidebarStore();
-    
-    // Vérification automatique des mises à jour au démarrage
+
+    // NOTE: La vérification automatique des mises à jour est maintenant gérée par
+    // updateService dans main.tsx (tauri-plugin-updater natif avec modal bloquante)
+    // Le hook useUpdater reste disponible pour la page Updates (vérification manuelle)
     useUpdater({
-        checkOnStartup: true,
-        enableAutoUpdater: true,
+        checkOnStartup: false,  // Désactivé - géré par updateService
+        enableAutoUpdater: false,
         githubRepo: 'drrakendu78/TradSC'
     });
-    
+
+    // Fix pour le bug de rendu WebView2 sur focus/blur de fenêtre
+    useEffect(() => {
+        const appWindow = getCurrentWindow();
+        let unlisten: (() => void) | null = null;
+
+        const forceRepaint = async () => {
+            try {
+                const size = await appWindow.innerSize();
+                // Micro-resize instantané +1px puis retour
+                await appWindow.setSize(new PhysicalSize(size.width + 1, size.height));
+                await appWindow.setSize(new PhysicalSize(size.width, size.height));
+            } catch (e) {
+                console.error('Erreur resize fix:', e);
+            }
+        };
+
+        // Utiliser l'événement Tauri natif onFocusChanged
+        appWindow.onFocusChanged(() => {
+            forceRepaint();
+        }).then(fn => {
+            unlisten = fn;
+        });
+
+        return () => {
+            if (unlisten) unlisten();
+        };
+    }, []);
+
     useEffect(() => {
         if (location.pathname === '/') {
             setPath('');

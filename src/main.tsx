@@ -9,6 +9,9 @@ import { SecurityWarning } from "@/components/custom/SecurityWarning";
 import AdminElevateButton from "@/components/custom/AdminElevateButton";
 import { ErrorBoundary } from "@/components/custom/ErrorBoundary";
 import { SplashScreen } from "@/components/custom/SplashScreen";
+import { UpdateModal } from "@/components/custom/UpdateModal";
+import { updateService } from "@/services/updateService";
+import { invoke } from "@tauri-apps/api/core";
 
 // Helper pour détecter si on est dans Tauri ou dans un navigateur web
 export const isTauri = (): boolean => {
@@ -22,6 +25,32 @@ export const isVercelWeb = (): boolean => {
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
+
+  // Initialisation du service de mise à jour automatique
+  useEffect(() => {
+    console.log('[AutoUpdate] Initialisation du service de mise à jour...');
+
+    // On essaie directement l'invoke - si ça échoue, on n'est pas dans Tauri
+    invoke<boolean>('is_minimized_start')
+      .then((isMinimizedStart) => {
+        console.log('[AutoUpdate] Mode démarrage minimisé:', isMinimizedStart);
+        updateService.setMinimizedStart(isMinimizedStart);
+
+        const delay = isMinimizedStart ? 10000 : 3000;
+        console.log(`[AutoUpdate] Vérification dans ${delay / 1000}s...`);
+
+        setTimeout(() => {
+          console.log('[AutoUpdate] Lancement de autoUpdate()...');
+          updateService.autoUpdate()
+            .then(() => console.log('[AutoUpdate] autoUpdate() terminé'))
+            .catch((err) => console.error('[AutoUpdate] Erreur autoUpdate:', err));
+        }, delay);
+      })
+      .catch((err) => {
+        // Si invoke échoue, on n'est probablement pas dans Tauri (mode web)
+        console.log('[AutoUpdate] Pas dans Tauri ou erreur invoke:', err);
+      });
+  }, []);
 
   // Détecter et traiter les tokens OAuth dans l'URL au démarrage
   useEffect(() => {
@@ -47,6 +76,7 @@ function App() {
           <ControlMenu />
           <AppRouter />
           <AdminElevateButton />
+          <UpdateModal autoShow={true} />
           <BorderBeam duration={8} size={150} colorFrom="#FAFAFA" colorTo="#FAFAFA" />
           <BorderBeam delay={4} duration={8} size={150} colorFrom="#FAFAFA" colorTo="#FAFAFA" />
         </>

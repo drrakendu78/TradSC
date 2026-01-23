@@ -78,11 +78,11 @@ jobs:
                   if (Test-Path "builds/MicrosoftStoreMSI") {
                       $storeMsi = Get-ChildItem "builds/MicrosoftStoreMSI/*.msi" | Select-Object -First 1
                       if ($storeMsi) {
-                          $newName = "MultitoolV2-Installer-MSStore.msi"
+                          $newName = "StarTradFR-Installer-MSStore.msi"
                           $newPath = "builds/$newName"
                           Copy-Item $storeMsi.FullName -Destination $newPath
                           Write-Host "✅ Microsoft Store MSI copié vers: $newName" -ForegroundColor Green
-                          
+
                           # Ajouter au fichier checksums
                           $hash = (Get-FileHash $newPath -Algorithm SHA256).Hash.ToLower()
                           Add-Content -Path "builds/checksums.txt" -Value "$hash  $newName"
@@ -90,19 +90,61 @@ jobs:
                       }
                   }
 
+            - name: Create Updater Artifact (MSI.zip for tauri-plugin-updater)
+              run: |
+                  Write-Host "📦 Création de l'artifact pour tauri-plugin-updater..." -ForegroundColor Cyan
+
+                  # Extraire la version sans le 'v'
+                  $version = "${{ github.ref_name }}".TrimStart('v')
+
+                  # Trouver le MSI standard
+                  $msiPath = "builds/installer/StarTradFR-Installer.msi"
+                  if (-not (Test-Path $msiPath)) {
+                      # Fallback sur l'ancien nom si le nouveau n'existe pas
+                      $msiPath = "builds/installer/MultitoolV2-Installer.msi"
+                  }
+
+                  if (Test-Path $msiPath) {
+                      # Créer le zip avec le format attendu par tauri-plugin-updater
+                      # Format: StarTrad FR_version_x64_fr-FR.msi.zip (fr-FR car wix.language = fr-FR)
+                      $zipName = "StarTrad FR_${version}_x64_fr-FR.msi.zip"
+                      $zipPath = "builds/$zipName"
+
+                      Compress-Archive -Path $msiPath -DestinationPath $zipPath -Force
+                      Write-Host "✅ Updater artifact créé: $zipName" -ForegroundColor Green
+
+                      # Ajouter le checksum
+                      $hash = (Get-FileHash $zipPath -Algorithm SHA256).Hash.ToLower()
+                      Add-Content -Path "builds/checksums.txt" -Value "$hash  $zipName"
+                      Write-Host "✅ Checksum ajouté pour $zipName" -ForegroundColor Green
+                  } else {
+                      Write-Host "❌ MSI non trouvé pour créer l'artifact updater" -ForegroundColor Red
+                      exit 1
+                  }
+
             - name: Verify Build Artifacts
               run: |
                   Write-Host "=== Vérification des artifacts de build ===" -ForegroundColor Cyan
 
-                  if (Test-Path "builds/portable/MultitoolV2-Portable.exe") {
-                    Write-Host "✅ Portable: $(Get-Item 'builds/portable/MultitoolV2-Portable.exe' | Select-Object -ExpandProperty Length) bytes" -ForegroundColor Green
+                  # Vérifier Portable (avec fallback sur ancien nom)
+                  $portablePath = "builds/portable/StarTradFR-Portable.exe"
+                  if (-not (Test-Path $portablePath)) {
+                      $portablePath = "builds/portable/MultitoolV2-Portable.exe"
+                  }
+                  if (Test-Path $portablePath) {
+                    Write-Host "✅ Portable: $(Get-Item $portablePath | Select-Object -ExpandProperty Length) bytes" -ForegroundColor Green
                   } else {
                     Write-Host "❌ Portable manquant" -ForegroundColor Red
                     exit 1
                   }
 
-                  if (Test-Path "builds/installer/MultitoolV2-Installer.msi") {
-                    Write-Host "✅ Installer: $(Get-Item 'builds/installer/MultitoolV2-Installer.msi' | Select-Object -ExpandProperty Length) bytes" -ForegroundColor Green
+                  # Vérifier Installer (avec fallback sur ancien nom)
+                  $installerPath = "builds/installer/StarTradFR-Installer.msi"
+                  if (-not (Test-Path $installerPath)) {
+                      $installerPath = "builds/installer/MultitoolV2-Installer.msi"
+                  }
+                  if (Test-Path $installerPath) {
+                    Write-Host "✅ Installer: $(Get-Item $installerPath | Select-Object -ExpandProperty Length) bytes" -ForegroundColor Green
                   } else {
                     Write-Host "❌ Installer manquant" -ForegroundColor Red
                     exit 1
@@ -117,11 +159,25 @@ jobs:
                     exit 1
                   }
 
-                  # Vérification que Microsoft Store MSI est créé
-                  if (Test-Path "builds/MultitoolV2-Installer-MSStore.msi") {
-                    Write-Host "✅ MS Store MSI: $(Get-Item 'builds/MultitoolV2-Installer-MSStore.msi' | Select-Object -ExpandProperty Length) bytes" -ForegroundColor Green
+                  # Vérification MS Store MSI (avec fallback)
+                  $msStorePath = "builds/StarTradFR-Installer-MSStore.msi"
+                  if (-not (Test-Path $msStorePath)) {
+                      $msStorePath = "builds/MultitoolV2-Installer-MSStore.msi"
+                  }
+                  if (Test-Path $msStorePath) {
+                    Write-Host "✅ MS Store MSI: $(Get-Item $msStorePath | Select-Object -ExpandProperty Length) bytes" -ForegroundColor Green
                   } else {
                     Write-Host "❌ MS Store MSI manquant" -ForegroundColor Red
+                    exit 1
+                  }
+
+                  # Vérification Updater artifact (MSI.zip)
+                  $version = "${{ github.ref_name }}".TrimStart('v')
+                  $updaterPath = "builds/StarTrad FR_${version}_x64_fr-FR.msi.zip"
+                  if (Test-Path $updaterPath) {
+                    Write-Host "✅ Updater artifact: $(Get-Item $updaterPath | Select-Object -ExpandProperty Length) bytes" -ForegroundColor Green
+                  } else {
+                    Write-Host "❌ Updater artifact manquant" -ForegroundColor Red
                     exit 1
                   }
 
@@ -129,7 +185,7 @@ jobs:
               run: |
                   $version = "${{ github.ref_name }}"
                   $notes = @"
-                  # MultitoolV2 $version - Release Windows (Non-signé)
+                  # StarTrad FR $version - Release Windows (Non-signé)
 
                   ## ⚠️ Avertissement Sécurité - Builds Non-signés
 
@@ -140,12 +196,12 @@ jobs:
 
                   1. **🏆 RECOMMANDÉ - Version Portable** : Aucune installation, pas d'avertissement SmartScreen
                   2. **💻 Installer Standard** : Avertissement SmartScreen attendu (cliquez "Informations complémentaires" → "Exécuter quand même")
-                  3. **🏪 MS Store Distribution** : Version préparée pour Microsoft Store (avec variables d'environnement MS Store)
+                  3. **🔄 Mise à jour automatique** : Si vous avez déjà StarTrad FR, l'app se mettra à jour automatiquement
 
                   ## 🔐 Vérification de Sécurité
 
                   - ✅ **Code source ouvert** : Entièrement auditable sur GitHub
-                  - ✅ **Build reproductible** : Workflow GitHub Actions public  
+                  - ✅ **Build reproductible** : Workflow GitHub Actions public
                   - ✅ **Checksums SHA256** : Vérification d'intégrité fournie ci-dessous
 
                   ## 📋 Checksums SHA256
@@ -159,17 +215,9 @@ jobs:
                   2. Si SmartScreen apparaît : **"Informations complémentaires"** → **"Exécuter quand même"**
                   3. Ou utilisez la **version portable** (recommandé - pas d'installation)
 
-                  ### Vérifier l'intégrité (optionnel) :
-                  ``````powershell
-                  Get-FileHash MultitoolV2-Installer.msi -Algorithm SHA256
-                  Get-FileHash MultitoolV2-Portable.exe -Algorithm SHA256
-                  ``````
-
                   ---
-                  **Pourquoi pas de signature ?** Les certificats de signature coûtent ~300€/an. 
+                  **Pourquoi pas de signature ?** Les certificats de signature coûtent ~300€/an.
                   Pour un projet gratuit et open-source, nous privilégions la transparence totale du code.
-
-                  **Microsoft Store :** Une version signée par Microsoft sera disponible séparément sur le Microsoft Store.
                   "@
 
                   $notes | Out-File -FilePath "RELEASE_NOTES.md" -Encoding utf8
@@ -179,12 +227,17 @@ jobs:
               with:
                   body_path: RELEASE_NOTES.md
                   files: |
+                      builds/portable/StarTradFR-Portable.exe
                       builds/portable/MultitoolV2-Portable.exe
+                      builds/installer/StarTradFR-Installer.msi
                       builds/installer/MultitoolV2-Installer.msi
+                      builds/StarTradFR-Installer-MSStore.msi
                       builds/MultitoolV2-Installer-MSStore.msi
+                      builds/StarTrad FR_*_x64_fr-FR.msi.zip
                       builds/checksums.txt
                   prerelease: false
                   generate_release_notes: false
+                  fail_on_unmatched_files: false
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -195,15 +248,14 @@ jobs:
                   Write-Host "Version: ${{ github.ref_name }}" -ForegroundColor Cyan
                   Write-Host ""
                   Write-Host "📦 Artifacts dans GitHub Release:" -ForegroundColor Yellow
-                  Write-Host "  • MultitoolV2-Portable.exe (Recommandé)" -ForegroundColor White
-                  Write-Host "  • MultitoolV2-Installer.msi (Standard)" -ForegroundColor White  
-                  Write-Host "  • MultitoolV2-Installer-MSStore.msi (MS Store Distribution)" -ForegroundColor Magenta
+                  Write-Host "  • StarTradFR-Portable.exe (Recommandé)" -ForegroundColor White
+                  Write-Host "  • StarTradFR-Installer.msi (Standard)" -ForegroundColor White
+                  Write-Host "  • StarTrad FR_*_x64_fr-FR.msi.zip (Auto-updater)" -ForegroundColor Green
                   Write-Host "  • checksums.txt" -ForegroundColor White
                   Write-Host ""
-                  Write-Host "🏪 Artifact MS Store Distribution:" -ForegroundColor Magenta
-                  Write-Host "   MultitoolV2-Installer-MSStore.msi contient TAURI_ENV_MS_STORE=true" -ForegroundColor White
-                  Write-Host "   → Page 'Mises à jour' masquée dans la sidebar" -ForegroundColor White
-                  Write-Host "   → Warnings GitHub non-signé masqués" -ForegroundColor White
+                  Write-Host "🔄 Mise à jour automatique:" -ForegroundColor Green
+                  Write-Host "   Le fichier .msi.zip permet aux utilisateurs existants" -ForegroundColor White
+                  Write-Host "   de recevoir automatiquement cette mise à jour" -ForegroundColor White
                   Write-Host ""
                   Write-Host "🌐 Release disponible sur:" -ForegroundColor Cyan
                   Write-Host "   https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}" -ForegroundColor Blue

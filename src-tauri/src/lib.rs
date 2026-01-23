@@ -182,6 +182,11 @@ fn can_elevate_privileges() -> bool {
 }
 
 #[command]
+fn is_minimized_start() -> bool {
+    std::env::args().any(|arg| arg == "--minimized")
+}
+
+#[command]
 async fn fetch_rss() -> Result<String, String> {
     let client = reqwest::Client::new();
     let response = client
@@ -211,6 +216,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_deep_link::init())
@@ -343,6 +349,7 @@ pub fn run() {
             open_external,
             is_running_as_admin,
             can_elevate_privileges,
+            is_minimized_start,
             restart_as_admin,
             clear_cache,
             open_cache_folder,
