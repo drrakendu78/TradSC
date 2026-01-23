@@ -45,68 +45,72 @@ jobs:
             - name: Install frontend dependencies
               run: pnpm install
 
-            - name: Build Standard Release (GitHub Distribution)
+            - name: Create builds directory
               run: |
-                  Write-Host "🏗️ Building Standard (GitHub)..." -ForegroundColor Green
-                  $env:TAURI_ENV_DISTRIBUTION = "github"
-                  $env:TAURI_ENV_MS_STORE = $null
-                  $env:TAURI_ENV_PORTABLE = $null
-                  Write-Host "Variables: DISTRIBUTION=$env:TAURI_ENV_DISTRIBUTION, MS_STORE=$env:TAURI_ENV_MS_STORE, PORTABLE=$env:TAURI_ENV_PORTABLE" -ForegroundColor Yellow
-                  .\scripts\build-release.ps1 standard
+                  New-Item -ItemType Directory -Force -Path "builds/portable"
+                  New-Item -ItemType Directory -Force -Path "builds/installer"
 
-            - name: Build Portable Release (Portable Distribution)
+            - name: Build Tauri App (MSI + NSIS)
+              run: pnpm tauri build
+              env:
+                  TAURI_ENV_DISTRIBUTION: github
+
+            - name: Collect Build Artifacts
               run: |
-                  Write-Host "📦 Building Portable..." -ForegroundColor Green
-                  $env:TAURI_ENV_PORTABLE = "true"
-                  $env:TAURI_ENV_DISTRIBUTION = "github"
-                  $env:TAURI_ENV_MS_STORE = $null
-                  Write-Host "Variables: DISTRIBUTION=$env:TAURI_ENV_DISTRIBUTION, MS_STORE=$env:TAURI_ENV_MS_STORE, PORTABLE=$env:TAURI_ENV_PORTABLE" -ForegroundColor Yellow
-                  .\scripts\build-release.ps1 portable
+                  Write-Host "📦 Collecte des artifacts..." -ForegroundColor Cyan
+                  $version = "${{ github.ref_name }}".TrimStart('v')
+                  $tauriRelease = "src-tauri/target/release/bundle"
 
-            - name: Build Microsoft Store Release (for internal use)
-              run: |
-                  # IMPORTANT: Définir explicitement les variables MS Store
-                  $env:TAURI_ENV_MS_STORE = "true"
-                  $env:TAURI_ENV_DISTRIBUTION = $null
-                  $env:TAURI_ENV_PORTABLE = $null
-                  Write-Host "🏪 Building Microsoft Store version..." -ForegroundColor Magenta
-                  Write-Host "Variables: MS_STORE=$env:TAURI_ENV_MS_STORE, DISTRIBUTION=$env:TAURI_ENV_DISTRIBUTION" -ForegroundColor Yellow
-                  .\scripts\build-release.ps1 msix
-
-            - name: Rename Microsoft Store MSI for Release
-              run: |
-                  if (Test-Path "builds/MicrosoftStoreMSI") {
-                      $storeMsi = Get-ChildItem "builds/MicrosoftStoreMSI/*.msi" | Select-Object -First 1
-                      if ($storeMsi) {
-                          $newName = "StarTradFR-Installer-MSStore.msi"
-                          $newPath = "builds/$newName"
-                          Copy-Item $storeMsi.FullName -Destination $newPath
-                          Write-Host "✅ Microsoft Store MSI copié vers: $newName" -ForegroundColor Green
-
-                          # Ajouter au fichier checksums
-                          $hash = (Get-FileHash $newPath -Algorithm SHA256).Hash.ToLower()
-                          Add-Content -Path "builds/checksums.txt" -Value "$hash  $newName"
-                          Write-Host "✅ Checksum ajouté pour $newName" -ForegroundColor Green
-                      }
+                  # MSI
+                  $msi = Get-ChildItem "$tauriRelease/msi/*.msi" -ErrorAction SilentlyContinue | Select-Object -First 1
+                  if ($msi) {
+                      Copy-Item $msi.FullName -Destination "builds/installer/StarTradFR-Installer.msi"
+                      Write-Host "✅ MSI copié: $($msi.Name)" -ForegroundColor Green
+                  } else {
+                      Write-Host "❌ MSI non trouvé" -ForegroundColor Red
+                      exit 1
                   }
+
+                  # NSIS (EXE installer) - nom compatible avec l'ancien updater
+                  $nsis = Get-ChildItem "$tauriRelease/nsis/*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+                  if ($nsis) {
+                      $setupName = "StarTrad.FR_${version}_x64-setup.exe"
+                      Copy-Item $nsis.FullName -Destination "builds/$setupName"
+                      Write-Host "✅ NSIS Setup copié: $setupName" -ForegroundColor Green
+                  } else {
+                      Write-Host "❌ NSIS non trouvé" -ForegroundColor Red
+                      exit 1
+                  }
+
+                  # Portable (exe brut sans installer)
+                  $portable = "src-tauri/target/release/startradfr.exe"
+                  if (Test-Path $portable) {
+                      Copy-Item $portable -Destination "builds/StarTradFR-Portable.exe"
+                      Write-Host "✅ Portable copié: StarTradFR-Portable.exe" -ForegroundColor Green
+                  } else {
+                      Write-Host "❌ Portable non trouvé" -ForegroundColor Red
+                      exit 1
+                  }
+
+                  # Créer checksums
+                  $checksums = @()
+                  Get-ChildItem "builds/installer/*.msi", "builds/*.exe" | ForEach-Object {
+                      $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+                      $checksums += "$hash  $($_.Name)"
+                      Write-Host "Hash: $hash  $($_.Name)" -ForegroundColor Yellow
+                  }
+                  $checksums | Out-File -FilePath "builds/checksums.txt" -Encoding utf8
+                  Write-Host "✅ Checksums créés" -ForegroundColor Green
 
             - name: Create Updater Artifact (MSI.zip for tauri-plugin-updater)
               run: |
                   Write-Host "📦 Création de l'artifact pour tauri-plugin-updater..." -ForegroundColor Cyan
 
-                  # Extraire la version sans le 'v'
                   $version = "${{ github.ref_name }}".TrimStart('v')
-
-                  # Trouver le MSI standard
                   $msiPath = "builds/installer/StarTradFR-Installer.msi"
-                  if (-not (Test-Path $msiPath)) {
-                      # Fallback sur l'ancien nom si le nouveau n'existe pas
-                      $msiPath = "builds/installer/MultitoolV2-Installer.msi"
-                  }
 
                   if (Test-Path $msiPath) {
-                      # Créer le zip avec le format attendu par tauri-plugin-updater
-                      # Format: StarTrad FR_version_x64_fr-FR.msi.zip (fr-FR car wix.language = fr-FR)
+                      # Format attendu par tauri-plugin-updater: ProductName_version_arch_locale.msi.zip
                       $zipName = "StarTrad FR_${version}_x64_fr-FR.msi.zip"
                       $zipPath = "builds/$zipName"
 
@@ -124,115 +128,83 @@ jobs:
 
             - name: Verify Build Artifacts
               run: |
-                  Write-Host "=== Vérification des artifacts de build ===" -ForegroundColor Cyan
-
-                  # Vérifier Portable (avec fallback sur ancien nom)
-                  $portablePath = "builds/portable/StarTradFR-Portable.exe"
-                  if (-not (Test-Path $portablePath)) {
-                      $portablePath = "builds/portable/MultitoolV2-Portable.exe"
-                  }
-                  if (Test-Path $portablePath) {
-                    Write-Host "✅ Portable: $(Get-Item $portablePath | Select-Object -ExpandProperty Length) bytes" -ForegroundColor Green
-                  } else {
-                    Write-Host "❌ Portable manquant" -ForegroundColor Red
-                    exit 1
-                  }
-
-                  # Vérifier Installer (avec fallback sur ancien nom)
-                  $installerPath = "builds/installer/StarTradFR-Installer.msi"
-                  if (-not (Test-Path $installerPath)) {
-                      $installerPath = "builds/installer/MultitoolV2-Installer.msi"
-                  }
-                  if (Test-Path $installerPath) {
-                    Write-Host "✅ Installer: $(Get-Item $installerPath | Select-Object -ExpandProperty Length) bytes" -ForegroundColor Green
-                  } else {
-                    Write-Host "❌ Installer manquant" -ForegroundColor Red
-                    exit 1
-                  }
-
-                  if (Test-Path "builds/checksums.txt") {
-                    Write-Host "✅ Checksums disponibles" -ForegroundColor Green
-                    Write-Host "Contenu:" -ForegroundColor Yellow
-                    Get-Content "builds/checksums.txt"
-                  } else {
-                    Write-Host "❌ Checksums manquants" -ForegroundColor Red
-                    exit 1
-                  }
-
-                  # Vérification MS Store MSI (avec fallback)
-                  $msStorePath = "builds/StarTradFR-Installer-MSStore.msi"
-                  if (-not (Test-Path $msStorePath)) {
-                      $msStorePath = "builds/MultitoolV2-Installer-MSStore.msi"
-                  }
-                  if (Test-Path $msStorePath) {
-                    Write-Host "✅ MS Store MSI: $(Get-Item $msStorePath | Select-Object -ExpandProperty Length) bytes" -ForegroundColor Green
-                  } else {
-                    Write-Host "❌ MS Store MSI manquant" -ForegroundColor Red
-                    exit 1
-                  }
-
-                  # Vérification Updater artifact (MSI.zip)
+                  Write-Host "=== Vérification des artifacts ===" -ForegroundColor Cyan
                   $version = "${{ github.ref_name }}".TrimStart('v')
-                  $updaterPath = "builds/StarTrad FR_${version}_x64_fr-FR.msi.zip"
-                  if (Test-Path $updaterPath) {
-                    Write-Host "✅ Updater artifact: $(Get-Item $updaterPath | Select-Object -ExpandProperty Length) bytes" -ForegroundColor Green
+
+                  $portable = "builds/StarTradFR-Portable.exe"
+                  $setup = "builds/StarTrad.FR_${version}_x64-setup.exe"
+                  $installer = "builds/installer/StarTradFR-Installer.msi"
+                  $updater = "builds/StarTrad FR_${version}_x64_fr-FR.msi.zip"
+
+                  if (Test-Path $portable) {
+                      Write-Host "✅ Portable: $([math]::Round((Get-Item $portable).Length / 1MB, 2)) MB" -ForegroundColor Green
                   } else {
-                    Write-Host "❌ Updater artifact manquant" -ForegroundColor Red
-                    exit 1
+                      Write-Host "❌ Portable manquant" -ForegroundColor Red
+                      exit 1
                   }
+
+                  if (Test-Path $setup) {
+                      Write-Host "✅ Setup NSIS: $([math]::Round((Get-Item $setup).Length / 1MB, 2)) MB" -ForegroundColor Green
+                  } else {
+                      Write-Host "❌ Setup NSIS manquant" -ForegroundColor Red
+                      exit 1
+                  }
+
+                  if (Test-Path $installer) {
+                      Write-Host "✅ MSI Installer: $([math]::Round((Get-Item $installer).Length / 1MB, 2)) MB" -ForegroundColor Green
+                  } else {
+                      Write-Host "❌ MSI Installer manquant" -ForegroundColor Red
+                      exit 1
+                  }
+
+                  if (Test-Path $updater) {
+                      Write-Host "✅ Updater ZIP: $([math]::Round((Get-Item $updater).Length / 1MB, 2)) MB" -ForegroundColor Green
+                  } else {
+                      Write-Host "❌ Updater ZIP manquant" -ForegroundColor Red
+                      exit 1
+                  }
+
+                  Write-Host ""
+                  Write-Host "Checksums:" -ForegroundColor Yellow
+                  Get-Content "builds/checksums.txt"
 
             - name: Create Release Notes
+              shell: pwsh
               run: |
                   $version = "${{ github.ref_name }}"
+                  $checksums = Get-Content builds/checksums.txt -Raw
                   $notes = @"
-                  # StarTrad FR $version - Release Windows (Non-signé)
+                  # StarTrad FR $version
 
-                  ## ⚠️ Avertissement Sécurité - Builds Non-signés
+                  ## Telechargements
 
-                  Cette application n'est **pas signée numériquement** (certificat coûteux pour un projet open-source).
-                  Windows SmartScreen affichera un avertissement - c'est **normal et attendu**.
+                  - **StarTradFR-Portable.exe** - Recommande, aucune installation requise
+                  - **StarTradFR-Installer.msi** - Installation classique Windows
 
-                  ## 📥 Options d'Installation
+                  ## Note Windows SmartScreen
 
-                  1. **🏆 RECOMMANDÉ - Version Portable** : Aucune installation, pas d'avertissement SmartScreen
-                  2. **💻 Installer Standard** : Avertissement SmartScreen attendu (cliquez "Informations complémentaires" → "Exécuter quand même")
-                  3. **🔄 Mise à jour automatique** : Si vous avez déjà StarTrad FR, l'app se mettra à jour automatiquement
+                  Cette application n'est pas signee numeriquement. Windows affichera un avertissement.
+                  Cliquez Informations complementaires puis Executer quand meme
 
-                  ## 🔐 Vérification de Sécurité
+                  ## Verification d'integrite
 
-                  - ✅ **Code source ouvert** : Entièrement auditable sur GitHub
-                  - ✅ **Build reproductible** : Workflow GitHub Actions public
-                  - ✅ **Checksums SHA256** : Vérification d'intégrité fournie ci-dessous
+                  Checksums SHA256:
+                  $checksums
 
-                  ## 📋 Checksums SHA256
+                  ## Mise a jour automatique
 
-                  ``````
-                  $(Get-Content builds/checksums.txt -Raw)
-                  ``````
-
-                  ### Comment installer une app non-signée sur Windows :
-                  1. Téléchargez le fichier souhaité
-                  2. Si SmartScreen apparaît : **"Informations complémentaires"** → **"Exécuter quand même"**
-                  3. Ou utilisez la **version portable** (recommandé - pas d'installation)
-
-                  ---
-                  **Pourquoi pas de signature ?** Les certificats de signature coûtent ~300€/an.
-                  Pour un projet gratuit et open-source, nous privilégions la transparence totale du code.
+                  Les utilisateurs existants recevront automatiquement cette mise a jour.
                   "@
-
                   $notes | Out-File -FilePath "RELEASE_NOTES.md" -Encoding utf8
 
-            - name: Upload Release Assets (Public uniquement)
+            - name: Upload Release Assets
               uses: softprops/action-gh-release@v1
               with:
                   body_path: RELEASE_NOTES.md
                   files: |
-                      builds/portable/StarTradFR-Portable.exe
-                      builds/portable/MultitoolV2-Portable.exe
+                      builds/StarTradFR-Portable.exe
+                      builds/StarTrad.FR_*_x64-setup.exe
                       builds/installer/StarTradFR-Installer.msi
-                      builds/installer/MultitoolV2-Installer.msi
-                      builds/StarTradFR-Installer-MSStore.msi
-                      builds/MultitoolV2-Installer-MSStore.msi
                       builds/StarTrad FR_*_x64_fr-FR.msi.zip
                       builds/checksums.txt
                   prerelease: false
@@ -247,15 +219,9 @@ jobs:
                   Write-Host "🎉 RELEASE CRÉÉE AVEC SUCCÈS!" -ForegroundColor Green
                   Write-Host "Version: ${{ github.ref_name }}" -ForegroundColor Cyan
                   Write-Host ""
-                  Write-Host "📦 Artifacts dans GitHub Release:" -ForegroundColor Yellow
-                  Write-Host "  • StarTradFR-Portable.exe (Recommandé)" -ForegroundColor White
-                  Write-Host "  • StarTradFR-Installer.msi (Standard)" -ForegroundColor White
+                  Write-Host "📦 Artifacts:" -ForegroundColor Yellow
+                  Write-Host "  • StarTradFR-Portable.exe" -ForegroundColor White
+                  Write-Host "  • StarTradFR-Installer.msi" -ForegroundColor White
                   Write-Host "  • StarTrad FR_*_x64_fr-FR.msi.zip (Auto-updater)" -ForegroundColor Green
-                  Write-Host "  • checksums.txt" -ForegroundColor White
                   Write-Host ""
-                  Write-Host "🔄 Mise à jour automatique:" -ForegroundColor Green
-                  Write-Host "   Le fichier .msi.zip permet aux utilisateurs existants" -ForegroundColor White
-                  Write-Host "   de recevoir automatiquement cette mise à jour" -ForegroundColor White
-                  Write-Host ""
-                  Write-Host "🌐 Release disponible sur:" -ForegroundColor Cyan
-                  Write-Host "   https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}" -ForegroundColor Blue
+                  Write-Host "🌐 https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}" -ForegroundColor Blue

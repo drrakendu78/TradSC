@@ -1,7 +1,7 @@
 {
     "$schema": "https://schema.tauri.app/config/2",
     "productName": "StarTrad FR",
-    "version": "3.1.8",
+    "version": "3.1.7",
     "identifier": "com.drrakendu78.startradfr",
     "build": {
         "beforeDevCommand": "npm run dev",
