@@ -238,8 +238,22 @@ class UpdateService {
 
             return true;
         } catch (error) {
-            const errorMessage =
-                error instanceof Error ? error.message : "Erreur inconnue";
+            // Log détaillé pour debug
+            logger.error("[UpdateService] Download error object:", error);
+            logger.error("[UpdateService] Download error type:", typeof error);
+            logger.error("[UpdateService] Download error JSON:", JSON.stringify(error, null, 2));
+
+            let errorMessage: string;
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            } else if (typeof error === 'string') {
+                errorMessage = error;
+            } else if (error && typeof error === 'object') {
+                errorMessage = JSON.stringify(error);
+            } else {
+                errorMessage = String(error);
+            }
+
             logger.error("Erreur lors du téléchargement:", errorMessage);
 
             this.setState({

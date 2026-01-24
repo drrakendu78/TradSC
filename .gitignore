@@ -39,3 +39,7 @@ checksums_*.txt
 CHECKSUMS_*.txt
 DEV_NOTES.txt
 nul
+
+# Tauri signing keys (NEVER commit these!)
+.tauri-signer.key
+.tauri-signer.key.pub

@@ -55,6 +55,8 @@ jobs:
               run: pnpm tauri build
               env:
                   TAURI_ENV_DISTRIBUTION: github
+                  TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+                  TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
             - name: Collect Build Artifacts
               run: |
@@ -136,6 +138,18 @@ jobs:
                   $downloadUrl = "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/$zipName"
                   $pubDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
 
+                  # Lire la signature générée par Tauri
+                  $sigFile = "src-tauri/target/release/bundle/nsis/*.nsis.zip.sig"
+                  $sigPath = Get-ChildItem $sigFile -ErrorAction SilentlyContinue | Select-Object -First 1
+                  $signature = ""
+                  if ($sigPath) {
+                      $signature = Get-Content $sigPath.FullName -Raw
+                      $signature = $signature.Trim()
+                      Write-Host "✅ Signature trouvée: $($sigPath.Name)" -ForegroundColor Green
+                  } else {
+                      Write-Host "⚠️ Pas de signature trouvée - vérifiez les secrets GitHub" -ForegroundColor Yellow
+                  }
+
                   # Créer le JSON au format attendu par tauri-plugin-updater
                   $latestJson = @{
                       version = $version
@@ -143,7 +157,7 @@ jobs:
                       pub_date = $pubDate
                       platforms = @{
                           "windows-x86_64" = @{
-                              signature = ""
+                              signature = $signature
                               url = $downloadUrl
                           }
                       }
