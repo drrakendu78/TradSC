@@ -8,10 +8,12 @@ import { Download, Github, Store, AlertTriangle, RefreshCw } from 'lucide-react'
 import openExternal from '@/utils/external';
 import { formatVersion, getAppVersionSync } from '@/utils/version';
 import { detectDistribution } from '@/utils/buildInfo';
+import { toast } from '@/hooks/use-toast';
 
 export default function UpdatesPage() {
     const [updateState, setUpdateState] = useState<UpdateState>(updateService.getState());
     const distribution = detectDistribution();
+    const currentVersion = formatVersion(getAppVersionSync());
 
     useEffect(() => {
         const unsubscribe = updateService.subscribe((state) => {
@@ -22,7 +24,14 @@ export default function UpdatesPage() {
 
     const handleCheckForUpdates = async () => {
         try {
-            await updateService.checkForUpdate(false);
+            const update = await updateService.checkForUpdate(false);
+            if (!update) {
+                toast({
+                    title: "Vous êtes à jour",
+                    description: `StarTrad FR ${currentVersion} est la dernière version.`,
+                    variant: "success",
+                });
+            }
         } catch (error) {
             console.error('Erreur vérification mise à jour:', error);
         }
@@ -40,14 +49,12 @@ export default function UpdatesPage() {
         }
     };
 
-    const currentVersion = formatVersion(getAppVersionSync());
-
     const handleOpenGitHub = () => {
         openExternal('https://github.com/drrakendu78/TradSC/releases');
     };
 
     const handleOpenStore = () => {
-        openExternal('ms-windows-store://pdp/?productid=YourProductId');
+        openExternal('ms-windows-store://pdp/?productid=9P29DL68WBZ');
     };
 
     const getDistributionInfo = () => {

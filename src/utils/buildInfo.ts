@@ -21,6 +21,7 @@ export interface SecurityInfo {
 const DEFAULT_GITHUB_REPO = "drrakendu78/TradSC";
 
 export function detectDistribution(): BuildInfo["distribution"] {
+    // Injecté via vite.config.ts define
     if (process.env.TAURI_ENV_MS_STORE === "true") {
         return "microsoft-store";
     }

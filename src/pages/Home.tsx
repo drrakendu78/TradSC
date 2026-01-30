@@ -120,22 +120,22 @@ function QuickAction({ to, icon, title, description, color, index }: QuickAction
         >
             <Link to={to} className="block group">
                 <Card className="bg-background/40 border-border/50 hover:border-primary/50 hover:bg-background/60 transition-all duration-300 h-full">
-                    <CardContent className="p-4 flex items-center gap-4">
-                        <div className={`p-3 rounded-xl ${color} text-white shrink-0`}>
+                    <CardContent className="p-3 flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${color} text-white shrink-0`}>
                             {icon}
                         </div>
                         <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-sm group-hover:text-primary transition-colors">
+                            <h3 className="font-semibold text-xs group-hover:text-primary transition-colors">
                                 {title}
                             </h3>
-                            <p className="text-xs text-muted-foreground truncate">
+                            <p className="text-[10px] text-muted-foreground truncate">
                                 {description}
                             </p>
                         </div>
-                        <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                        <ArrowRight className="h-3 w-3 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
                     </CardContent>
                 </Card>
-                            </Link>
+            </Link>
         </motion.div>
     );
 }
@@ -736,6 +736,14 @@ function Home() {
                             description="Plans détaillés"
                             color="bg-cyan-500"
                             index={5}
+                        />
+                        <QuickAction
+                            to="/updates"
+                            icon={<Download className="h-5 w-5" />}
+                            title="Mises à jour"
+                            description="Gérer les mises à jour"
+                            color="bg-blue-600"
+                            index={6}
                         />
                     </motion.div>
                     </motion.div>
