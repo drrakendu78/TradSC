@@ -2,16 +2,32 @@
 
 # StarTrad FR
 
-_Traduction française pour Star Citizen - Version 3_
+_Traduction française pour Star Citizen – Version 3_
 
 [![Release](https://img.shields.io/github/v/release/drrakendu78/TradSC?style=for-the-badge&logo=github&logoColor=white)](https://github.com/drrakendu78/TradSC/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/drrakendu78/TradSC/total?style=for-the-badge&logo=download&logoColor=white)](https://github.com/drrakendu78/TradSC/releases)
 [![License](https://img.shields.io/github/license/drrakendu78/TradSC?style=for-the-badge)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/drrakendu78/TradSC?style=for-the-badge&logo=star&logoColor=white)](https://github.com/drrakendu78/TradSC/stargazers)
 
+<br/>
+
+<a href="https://apps.microsoft.com/detail/9P29JDL68WBZ?referrer=appbadge&mode=full">
+  <img src="https://get.microsoft.com/images/fr%20light.svg" width="200"/>
+</a>
+
+<br/>
+
+<sub>
+✔️ Version <strong>Microsoft Store</strong> : application <strong>signée et distribuée par Microsoft</strong><br/>
+✔️ Versions <strong>EXE / MSI</strong> disponibles sur GitHub (non signées)<br/>
+➡️ Les versions EXE / MSI incluent une fonctionnalité supplémentaire :<br/>
+<strong>bouton de téléchargement automatique du RSI Launcher</strong> s’il n’est pas installé.
+</sub>
+
 ---
 
-**StarTrad FR** est une application desktop moderne et gratuite pour gérer la traduction française de Star Citizen. Développée avec Tauri 2, React et TypeScript, elle offre une interface intuitive et de nombreuses fonctionnalités pour améliorer votre expérience de jeu.
+**StarTrad FR** est une application desktop moderne et gratuite pour gérer la traduction française de Star Citizen.  
+Développée avec <strong>Tauri 2</strong>, <strong>React</strong> et <strong>TypeScript</strong>, elle offre une interface intuitive et de nombreuses fonctionnalités pour améliorer votre expérience de jeu.
 
 > **Note** : StarTrad FR est basé sur [MultitoolV2](https://github.com/Onivoid/MultitoolV2) développé par [Onivoid](https://github.com/Onivoid), adapté et spécialisé pour la traduction française de Star Citizen.
 
@@ -113,6 +129,21 @@ _Traduction française pour Star Citizen - Version 3_
 
 ## Installation
 
+### Microsoft Store (recommandé)
+
+StarTrad FR est disponible sur le **Microsoft Store** en tant qu’application **signée et distribuée officiellement par Microsoft**.
+
+- ✅ Signature numérique gérée par Microsoft
+- ✅ Aucune alerte Windows SmartScreen
+- ✅ Installation et désinstallation propres
+- ✅ Mises à jour automatiques via le Store
+
+<a href="https://apps.microsoft.com/detail/9P29JDL68WBZ?referrer=appbadge&mode=full">
+  <img src="https://get.microsoft.com/images/fr%20light.svg" width="200"/>
+</a>
+
+---
+
 ### Version Portable (Recommandée)
 
 _Aucune installation, aucun avertissement Windows_
@@ -121,24 +152,27 @@ _Aucune installation, aucun avertissement Windows_
 2. Lancez directement le fichier
 3. Profitez !
 
-### Installation Standard (MSI/NSIS)
+---
 
-_Installation système - Recommandé pour les mises à jour automatiques_
+### Installation Standard (MSI / EXE)
+
+_Installation système – recommandée pour un usage classique hors Microsoft Store_
 
 1. Téléchargez `StarTrad FR_x.x.x_x64-setup.exe` ou `StarTrad FR_x.x.x_x64_fr-FR.msi`
-2. Si SmartScreen apparaît : "Plus d'infos" → "Exécuter quand même"
+2. Si SmartScreen apparaît : **« Plus d'infos » → « Exécuter quand même »**
 3. Suivez l'assistant d'installation
+
+---
 
 ### Message « Windows a protégé votre ordinateur »
 
-Si Windows affiche ce message lors de l'installation :
+Ce message peut apparaître **uniquement pour les versions hors Microsoft Store** (EXE / MSI / portable).
 
 1. Cliquez sur **Informations complémentaires**
 2. Cliquez sur **Exécuter quand même**
 
-> **Note** : L'application n'est pas signée car les certificats coûtent ~300€/an. Le code source est entièrement open-source et auditable.
-
----
+> **Note** : les versions distribuées hors Microsoft Store ne sont pas signées individuellement.  
+> Le projet reste **100 % gratuit, open-source et auditable**, avec des builds publics via GitHub Actions.
 
 ## Sécurité & Transparence
 
