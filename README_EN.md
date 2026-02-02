@@ -2,7 +2,7 @@
 
 # StarTrad FR
 
-**🇬🇧 English** | [🇫🇷 Français](README_FR.md)
+**🇬🇧 English** | [🇫🇷 Français](README.md)
 
 _French Translation Tool for Star Citizen – Version 3_
 
