@@ -2,6 +2,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { X, Minus, Volume2, VolumeX, SkipBack, SkipForward } from "lucide-react";
 import { useState, useEffect } from 'react';
 import { Slider } from '@/components/ui/slider';
+import ServerStatus from '@/components/custom/server-status';
 
 export default function ControlMenu() {
     const appWindow = getCurrentWindow();
@@ -42,6 +43,11 @@ export default function ControlMenu() {
 
     return (
         <div className='flex flex-row gap-2 fixed right-4 top-4 z-[100] items-center pointer-events-auto'>
+            {/* Statut serveurs SC */}
+            <div className='flex items-center bg-background/70 backdrop-blur-xl rounded-lg border border-border/50 shadow-md'>
+                <ServerStatus />
+            </div>
+
             {/* Contrôle de volume et navigation */}
             <div className='flex items-center gap-2 bg-background/70 backdrop-blur-xl rounded-lg px-3 py-1.5 border border-border/50 shadow-md'>
                 {/* Boutons précédent/suivant */}

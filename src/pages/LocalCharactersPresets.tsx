@@ -345,12 +345,12 @@ function LocalCharactersPresets() {
                 </div>
 
                 <Tabs defaultValue="presets" className="flex-1 flex flex-col overflow-hidden">
-                    <TabsList className="mb-4 w-fit bg-muted/50 p-1 rounded-lg">
-                        <TabsTrigger value="presets" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md px-4">
+                    <TabsList className="mb-4 w-fit">
+                        <TabsTrigger value="presets" className="gap-2">
                             <Users className="h-4 w-4" />
                             Presets locaux
                         </TabsTrigger>
-                        <TabsTrigger value="backups" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md px-4">
+                        <TabsTrigger value="backups" className="gap-2">
                             <Save className="h-4 w-4" />
                             Sauvegardes
                         </TabsTrigger>

@@ -14,9 +14,11 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import CloudBackupContent from './cloud-backup-content';
-import { MessageCircle, User as UserIcon, Save, LogIn } from 'lucide-react';
+import { MessageCircle, User as UserIcon, Save, LogIn, Camera, RotateCcw } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
+import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
+import { useAvatar } from '@/hooks/useAvatar';
 
 interface AuthDialogProps {
     open: boolean;
@@ -34,6 +36,7 @@ export default function AuthDialog({ open, onOpenChange, defaultTab }: AuthDialo
     const [activeTab, setActiveTab] = useState(defaultTab || 'login');
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteLoading, setDeleteLoading] = useState(false);
+    const { avatarUrl, isCustom, setCustomAvatar, resetAvatar } = useAvatar(user);
 
     // Réinitialiser l'onglet quand le dialog s'ouvre
     useEffect(() => {
@@ -358,18 +361,12 @@ export default function AuthDialog({ open, onOpenChange, defaultTab }: AuthDialo
 
                 {user ? (
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                        <TabsList className="grid w-full grid-cols-2 bg-muted/50 p-1 rounded-lg">
-                            <TabsTrigger
-                                value="backup"
-                                className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md"
-                            >
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="backup" className="gap-2">
                                 <Save className="h-4 w-4" />
                                 Mes sauvegardes
                             </TabsTrigger>
-                            <TabsTrigger
-                                value="account"
-                                className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md"
-                            >
+                            <TabsTrigger value="account" className="gap-2">
                                 <UserIcon className="h-4 w-4" />
                                 Mon compte
                             </TabsTrigger>
@@ -378,15 +375,53 @@ export default function AuthDialog({ open, onOpenChange, defaultTab }: AuthDialo
                             <CloudBackupContent user={user} />
                         </TabsContent>
                         <TabsContent value="account" className="mt-6 space-y-4">
-                            {user.user_metadata?.avatar_url && (
-                                <div className="flex justify-center">
-                                    <img
-                                        src={user.user_metadata.avatar_url}
-                                        alt="Avatar"
-                                        className="h-20 w-20 rounded-full"
-                                    />
+                            <div className="flex flex-col items-center gap-2">
+                                <div className="relative group">
+                                    {avatarUrl ? (
+                                        <img
+                                            src={avatarUrl}
+                                            alt="Avatar"
+                                            className="h-20 w-20 rounded-full object-cover ring-2 ring-primary/30"
+                                        />
+                                    ) : (
+                                        <div className="h-20 w-20 rounded-full bg-primary/20 flex items-center justify-center ring-2 ring-primary/30">
+                                            <UserIcon className="h-8 w-8 text-primary" />
+                                        </div>
+                                    )}
+                                    <button
+                                        onClick={async () => {
+                                            const file = await openFileDialog({
+                                                title: 'Choisir une photo de profil',
+                                                filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp'] }],
+                                            });
+                                            if (file) {
+                                                try {
+                                                    await setCustomAvatar(file);
+                                                    toast({ title: 'Photo mise à jour' });
+                                                } catch {
+                                                    toast({ title: 'Erreur', description: 'Impossible de changer la photo', variant: 'destructive' });
+                                                }
+                                            }
+                                        }}
+                                        className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
+                                        title="Changer la photo"
+                                    >
+                                        <Camera className="h-6 w-6 text-white" />
+                                    </button>
                                 </div>
-                            )}
+                                {isCustom && (
+                                    <button
+                                        onClick={async () => {
+                                            await resetAvatar();
+                                            toast({ title: 'Photo réinitialisée' });
+                                        }}
+                                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                                    >
+                                        <RotateCcw className="h-3 w-3" />
+                                        Revenir à Discord
+                                    </button>
+                                )}
+                            </div>
                             {user.user_metadata?.full_name || user.user_metadata?.name ? (
                                 <div className="space-y-2">
                                     <Label>Nom</Label>
@@ -461,18 +496,12 @@ export default function AuthDialog({ open, onOpenChange, defaultTab }: AuthDialo
                     </Tabs>
                 ) : (
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                        <TabsList className="grid w-full grid-cols-2 bg-muted/50 p-1 rounded-lg">
-                            <TabsTrigger
-                                value="login"
-                                className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md"
-                            >
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="login" className="gap-2">
                                 <LogIn className="h-4 w-4" />
                                 Connexion
                             </TabsTrigger>
-                            <TabsTrigger
-                                value="signup"
-                                className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md"
-                            >
+                            <TabsTrigger value="signup" className="gap-2">
                                 <UserIcon className="h-4 w-4" />
                                 Inscription
                             </TabsTrigger>

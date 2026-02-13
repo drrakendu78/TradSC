@@ -43,3 +43,7 @@ nul
 # Tauri signing keys (NEVER commit these!)
 .tauri-signer.key
 .tauri-signer.key.pub
+
+# Scripts de build avec credentials (contiennent les clés privées)
+scripts/build-signed.ps1
+release.ps1

@@ -28,6 +28,8 @@ use scripts::gamepath::{get_star_citizen_versions, check_rsi_launcher, launch_rs
 use scripts::graphics_settings::{
     get_graphics_renderer, set_graphics_renderer,
     get_user_cfg_resolution, set_user_cfg_resolution,
+    get_user_cfg_advanced_settings, set_user_cfg_advanced_settings,
+    get_graphics_presets, apply_graphics_preset,
 };
 use scripts::local_characters_functions::{
     delete_character, download_character, duplicate_character, get_character_informations,
@@ -184,6 +186,101 @@ fn can_elevate_privileges() -> bool {
 #[command]
 fn is_minimized_start() -> bool {
     std::env::args().any(|arg| arg == "--minimized")
+}
+
+#[command]
+async fn fetch_server_status() -> Result<String, String> {
+    let client = reqwest::Client::new();
+    let response = client
+        .get("https://status.robertsspaceindustries.com")
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let text = response
+        .text()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(text)
+}
+
+#[command]
+async fn save_custom_avatar(source_path: String) -> Result<String, String> {
+    let appdata = std::env::var("APPDATA").map_err(|_| "APPDATA introuvable".to_string())?;
+    let avatar_dir = std::path::Path::new(&appdata).join("TradSC");
+    std::fs::create_dir_all(&avatar_dir).map_err(|e| format!("Impossible de créer le dossier: {}", e))?;
+
+    // Détecter l'extension du fichier source
+    let source = std::path::Path::new(&source_path);
+    let ext = source.extension().and_then(|e| e.to_str()).unwrap_or("png");
+    let dest = avatar_dir.join(format!("custom_avatar.{}", ext));
+
+    // Supprimer les anciens avatars avec d'autres extensions
+    for entry in std::fs::read_dir(&avatar_dir).map_err(|e| e.to_string())? {
+        if let Ok(entry) = entry {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name.starts_with("custom_avatar.") && entry.path() != dest {
+                let _ = std::fs::remove_file(entry.path());
+            }
+        }
+    }
+
+    std::fs::copy(&source_path, &dest).map_err(|e| format!("Impossible de copier l'image: {}", e))?;
+    Ok(dest.to_string_lossy().to_string())
+}
+
+#[command]
+async fn get_custom_avatar() -> Result<Option<String>, String> {
+    use base64::Engine;
+
+    let appdata = std::env::var("APPDATA").map_err(|_| "APPDATA introuvable".to_string())?;
+    let avatar_dir = std::path::Path::new(&appdata).join("TradSC");
+
+    if !avatar_dir.exists() {
+        return Ok(None);
+    }
+
+    for entry in std::fs::read_dir(&avatar_dir).map_err(|e| e.to_string())? {
+        if let Ok(entry) = entry {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name.starts_with("custom_avatar.") {
+                let bytes = std::fs::read(entry.path()).map_err(|e| e.to_string())?;
+                let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+                let ext = entry.path().extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("png")
+                    .to_lowercase();
+                let mime = match ext.as_str() {
+                    "jpg" | "jpeg" => "image/jpeg",
+                    "webp" => "image/webp",
+                    _ => "image/png",
+                };
+                return Ok(Some(format!("data:{};base64,{}", mime, b64)));
+            }
+        }
+    }
+    Ok(None)
+}
+
+#[command]
+async fn remove_custom_avatar() -> Result<(), String> {
+    let appdata = std::env::var("APPDATA").map_err(|_| "APPDATA introuvable".to_string())?;
+    let avatar_dir = std::path::Path::new(&appdata).join("TradSC");
+
+    if !avatar_dir.exists() {
+        return Ok(());
+    }
+
+    for entry in std::fs::read_dir(&avatar_dir).map_err(|e| e.to_string())? {
+        if let Ok(entry) = entry {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name.starts_with("custom_avatar.") {
+                std::fs::remove_file(entry.path()).map_err(|e| format!("Impossible de supprimer: {}", e))?;
+            }
+        }
+    }
+    Ok(())
 }
 
 #[command]
@@ -354,6 +451,7 @@ pub fn run() {
             clear_cache,
             open_cache_folder,
             fetch_rss,
+            fetch_server_status,
             list_character_backups,
             create_character_backup,
             restore_character_backup_to_version,
@@ -383,6 +481,10 @@ pub fn run() {
             set_graphics_renderer,
             get_user_cfg_resolution,
             set_user_cfg_resolution,
+            get_user_cfg_advanced_settings,
+            set_user_cfg_advanced_settings,
+            get_graphics_presets,
+            apply_graphics_preset,
             create_user_backup,
             restore_backup,
             upload_backup_to_supabase,
@@ -417,6 +519,9 @@ pub fn run() {
             cache_all_installed_translations,
             write_text_file,
             read_text_file,
+            save_custom_avatar,
+            get_custom_avatar,
+            remove_custom_avatar,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

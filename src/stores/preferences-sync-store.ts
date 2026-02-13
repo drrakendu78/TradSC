@@ -83,11 +83,13 @@ export const usePreferencesSyncStore = create<PreferencesSyncStore>((set, get) =
             backupCount = statsState.backupCreatedCount;
         }
 
-        // Récupérer le playtime actuel et prendre le max avec le sauvegardé
+        // Récupérer le playtime actuel et additionner avec le sauvegardé
+        // savedPlaytimeHours = temps historique (ancien PC, cloud restore)
+        // playtime.total_hours = temps calculé depuis les logs locaux actuels
         let playtimeHours = statsState.savedPlaytimeHours || 0;
         try {
             const playtime = await invoke<{ total_hours: number }>("get_playtime");
-            playtimeHours = Math.max(playtime?.total_hours || 0, statsState.savedPlaytimeHours || 0);
+            playtimeHours = (statsState.savedPlaytimeHours || 0) + (playtime?.total_hours || 0);
         } catch {
             // Garder le playtime sauvegardé si erreur
         }

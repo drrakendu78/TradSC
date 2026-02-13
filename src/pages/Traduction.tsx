@@ -1444,10 +1444,22 @@ export default function Traduction() {
 
                     {/* Info box */}
                     <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
-                        <CardContent className="py-4">
-                            <p className="text-sm text-muted-foreground leading-relaxed">
-                                🇫🇷 La traduction vous est fournie par la communauté <strong>SCEFRA</strong> et inclut la traduction de circuspes de la communauté de <strong>Hugo Lisoir</strong>.
-                            </p>
+                        <CardContent className="py-4 space-y-3">
+                            <p className="text-sm font-medium">Deux traductions françaises disponibles :</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div className="p-3 rounded-lg bg-background/50 border border-border/30">
+                                    <p className="text-sm font-semibold text-primary">SCEFRA</p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        Traduction assistée par IA et corrigée par les retours de la communauté. Mises à jour très fréquentes.
+                                    </p>
+                                </div>
+                                <div className="p-3 rounded-lg bg-background/50 border border-border/30">
+                                    <p className="text-sm font-semibold text-primary">Circuspes</p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        Traduction par des équipes de traducteurs et relecteurs (communauté Hugo Lisoir). Mises à jour moins fréquentes.
+                                    </p>
+                                </div>
+                            </div>
                         </CardContent>
                     </Card>
 

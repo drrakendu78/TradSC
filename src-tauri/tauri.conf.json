@@ -1,74 +1,74 @@
 {
-    "$schema": "https://schema.tauri.app/config/2",
-    "productName": "StarTrad FR",
-    "version": "3.1.9",
-    "identifier": "com.drrakendu78.startradfr",
-    "build": {
-        "beforeDevCommand": "npm run dev",
-        "devUrl": "http://localhost:1420",
-        "beforeBuildCommand": "npm run build",
-        "frontendDist": "../dist"
-    },
-    "app": {
-        "windows": [
-            {
-                "title": "StarTrad FR",
-                "width": 1294,
-                "height": 1060,
-                "resizable": true,
-                "center": true,
-                "decorations": false,
-                "transparent": true
-            }
-        ],
-        "security": {
-            "csp": "default-src 'self' https://startradfr.vercel.app; script-src 'self' https://startradfr.vercel.app https://www.youtube.com 'unsafe-inline'; style-src 'self' https://startradfr.vercel.app 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data: https:; connect-src 'self' https://startradfr.vercel.app https://api.github.com https://api.allorigins.win https://leonick.se https://www.star-citizen-characters.com https://*.supabase.co https://supabase.co https://cdn.discordapp.com https://www.youtube.com; frame-src 'self' https://www.erkul.games https://maps.adi.sc https://www.youtube.com https://finder.cstone.space https://survey.cstone.space;"
-        }
-    },
-    "bundle": {
-        "active": true,
-        "targets": "all",
-        "createUpdaterArtifacts": true,
-        "icon": [
-            "icons/32x32.png",
-            "icons/128x128.png",
-            "icons/128x128@2x.png",
-            "icons/icon.icns",
-            "icons/icon.ico"
-        ],
-        "windows": {
-            "nsis": {
-                "installerIcon": "icons/icon.ico",
-                "installMode": "currentUser",
-                "languages": [
-                    "French"
-                ],
-                "displayLanguageSelector": false,
-                "compression": "lzma"
+    "$schema":  "https://schema.tauri.app/config/2",
+    "productName":  "StarTrad FR",
+    "version":  "3.2.0",
+    "identifier":  "com.drrakendu78.startradfr",
+    "build":  {
+                  "beforeDevCommand":  "npm run dev",
+                  "devUrl":  "http://localhost:1420",
+                  "beforeBuildCommand":  "npm run build",
+                  "frontendDist":  "../dist"
+              },
+    "app":  {
+                "windows":  [
+                                {
+                                    "title":  "StarTrad FR",
+                                    "width":  1294,
+                                    "height":  1060,
+                                    "resizable":  true,
+                                    "center":  true,
+                                    "decorations":  false,
+                                    "transparent":  true
+                                }
+                            ],
+                "security":  {
+                                 "csp":  "default-src \u0027self\u0027 https://startradfr.vercel.app; script-src \u0027self\u0027 https://startradfr.vercel.app https://www.youtube.com \u0027unsafe-inline\u0027; style-src \u0027self\u0027 https://startradfr.vercel.app \u0027unsafe-inline\u0027; img-src \u0027self\u0027 data: https:; font-src \u0027self\u0027 data: https:; connect-src \u0027self\u0027 https://startradfr.vercel.app https://api.github.com https://api.allorigins.win https://leonick.se https://www.star-citizen-characters.com https://*.supabase.co https://supabase.co https://cdn.discordapp.com https://www.youtube.com; frame-src \u0027self\u0027 https://www.erkul.games https://maps.adi.sc https://www.youtube.com https://finder.cstone.space https://survey.cstone.space;"
+                             }
             },
-            "wix": {
-                "language": "fr-FR"
-            }
-        }
-    },
-    "plugins": {
-        "updater": {
-            "active": true,
-            "endpoints": [
-                "https://github.com/drrakendu78/TradSC/releases/latest/download/latest.json"
-            ],
-            "dialog": false,
-            "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE1MzkxNjFBRkJDRjNFMjgKUldRb1BzLzdHaFk1RlFSNWlMeWhua00yL3hlM0FWOHpkRzQxQkpWNkwvbGxvaWZsNU5tVlhGelYK",
-            "windows": {
-                "installMode": "passive"
-            }
-        },
-        "deep-link": {
-            "desktop": {
-                "schemes": [
-                    "startradfr"
-                ]
-            }
-        }
-    }
+    "bundle":  {
+                   "active":  true,
+                   "targets":  "all",
+                   "createUpdaterArtifacts":  true,
+                   "icon":  [
+                                "icons/32x32.png",
+                                "icons/128x128.png",
+                                "icons/128x128@2x.png",
+                                "icons/icon.icns",
+                                "icons/icon.ico"
+                            ],
+                   "windows":  {
+                                   "nsis":  {
+                                                "installerIcon":  "icons/icon.ico",
+                                                "installMode":  "currentUser",
+                                                "languages":  [
+                                                                  "French"
+                                                              ],
+                                                "displayLanguageSelector":  false,
+                                                "compression":  "lzma"
+                                            },
+                                   "wix":  {
+                                               "language":  "fr-FR"
+                                           }
+                               }
+               },
+    "plugins":  {
+                    "updater":  {
+                                    "active":  true,
+                                    "endpoints":  [
+                                                      "https://github.com/drrakendu78/TradSC/releases/latest/download/latest.json"
+                                                  ],
+                                    "dialog":  false,
+                                    "pubkey":  "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE1MzkxNjFBRkJDRjNFMjgKUldRb1BzLzdHaFk1RlFSNWlMeWhua00yL3hlM0FWOHpkRzQxQkpWNkwvbGxvaWZsNU5tVlhGelYK",
+                                    "windows":  {
+                                                    "installMode":  "passive"
+                                                }
+                                },
+                    "deep-link":  {
+                                      "desktop":  {
+                                                      "schemes":  [
+                                                                      "startradfr"
+                                                                  ]
+                                                  }
+                                  }
+                }
 }

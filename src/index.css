@@ -113,10 +113,10 @@
     #root::before {
         content: '';
         position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
+        top: -50px;
+        left: -50px;
+        right: -50px;
+        bottom: -50px;
         background: 
             /* Tache lumineuse en haut à gauche */
             radial-gradient(
@@ -143,8 +143,8 @@
                 hsl(var(--primary) / 0.05) 50%,
                 hsl(var(--primary) / 0.1) 100%
             );
-        backdrop-filter: blur(20px) saturate(150%);
-        -webkit-backdrop-filter: blur(20px) saturate(150%);
+        /* backdrop-filter: blur(20px) saturate(150%); */
+        /* -webkit-backdrop-filter: blur(20px) saturate(150%); */
         pointer-events: none;
         z-index: -1;
     }
@@ -153,12 +153,23 @@
         height: 100vh !important;
         max-height: 100vh !important;
         min-height: 100vh !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    html, body {
+        margin: 0 !important;
+        padding: 0 !important;
     }
     #root {
         height: 100vh !important;
         max-height: 100vh !important;
         min-height: 100vh !important;
         overflow: hidden !important;
+        /* Fix pour le rendu WebView2 avec fenêtre transparente */
+        transform: translateZ(0);
+        -webkit-transform: translateZ(0);
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
     }
     /* Forcer la sidebar à rester ancrée en haut et en bas */
     [class*="md:static"] {

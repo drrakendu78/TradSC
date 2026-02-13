@@ -11,6 +11,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import AuthDialog from './auth-dialog';
+import { useAvatar } from '@/hooks/useAvatar';
 
 export default function UserMenuButton() {
     const [user, setUser] = useState<SupabaseUser | null>(null);
@@ -56,6 +57,8 @@ export default function UserMenuButton() {
         }
     };
 
+    const { avatarUrl } = useAvatar(user);
+
     // Récupérer l'avatar Discord ou l'email pour l'affichage
     const getUserDisplayName = () => {
         if (user?.user_metadata?.full_name) return user.user_metadata.full_name;
@@ -64,15 +67,6 @@ export default function UserMenuButton() {
         return user?.email || 'Utilisateur';
     };
 
-    const getUserAvatar = () => {
-        // Discord fournit l'avatar dans user_metadata.avatar_url
-        if (user?.user_metadata?.avatar_url) {
-            return user.user_metadata.avatar_url;
-        }
-        return null;
-    };
-
-    const avatarUrl = getUserAvatar();
     const displayName = getUserDisplayName();
 
     return (

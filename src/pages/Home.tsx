@@ -147,7 +147,7 @@ function Home() {
     const [isInTauri, setIsInTauri] = useState(false);
     const [playtime, setPlaytime] = useState<PlaytimeStats | null>(null);
     const { toast } = useToast();
-    const { savedPlaytimeHours, setSavedPlaytimeHours } = useStatsStore();
+    const { savedPlaytimeHours } = useStatsStore();
 
     // Préférences app
     const {
@@ -197,11 +197,6 @@ function Home() {
                     const stats = await invoke<PlaytimeStats>('get_playtime');
                     console.log('[Playtime] Stats:', stats);
                     setPlaytime(stats);
-
-                    // Sauvegarder le playtime si plus grand que le sauvegardé
-                    if (stats.total_hours > savedPlaytimeHours) {
-                        setSavedPlaytimeHours(stats.total_hours);
-                    }
                 } catch (error) {
                     console.error('Erreur lors de la récupération du temps de jeu:', error);
                 }
@@ -599,35 +594,37 @@ function Home() {
                                 )}
                                 {/* Temps de jeu */}
                                 {isInTauri && ((playtime && playtime.session_count > 0) || savedPlaytimeHours > 0) && (() => {
-                                    // Calculer le max entre playtime calculé et sauvegardé
                                     const calculatedHours = playtime?.total_hours || 0;
-                                    const maxHours = Math.max(calculatedHours, savedPlaytimeHours);
-                                    const hours = Math.floor(maxHours);
-                                    const minutes = Math.round((maxHours - hours) * 60);
-                                    const formattedTime = hours > 0 ? `${hours}h ${minutes}min` : `${minutes}min`;
+                                    const totalHours = savedPlaytimeHours + calculatedHours;
+                                    const hours = Math.floor(totalHours);
+                                    const minutes = Math.round((totalHours - hours) * 60);
                                     const sessionCount = playtime?.session_count || 0;
-                                    const isFromSaved = savedPlaytimeHours > calculatedHours;
 
                                     return (
                                         <TooltipProvider>
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
-                                                    <div className="flex items-center gap-2 px-4 py-2 bg-background/60 border border-border/50 rounded-lg cursor-help">
+                                                    <div className="flex items-center gap-2 px-3 py-2 bg-background/60 border border-border/50 rounded-lg cursor-help">
                                                         <Clock className="h-4 w-4 text-primary" />
                                                         <div className="flex flex-col">
-                                                            <span className="text-sm font-semibold">{formattedTime}</span>
-                                                            <span className="text-xs text-muted-foreground">
-                                                                {isFromSaved ? 'Temps sauvegardé' : `${sessionCount} session${sessionCount > 1 ? 's' : ''}`}
+                                                            <div className="flex items-baseline gap-0.5">
+                                                                <span className="text-sm font-semibold">{hours}</span>
+                                                                <span className="text-xs text-muted-foreground">h</span>
+                                                                <span className="text-sm font-semibold ml-1">{minutes}</span>
+                                                                <span className="text-xs text-muted-foreground">min</span>
+                                                            </div>
+                                                            <span className="text-[10px] text-muted-foreground">
+                                                                {sessionCount > 0 
+                                                                    ? `${sessionCount} session${sessionCount > 1 ? 's' : ''}`
+                                                                    : 'Temps de jeu'
+                                                                }
                                                             </span>
                                                         </div>
                                                     </div>
                                                 </TooltipTrigger>
                                                 <TooltipContent side="bottom" className="max-w-xs">
                                                     <p className="text-sm">
-                                                        {isFromSaved
-                                                            ? 'Temps de jeu restauré depuis votre sauvegarde cloud.'
-                                                            : 'Temps calculé depuis les logs du jeu. Cette donnée peut être incomplète si vous avez formaté ou supprimé le dossier logbackups.'
-                                                        }
+                                                        Temps de jeu calculé depuis les logs Star Citizen.
                                                     </p>
                                                 </TooltipContent>
                                             </Tooltip>

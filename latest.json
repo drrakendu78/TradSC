@@ -1,0 +1,11 @@
+{
+    "platforms":  {
+                      "windows-x86_64":  {
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRb1BzLzdHaFk1RlFSdFh0YnVZQ3ZVbzFMUGlxTFkwckIrWkdSNkZVb1kxTVM4cVZQcXNKR0FKRHYxZFNBNy96czhnUGFsR284TmJYVUUrRWplNVk1TjV2OFNDa0lQdHdNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzcxMDIyMjQ5CWZpbGU6U3RhclRyYWQgRlJfMy4yLjBfeDY0LXNldHVwLmV4ZQpHKytXNmkyK21kRFJGU2pnU1lWVkg1UkhiVVluNGFKUzlOL3dGMzgxNHFidlNHUEUwNU9rRENqSEoxZ0dTbGRZTFpjT2VZZjBodDdjdTJQdzUyZk1Cdz09Cg==",
+                                             "url":  "https://github.com/drrakendu78/TradSC/releases/download/v3.2.0/StarTrad.FR_3.2.0_x64-setup.exe"
+                                         }
+                  },
+    "pub_date":  "2026-02-13T22:38:57Z",
+    "version":  "3.2.0",
+    "notes":  "🛰️ Statut serveurs SC en temps réel\n🖼️ Photo de profil personnalisée (locale)\n🎮 Page Graphiques réorganisée (Général, Presets, Avancé)\n⚡ 4 presets prêts : Performance, Équilibré, Qualité, Cinématique\n🧭 Onglets modernisés et réglages plus fluides"
+}

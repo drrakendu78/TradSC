@@ -36,6 +36,7 @@ import { supabase } from "@/lib/supabase";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 import { LogIn, LogOut, User } from "lucide-react";
 import AuthDialog from "./auth-dialog";
+import { useAvatar } from "@/hooks/useAvatar";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -193,14 +194,7 @@ function SidebarUserProfile({ isCollapsed, onMenuOpenChange }: { isCollapsed: bo
         setAuthDialogOpen(true);
     };
 
-    // Récupérer l'avatar Discord
-    const getAvatarUrl = () => {
-        if (!user) return null;
-        const metadata = user.user_metadata;
-        if (metadata?.avatar_url) return metadata.avatar_url;
-        if (metadata?.picture) return metadata.picture;
-        return null;
-    };
+    const { avatarUrl } = useAvatar(user);
 
     const getDisplayName = () => {
         if (!user) return null;
@@ -208,7 +202,6 @@ function SidebarUserProfile({ isCollapsed, onMenuOpenChange }: { isCollapsed: bo
         return metadata?.full_name || metadata?.name || metadata?.preferred_username || user.email?.split('@')[0] || 'Utilisateur';
     };
 
-    const avatarUrl = getAvatarUrl();
     const displayName = getDisplayName();
 
     if (user) {
