@@ -22,7 +22,6 @@ interface UpdateDialogProps {
     updateInfo: UpdateInfo | null;
     onDownload: () => void;
     onOpenGitHub: () => void;
-    dismissCount?: number;
 }
 
 export function UpdateDialog({
@@ -31,7 +30,6 @@ export function UpdateDialog({
     updateInfo,
     onDownload,
     onOpenGitHub,
-    dismissCount = 0,
 }: UpdateDialogProps) {
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString('fr-FR', {
@@ -39,12 +37,6 @@ export function UpdateDialog({
             month: 'long',
             year: 'numeric',
         });
-    };
-
-    const getCloseLabel = () => {
-        if (dismissCount === 0) return "Plus tard (rappel dans 5 min)";
-        if (dismissCount === 1) return "Plus tard (dernier rappel)";
-        return "Fermer";
     };
 
     return (
@@ -100,7 +92,7 @@ export function UpdateDialog({
                         </div>
                     )}
                     <Button variant="outline" onClick={() => onOpenChange(false)}>
-                        {getCloseLabel()}
+                        Fermer
                     </Button>
                 </DialogFooter>
             </DialogContent>

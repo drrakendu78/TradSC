@@ -280,7 +280,15 @@ fn verify_signature(installer_bytes: &[u8], sig_content: &str) -> Result<(), Str
     let pk = PublicKey::decode(&pubkey_text)
         .map_err(|e| format!("Erreur de lecture de la cle publique: {}", e))?;
 
-    let sig = Signature::decode(sig_content)
+    // Le fichier .sig de Tauri est en base64 — le decoder en texte minisign
+    let sig_text = String::from_utf8(
+        base64::engine::general_purpose::STANDARD
+            .decode(sig_content.trim())
+            .map_err(|e| format!("Erreur de decodage base64 de la signature: {}", e))?,
+    )
+    .map_err(|e| format!("Erreur UTF-8 signature: {}", e))?;
+
+    let sig = Signature::decode(&sig_text)
         .map_err(|e| format!("Erreur de lecture de la signature: {}", e))?;
 
     pk.verify(installer_bytes, &sig, false)

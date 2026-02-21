@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect } from 'react';
 import { AppSidebar } from "@/components/custom/app-sidebar";
 import { useState } from 'react';
 import { Toaster } from "@/components/ui/toaster";
@@ -29,8 +29,6 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     });
 
     const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
-    const [dismissCount, setDismissCount] = useState(0);
-    const reminderTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Afficher le modal automatiquement quand une mise à jour est détectée
     useEffect(() => {
@@ -38,31 +36,6 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             setUpdateDialogOpen(true);
         }
     }, [updater.updateAvailable, updater.updateInfo]);
-
-    // Nettoyage du timer
-    useEffect(() => {
-        return () => {
-            if (reminderTimer.current) clearTimeout(reminderTimer.current);
-        };
-    }, []);
-
-    // Gestion du fermer avec rappel : 2 fermetures -> rappel 5min, 3ème -> force install
-    const handleDialogClose = useCallback((open: boolean) => {
-        if (!open) {
-            const newCount = dismissCount + 1;
-            setDismissCount(newCount);
-            if (newCount >= 3) {
-                updater.installUpdate();
-            } else {
-                setUpdateDialogOpen(false);
-                reminderTimer.current = setTimeout(() => {
-                    setUpdateDialogOpen(true);
-                }, 5 * 60 * 1000);
-            }
-        } else {
-            setUpdateDialogOpen(true);
-        }
-    }, [updater, dismissCount]);
 
     // Fix pour le bug de rendu WebView2 sur focus/blur de fenêtre
     useEffect(() => {
@@ -115,8 +88,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                                 p-2 rounded-lg
                                 transition-all duration-300 ease-out
                                 bg-background/70 backdrop-blur-xl backdrop-saturate-150
-                                ${isLocked 
-                                    ? 'text-primary border border-primary/30 shadow-md shadow-primary/10 hover:bg-primary/20' 
+                                ${isLocked
+                                    ? 'text-primary border border-primary/30 shadow-md shadow-primary/10 hover:bg-primary/20'
                                     : 'text-muted-foreground border border-border/50 shadow-md hover:text-foreground hover:bg-background/80'
                                 }
                                 hover:scale-105 active:scale-95
@@ -145,11 +118,10 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                 <Toaster />
                 <UpdateDialog
                     open={updateDialogOpen}
-                    onOpenChange={handleDialogClose}
+                    onOpenChange={setUpdateDialogOpen}
                     updateInfo={updater.updateInfo}
                     onDownload={updater.installUpdate}
                     onOpenGitHub={updater.openGitHubReleases}
-                    dismissCount={dismissCount}
                 />
         </DragRegion>
         </TooltipProvider>
