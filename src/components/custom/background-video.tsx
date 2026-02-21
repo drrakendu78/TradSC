@@ -121,12 +121,8 @@ export function BackgroundVideo() {
                     onReady: (event: any) => {
                         const savedVolume = localStorage.getItem('videoVolume');
                         const vol = savedVolume ? parseFloat(savedVolume) : 0.5;
-                        event.target.setVolume(vol * 100);
-                        if (isMuted) {
-                            event.target.mute();
-                        } else {
-                            event.target.unMute();
-                        }
+                        const savedMuted = localStorage.getItem('videoMuted') === 'true';
+                        event.target.setVolume(savedMuted ? 0 : vol * 100);
                         event.target.playVideo();
                     },
                     onStateChange: (event: any) => {
@@ -155,16 +151,14 @@ export function BackgroundVideo() {
         const handleMuteChange = (e: CustomEvent) => {
             const newMuted = e.detail;
             setIsMuted(newMuted);
-            // La vidéo locale est toujours muette, on contrôle seulement YouTube
-            if (youtubePlayerRef.current) {
+            // Utiliser setVolume au lieu de mute()/unMute() car plus fiable sur player caché
+            if (youtubePlayerRef.current && youtubePlayerRef.current.setVolume) {
                 if (newMuted) {
-                    youtubePlayerRef.current.mute();
+                    youtubePlayerRef.current.setVolume(0);
                 } else {
-                    // Quand on demute, réappliquer le volume actuel
                     const savedVolume = localStorage.getItem('videoVolume');
                     const vol = savedVolume ? parseFloat(savedVolume) : 0.5;
                     youtubePlayerRef.current.setVolume(vol * 100);
-                    youtubePlayerRef.current.unMute();
                 }
             }
         };

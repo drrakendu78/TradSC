@@ -1,57 +1,31 @@
 import { motion } from 'framer-motion';
-import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { updateService, UpdateState } from '@/services/updateService';
+import { useUpdater } from '@/hooks/useUpdater';
 import { Download, Github, Store, AlertTriangle, RefreshCw } from 'lucide-react';
 import openExternal from '@/utils/external';
 import { formatVersion, getAppVersionSync } from '@/utils/version';
 import { detectDistribution } from '@/utils/buildInfo';
-import { toast } from '@/hooks/use-toast';
 
 export default function UpdatesPage() {
-    const [updateState, setUpdateState] = useState<UpdateState>(updateService.getState());
+    const {
+        isChecking,
+        updateAvailable,
+        updateInfo,
+        isInstalling,
+        error,
+        checkForUpdates,
+        installUpdate,
+        openGitHubReleases,
+    } = useUpdater({
+        checkOnStartup: false,
+        enableAutoUpdater: false,
+        githubRepo: 'drrakendu78/TradSC'
+    });
+
     const distribution = detectDistribution();
     const currentVersion = formatVersion(getAppVersionSync());
-
-    useEffect(() => {
-        const unsubscribe = updateService.subscribe((state) => {
-            setUpdateState(state);
-        });
-        return unsubscribe;
-    }, []);
-
-    const handleCheckForUpdates = async () => {
-        try {
-            const update = await updateService.checkForUpdate(false);
-            if (!update) {
-                toast({
-                    title: "Vous êtes à jour",
-                    description: `StarTrad FR ${currentVersion} est la dernière version.`,
-                    variant: "success",
-                });
-            }
-        } catch (error) {
-            console.error('Erreur vérification mise à jour:', error);
-        }
-    };
-
-    const handleInstallUpdate = async () => {
-        try {
-            if (updateState.downloaded) {
-                await updateService.installAndRelaunch();
-            } else if (updateState.available) {
-                await updateService.downloadUpdate();
-            }
-        } catch (error) {
-            console.error('Erreur installation mise à jour:', error);
-        }
-    };
-
-    const handleOpenGitHub = () => {
-        openExternal('https://github.com/drrakendu78/TradSC/releases');
-    };
 
     const handleOpenStore = () => {
         openExternal('ms-windows-store://pdp/?productid=9P29DL68WBZ');
@@ -146,16 +120,16 @@ export default function UpdatesPage() {
 
                     <div className="flex items-center gap-2">
                         <Button
-                            onClick={handleCheckForUpdates}
-                            disabled={updateState.checking || updateState.downloading}
+                            onClick={() => checkForUpdates(false)}
+                            disabled={isChecking || isInstalling}
                             className="flex items-center gap-2"
                         >
-                            {updateState.checking ? (
+                            {isChecking ? (
                                 <RefreshCw className="h-4 w-4 animate-spin" />
                             ) : (
                                 <Download className="h-4 w-4" />
                             )}
-                            {updateState.checking ? 'Vérification...' : 'Vérifier les mises à jour'}
+                            {isChecking ? 'Vérification...' : 'Vérifier les mises à jour'}
                         </Button>
 
                         {distribution === 'microsoft-store' ? (
@@ -167,30 +141,26 @@ export default function UpdatesPage() {
                                 <Store className="h-4 w-4" />
                                 Ouvrir le Store
                             </Button>
-                        ) : updateState.available || updateState.downloaded ? (
+                        ) : updateAvailable ? (
                             <Button
-                                variant={updateState.downloaded ? "default" : "outline"}
-                                onClick={handleInstallUpdate}
-                                disabled={updateState.downloading || updateState.installing}
+                                variant="default"
+                                onClick={installUpdate}
+                                disabled={isInstalling}
                                 className="flex items-center gap-2"
                             >
-                                {updateState.downloading || updateState.installing ? (
+                                {isInstalling ? (
                                     <RefreshCw className="h-4 w-4 animate-spin" />
                                 ) : (
                                     <Download className="h-4 w-4" />
                                 )}
-                                {updateState.installing
-                                    ? 'Installation...'
-                                    : updateState.downloading
-                                    ? 'Téléchargement...'
-                                    : updateState.downloaded
-                                    ? `Installer v${updateState.updateInfo?.version}`
-                                    : `Télécharger v${updateState.updateInfo?.version}`}
+                                {isInstalling
+                                    ? 'Lancement...'
+                                    : `Installer v${updateInfo?.version}`}
                             </Button>
                         ) : (
                             <Button
                                 variant="outline"
-                                onClick={handleOpenGitHub}
+                                onClick={openGitHubReleases}
                                 className="flex items-center gap-2"
                             >
                                 <Github className="h-4 w-4" />
@@ -200,26 +170,18 @@ export default function UpdatesPage() {
                     </div>
 
                     {/* État de la mise à jour */}
-                    {updateState.available && !updateState.downloaded && (
+                    {updateAvailable && (
                         <div className="p-3 bg-green-100 dark:bg-green-900 rounded-md">
                             <p className="text-sm text-green-800 dark:text-green-200">
-                                🎉 Mise à jour disponible: v{updateState.updateInfo?.version}
+                                🎉 Mise à jour disponible: v{updateInfo?.version}
                             </p>
                         </div>
                     )}
 
-                    {updateState.downloaded && (
-                        <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-md">
-                            <p className="text-sm text-blue-800 dark:text-blue-200">
-                                ✅ Mise à jour téléchargée et prête à installer: v{updateState.updateInfo?.version}
-                            </p>
-                        </div>
-                    )}
-
-                    {updateState.error && (
+                    {error && (
                         <div className="p-3 bg-red-100 dark:bg-red-900 rounded-md">
                             <p className="text-sm text-red-800 dark:text-red-200">
-                                Erreur: {updateState.error}
+                                Erreur: {error}
                             </p>
                         </div>
                     )}
@@ -272,7 +234,7 @@ export default function UpdatesPage() {
                                 🔍 <strong>Code source ouvert</strong> - Entièrement auditable
                             </p>
                             <p className="text-sm">
-                                🛡️ <strong>Checksums SHA256</strong> - Vérification d'intégrité
+                                🛡️ <strong>Signature ed25519</strong> - Vérification d'intégrité automatique
                             </p>
                             {distribution === 'portable' && (
                                 <p className="text-sm">
@@ -305,4 +267,4 @@ export default function UpdatesPage() {
             </div>
         </motion.div>
     );
-} 
+}

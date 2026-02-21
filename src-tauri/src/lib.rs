@@ -48,7 +48,7 @@ use scripts::translation_functions::{
 };
 use scripts::translation_preferences::{load_translations_selected, save_translations_selected};
 use scripts::translations_links::{get_translation_by_setting, get_translation_last_updated, get_translations};
-use scripts::updater_functions::{download_and_install_update, download_and_install_update_immediate, trigger_immediate_install};
+use scripts::updater_functions::launch_updater;
 use scripts::app_stats::{get_app_stats, get_playtime, debug_game_paths};
 use scripts::discord_presence::{
     connect_discord, disconnect_discord, update_discord_activity, get_discord_status,
@@ -312,7 +312,6 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
@@ -474,9 +473,7 @@ pub fn run() {
             enable_auto_startup,
             disable_auto_startup,
             is_auto_startup_enabled,
-                    download_and_install_update,
-                    download_and_install_update_immediate,
-                    trigger_immediate_install,
+            launch_updater,
             get_graphics_renderer,
             set_graphics_renderer,
             get_user_cfg_resolution,

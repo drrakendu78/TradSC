@@ -1,7 +1,7 @@
 {
     "name": "startradfr",
     "private": true,
-    "version": "3.2.0",
+    "version": "3.3.0",
     "type": "module",
     "proxy": "https://multitool.onivoid.fr",
     "scripts": {
@@ -60,6 +60,7 @@
         "@types/react-dom": "^18.3.2",
         "@vitejs/plugin-react": "^4.3.4",
         "autoprefixer": "^10.4.20",
+        "baseline-browser-mapping": "^2.9.19",
         "postcss": "^8.4.49",
         "tailwindcss": "^3.4.16",
         "typescript": "^5.7.2",

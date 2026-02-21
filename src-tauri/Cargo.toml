@@ -1,6 +1,6 @@
 [package]
 name = "startradfr"
-version = "3.2.0"
+version = "3.3.0"
 description = "StarTrad FR - Traduction française pour Star Citizen"
 authors = ["Drrakendu78"]
 edition = "2021"
@@ -22,7 +22,6 @@ regex = "1"
 tauri = { version = "2", features = [ "tray-icon"] }
 tauri-plugin-shell = "2.3"
 tauri-plugin-opener = "2"
-tauri-plugin-updater = "2.9"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 reqwest = { version = "0.11", features = ["json", "blocking"] }
@@ -49,5 +48,3 @@ base64 = "0.22"
 auto-launch = "0.5.0"
 winreg = "0.55"
 
-[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
-tauri-plugin-updater = "2.9"

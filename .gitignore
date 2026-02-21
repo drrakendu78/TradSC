@@ -26,6 +26,7 @@ dist-ssr
 # Build artifacts
 builds/
 src-tauri/target/
+src-tauri/binaries/
 
 .env
 todo.mdnul

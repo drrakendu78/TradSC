@@ -6,19 +6,21 @@ import ServerStatus from '@/components/custom/server-status';
 
 export default function ControlMenu() {
     const appWindow = getCurrentWindow();
-    const [volume, setVolume] = useState(0.5); // Volume par défaut à 50%
-    const [isMuted, setIsMuted] = useState(false);
+    const [volume, setVolume] = useState(() => {
+        const saved = localStorage.getItem('videoVolume');
+        return saved ? parseFloat(saved) : 0.5;
+    });
+    const [isMuted, setIsMuted] = useState(() => {
+        return localStorage.getItem('videoMuted') === 'true';
+    });
 
     const minimize = async () => await appWindow?.minimize();
     const close = async () => await appWindow?.close();
 
-    // Charger le volume sauvegardé depuis localStorage
+    // Émettre l'état initial au montage
     useEffect(() => {
-        const savedVolume = localStorage.getItem('videoVolume');
-        if (savedVolume) {
-            const vol = parseFloat(savedVolume);
-            setVolume(vol);
-        }
+        window.dispatchEvent(new CustomEvent('videoVolumeChange', { detail: volume }));
+        window.dispatchEvent(new CustomEvent('videoMuteChange', { detail: isMuted }));
     }, []);
 
     // Sauvegarder le volume et émettre l'événement
@@ -30,6 +32,7 @@ export default function ControlMenu() {
     const toggleMute = () => {
         const newMutedState = !isMuted;
         setIsMuted(newMutedState);
+        localStorage.setItem('videoMuted', newMutedState.toString());
         window.dispatchEvent(new CustomEvent('videoMuteChange', { detail: newMutedState }));
     };
 

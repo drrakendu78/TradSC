@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { AppSidebar } from "@/components/custom/app-sidebar";
 import { useState } from 'react';
 import { Toaster } from "@/components/ui/toaster";
@@ -7,6 +7,7 @@ import { DragRegion } from '@/components/custom/drag-region';
 import { useLocation } from 'react-router-dom';
 import { getAppVersionSync, formatVersion } from '@/utils/version';
 import { useUpdater } from '@/hooks/useUpdater';
+import { UpdateDialog } from '@/components/custom/UpdateDialog';
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useSidebarStore } from '@/stores/sidebar-store';
 import { BackgroundVideo } from '@/components/custom/background-video';
@@ -20,14 +21,48 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     const version = formatVersion(getAppVersionSync());
     const { isLocked, toggleLock } = useSidebarStore();
 
-    // NOTE: La vérification automatique des mises à jour est maintenant gérée par
-    // updateService dans main.tsx (tauri-plugin-updater natif avec modal bloquante)
-    // Le hook useUpdater reste disponible pour la page Updates (vérification manuelle)
-    useUpdater({
-        checkOnStartup: false,  // Désactivé - géré par updateService
-        enableAutoUpdater: false,
+    // Vérification automatique des mises à jour au démarrage via l'API GitHub
+    const updater = useUpdater({
+        checkOnStartup: true,
+        enableAutoUpdater: true,
         githubRepo: 'drrakendu78/TradSC'
     });
+
+    const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
+    const [dismissCount, setDismissCount] = useState(0);
+    const reminderTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Afficher le modal automatiquement quand une mise à jour est détectée
+    useEffect(() => {
+        if (updater.updateAvailable && updater.updateInfo) {
+            setUpdateDialogOpen(true);
+        }
+    }, [updater.updateAvailable, updater.updateInfo]);
+
+    // Nettoyage du timer
+    useEffect(() => {
+        return () => {
+            if (reminderTimer.current) clearTimeout(reminderTimer.current);
+        };
+    }, []);
+
+    // Gestion du fermer avec rappel : 2 fermetures -> rappel 5min, 3ème -> force install
+    const handleDialogClose = useCallback((open: boolean) => {
+        if (!open) {
+            const newCount = dismissCount + 1;
+            setDismissCount(newCount);
+            if (newCount >= 3) {
+                updater.installUpdate();
+            } else {
+                setUpdateDialogOpen(false);
+                reminderTimer.current = setTimeout(() => {
+                    setUpdateDialogOpen(true);
+                }, 5 * 60 * 1000);
+            }
+        } else {
+            setUpdateDialogOpen(true);
+        }
+    }, [updater, dismissCount]);
 
     // Fix pour le bug de rendu WebView2 sur focus/blur de fenêtre
     useEffect(() => {
@@ -108,6 +143,14 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                     </div>
                 </div>
                 <Toaster />
+                <UpdateDialog
+                    open={updateDialogOpen}
+                    onOpenChange={handleDialogClose}
+                    updateInfo={updater.updateInfo}
+                    onDownload={updater.installUpdate}
+                    onOpenGitHub={updater.openGitHubReleases}
+                    dismissCount={dismissCount}
+                />
         </DragRegion>
         </TooltipProvider>
     )
