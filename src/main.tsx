@@ -28,14 +28,9 @@ function App() {
   useEffect(() => {
     const hash = window.location.hash;
     if (hash && (hash.includes('access_token') || hash.includes('error=') || hash.includes('code='))) {
-      // Laisser Supabase détecter automatiquement le token (avec detectSessionInUrl: true)
-      // Attendre un peu pour que Supabase traite le token, puis nettoyer l'URL
-      setTimeout(() => {
-        // Nettoyer le hash après que Supabase ait traité le token
-        if (window.location.hash.includes('access_token') || window.location.hash.includes('code=')) {
-          window.location.hash = '#/';
-        }
-      }, 1000); // Attendre 1 seconde pour que Supabase traite le token
+      // Supabase détecte le token automatiquement (detectSessionInUrl: true)
+      // Nettoyer immédiatement l'URL pour ne pas exposer le token
+      window.history.replaceState(null, '', window.location.pathname + '#/');
     }
   }, []);
 

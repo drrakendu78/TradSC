@@ -920,7 +920,7 @@ export function AppSidebar() {
                                 <>
                                     <button
                                         onClick={() => setIsExternalServicesExpanded(!isExternalServicesExpanded)}
-                                        className="flex items-center gap-2 flex-1"
+                                        className="flex items-center gap-2 flex-1 whitespace-nowrap"
                                     >
                                         <span>Services Externes</span>
                                         <ChevronDown
@@ -934,7 +934,7 @@ export function AppSidebar() {
                                                 setEditingLink(null);
                                                 setCustomLinkDialogOpen(true);
                                             }}
-                                            className="p-1 rounded hover:bg-white/10 transition-colors"
+                                            className="flex-shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-primary/15 text-primary hover:bg-primary/25 transition-colors"
                                             title="Ajouter un lien"
                                         >
                                             <Plus size={12} />

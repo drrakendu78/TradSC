@@ -1,5 +1,7 @@
 use tauri::{command, AppHandle};
 
+const ALLOWED_URL_PREFIX: &str = "https://github.com/drrakendu78/TradSC/releases/";
+
 /// Lance l'updater standalone et ferme l'application principale.
 /// L'updater gere le telechargement, la verification de signature, l'installation et le relancement.
 #[command]
@@ -9,6 +11,9 @@ pub async fn launch_updater(
     name: String,
     app_handle: AppHandle,
 ) -> Result<(), String> {
+    if !url.starts_with(ALLOWED_URL_PREFIX) || !sig_url.starts_with(ALLOWED_URL_PREFIX) {
+        return Err("URL de mise à jour non autorisée.".to_string());
+    }
     // Trouver l'updater.exe a cote de l'exe principal
     let current_exe = std::env::current_exe()
         .map_err(|e| format!("Impossible de trouver l'executable: {}", e))?;
