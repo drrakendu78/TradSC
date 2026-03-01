@@ -284,6 +284,23 @@ async fn remove_custom_avatar() -> Result<(), String> {
 }
 
 #[command]
+async fn fetch_contested_zone_timer() -> Result<String, String> {
+    let client = reqwest::Client::new();
+    let response = client
+        .get("https://contestedzonetimers.com/lib/cfg.dat")
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let text = response
+        .text()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(text.trim().to_string())
+}
+
+#[command]
 async fn fetch_rss() -> Result<String, String> {
     let client = reqwest::Client::new();
     let response = client
@@ -519,6 +536,7 @@ pub fn run() {
             save_custom_avatar,
             get_custom_avatar,
             remove_custom_avatar,
+            fetch_contested_zone_timer,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

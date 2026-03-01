@@ -11,6 +11,7 @@ import { UpdateDialog } from '@/components/custom/UpdateDialog';
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useSidebarStore } from '@/stores/sidebar-store';
 import { BackgroundVideo } from '@/components/custom/background-video';
+import { PvpFloatingTimer } from '@/components/custom/PvpFloatingTimer';
 import { getCurrentWindow, PhysicalSize } from '@tauri-apps/api/window';
 
 
@@ -38,12 +39,18 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     }, [updater.updateAvailable, updater.updateInfo]);
 
     // Fix pour le bug de rendu WebView2 sur focus/blur de fenêtre
+    // Délai au démarrage pour éviter le freeze initial sur certaines machines
     useEffect(() => {
         const appWindow = getCurrentWindow();
         let unlisten: (() => void) | null = null;
+        let ready = false;
 
         const forceRepaint = async () => {
+            if (!ready) return;
             try {
+                // Ne pas resize si la fenêtre est maximisée (casse le snap plein écran)
+                const maximized = await appWindow.isMaximized();
+                if (maximized) return;
                 const size = await appWindow.innerSize();
                 // Micro-resize instantané +1px puis retour
                 await appWindow.setSize(new PhysicalSize(size.width + 1, size.height));
@@ -53,7 +60,11 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             }
         };
 
-        // Utiliser l'événement Tauri natif onFocusChanged
+        // Attendre 2s avant d'activer le fix pour ne pas freeze au lancement
+        const startupDelay = setTimeout(() => {
+            ready = true;
+        }, 2000);
+
         appWindow.onFocusChanged(() => {
             forceRepaint();
         }).then(fn => {
@@ -61,6 +72,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         });
 
         return () => {
+            clearTimeout(startupDelay);
             if (unlisten) unlisten();
         };
     }, []);
@@ -116,6 +128,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                     </div>
                 </div>
                 <Toaster />
+                <PvpFloatingTimer />
                 <UpdateDialog
                     open={updateDialogOpen}
                     onOpenChange={setUpdateDialogOpen}

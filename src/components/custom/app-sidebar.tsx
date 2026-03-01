@@ -6,7 +6,7 @@ import {
     Settings,
     ChevronDown
 } from 'lucide-react';
-import { IconHome, IconBrandDiscord, IconCloud, IconBrandGithub, IconLanguage, IconUsers, IconNews, IconKeyboard, IconCalculator, IconMap2, IconSearch } from "@tabler/icons-react";
+import { IconHome, IconBrandDiscord, IconCloud, IconBrandGithub, IconLanguage, IconUsers, IconNews, IconKeyboard, IconCalculator, IconMap2, IconSearch, IconSwords } from "@tabler/icons-react";
 import { BrushCleaning, Download, Power, PowerOff, Loader2, RotateCcw, Monitor, Route, BarChart3, Calendar, Languages, Trash2, Save, Users } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { ColorPicker } from "@/components/custom/color-picker";
@@ -849,6 +849,41 @@ export function AppSidebar() {
                                     {isCollapsed && (
                                         <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">
                                             Finder (Cornerstone)
+                                        </div>
+                                    )}
+                                </Link>
+                            </li>
+
+                            {/* Zones PVP */}
+                            <li>
+                                <Link
+                                    to="/pvp"
+                                    onClick={() => handleItemClick('pvp', '/pvp')}
+                                    className={`
+                                        flex items-center gap-3 rounded-lg text-left group relative
+                                        transition-all duration-200 ease-out
+                                        ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"}
+                                        ${activeItem === 'pvp'
+                                            ? "bg-primary/15 text-primary"
+                                            : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                                        }
+                                    `}
+                                    title={isCollapsed ? "Zones PVP" : undefined}
+                                >
+                                    {activeItem === 'pvp' && !isCollapsed && (
+                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />
+                                    )}
+                                    <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === 'pvp' ? '' : 'group-hover:scale-110'}`}>
+                                        <IconSwords size={18} />
+                                    </div>
+                                    {!isCollapsed && (
+                                        <span className={`text-sm ${activeItem === 'pvp' ? "font-medium" : "font-normal"}`}>
+                                            Zones PVP
+                                        </span>
+                                    )}
+                                    {isCollapsed && (
+                                        <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">
+                                            Zones PVP
                                         </div>
                                     )}
                                 </Link>

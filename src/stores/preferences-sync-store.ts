@@ -138,7 +138,17 @@ export const usePreferencesSyncStore = create<PreferencesSyncStore>((set, get) =
             // Appliquer le mode clair/sombre
             const root = document.documentElement;
             root.classList.remove("light", "dark");
-            root.classList.add(prefs.theme.mode);
+            if (prefs.theme.mode === "system") {
+                const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+                root.classList.add(systemTheme);
+            } else {
+                root.classList.add(prefs.theme.mode);
+            }
+
+            // Notifier le ThemeProvider du changement via un custom event
+            window.dispatchEvent(new CustomEvent("theme-change", {
+                detail: prefs.theme.mode,
+            }));
 
             // Import stats - on réécrit le localStorage directement
             const statsData = {

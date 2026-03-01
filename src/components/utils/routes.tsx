@@ -14,6 +14,7 @@ import DpsCalculator from '@/pages/DpsCalculator';
 import GraphicsSettings from '@/pages/GraphicsSettings';
 import ShipMaps from '@/pages/ShipMaps';
 import Finder from '@/pages/Finder';
+import Pvp from '@/pages/Pvp';
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -64,6 +65,7 @@ const AppRouter = () => (
         <Route path='/graphics-settings' element={<GraphicsSettings />} />
         <Route path='/ship-maps' element={<ShipMaps />} />
         <Route path='/finder' element={<Finder />} />
+        <Route path='/pvp' element={<Pvp />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Layout>

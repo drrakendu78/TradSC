@@ -76,7 +76,7 @@ interface PlaytimeStats {
 // Pour activer une annonce, modifie les valeurs ci-dessous
 // Pour désactiver, mets showAnnouncement à false
 const ANNOUNCEMENT_CONFIG = {
-    showAnnouncement: true,
+    showAnnouncement: false,
     storageKey: "startradfr_noel_2025",
     title: "🎄 Joyeuses Fêtes !",
     message: "Toute l'équipe de StarTrad FR vous souhaite un Joyeux Noël et une excellente année 2026 ! 🎅✨",

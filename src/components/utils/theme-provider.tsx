@@ -36,6 +36,18 @@ export function ThemeProvider({
         return storedTheme;
     })
 
+    // Écouter les changements de thème depuis d'autres sources (ex: import préférences cloud)
+    useEffect(() => {
+        const handleThemeChange = (e: Event) => {
+            const newTheme = (e as CustomEvent).detail as Theme;
+            if (newTheme) {
+                setTheme(newTheme);
+            }
+        };
+        window.addEventListener("theme-change", handleThemeChange);
+        return () => window.removeEventListener("theme-change", handleThemeChange);
+    }, []);
+
     useEffect(() => {
         const root = window.document.documentElement
 

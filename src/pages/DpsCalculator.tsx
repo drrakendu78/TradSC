@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ExternalLink, RefreshCw, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import openExternal from "@/utils/external";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 export default function DpsCalculator() {
     const [isLoading, setIsLoading] = useState(true);
@@ -17,7 +18,7 @@ export default function DpsCalculator() {
             const html = document.documentElement;
             const body = document.body;
             const root = document.getElementById('root');
-            
+
             if (html) {
                 html.style.setProperty('height', '100vh', 'important');
                 html.style.setProperty('max-height', '100vh', 'important');
@@ -107,8 +108,33 @@ export default function DpsCalculator() {
         try {
             await openExternal("https://www.erkul.games/live/calculator");
         } catch (error) {
-            // Fallback si openExternal échoue
             window.open("https://www.erkul.games/live/calculator", "_blank", "noopener,noreferrer");
+        }
+    };
+
+    const handleOpenSpViewer = async () => {
+        try {
+            const existing = await WebviewWindow.getByLabel("spviewer");
+            if (existing) {
+                try {
+                    await existing.setFocus();
+                    return;
+                } catch {
+                    // Fenêtre fermée mais label encore enregistré, on en crée une nouvelle
+                }
+            }
+            const win = new WebviewWindow("spviewer_" + Date.now(), {
+                url: "https://www.spviewer.eu/",
+                title: "SP Viewer",
+                width: 1200,
+                height: 800,
+                center: true,
+            });
+            win.once("tauri://error", async () => {
+                await openExternal("https://www.spviewer.eu/");
+            });
+        } catch {
+            await openExternal("https://www.spviewer.eu/");
         }
     };
 
@@ -118,8 +144,8 @@ export default function DpsCalculator() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.2, ease: [0, 0.71, 0.2, 1.01] }}
             className="flex w-full h-full flex-col relative p-2 overflow-hidden"
-            style={{ 
-                maxHeight: '100%', 
+            style={{
+                maxHeight: '100%',
                 height: '100%',
                 minHeight: 0,
                 flex: '1 1 0%',
@@ -128,24 +154,35 @@ export default function DpsCalculator() {
             }}
         >
             {/* Barre d'outils */}
-            <div className="absolute top-2 left-1/2 transform -translate-x-1/2 z-10 flex gap-2 opacity-70 hover:opacity-100 transition-opacity duration-300">
+            <div className="absolute top-2 left-1/2 transform -translate-x-1/2 z-10 flex gap-1 opacity-80 hover:opacity-100 transition-opacity duration-300 bg-background/90 backdrop-blur-sm border border-border/50 shadow-sm rounded-md p-1">
                 <Button
-                    variant="secondary"
+                    variant="default"
+                    size="sm"
+                    onClick={handleOpenSpViewer}
+                    className="h-7 px-4 text-xs font-medium gap-1.5"
+                    title="Ouvrir SP Viewer dans une fenêtre"
+                >
+                    <ExternalLink className="h-3 w-3" />
+                    SP Viewer
+                </Button>
+                <div className="w-px bg-border/50 mx-0.5" />
+                <Button
+                    variant="ghost"
                     size="sm"
                     onClick={handleRefresh}
-                    className="h-8 px-2 bg-background/90 backdrop-blur-sm border border-border/50 shadow-sm"
+                    className="h-7 px-2"
                     title="Rafraîchir"
                 >
-                    <RefreshCw className="h-4 w-4" />
+                    <RefreshCw className="h-3.5 w-3.5" />
                 </Button>
                 <Button
-                    variant="secondary"
+                    variant="ghost"
                     size="sm"
                     onClick={handleOpenExternal}
-                    className="h-8 px-2 bg-background/90 backdrop-blur-sm border border-border/50 shadow-sm"
+                    className="h-7 px-2"
                     title="Ouvrir dans le navigateur"
                 >
-                    <ExternalLink className="h-4 w-4" />
+                    <ExternalLink className="h-3.5 w-3.5" />
                 </Button>
             </div>
 
@@ -208,4 +245,3 @@ export default function DpsCalculator() {
         </motion.div>
     );
 }
-
