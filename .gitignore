@@ -48,3 +48,6 @@ nul
 # Scripts de build avec credentials (contiennent les clés privées)
 scripts/build-signed.ps1
 release.ps1
+
+# Local AI tool settings
+.claude/
