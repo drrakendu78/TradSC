@@ -1,0 +1,51 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Build artifacts
+builds/
+src-tauri/target/
+src-tauri/binaries/
+
+.env
+todo.mdnul
+node_modules/
+target/
+dist/
+
+# Patchnotes et checksums (gardés en local uniquement)
+PATCHNOTES_*.md
+checksums_*.txt
+CHECKSUMS_*.txt
+DEV_NOTES.txt
+nul
+
+# Tauri signing keys (NEVER commit these!)
+.tauri-signer.key
+.tauri-signer.key.pub
+
+# Scripts de build avec credentials (contiennent les clés privées)
+scripts/build-signed.ps1
+release.ps1
+src-tauri/icons/upscayl-2.15.0-win.exe
