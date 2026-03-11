@@ -49,3 +49,9 @@ nul
 scripts/build-signed.ps1
 release.ps1
 src-tauri/icons/upscayl-2.15.0-win.exe
+.agents/
+.claude/
+AUDIT_SECURITE_2.0.8.md
+CONTEXT.md
+UsersdjameDocumentsprojetTradSC-maintemp-check/
+_nul
