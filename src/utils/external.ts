@@ -21,6 +21,8 @@ const ALLOWED_DOMAINS = [
     "finder.cstone.space",
     "survey.cstone.space",
     "cstone.space",
+    "ratjack.net",
+    "www.ratjack.net",
 ];
 
 // Autorise https, http (si besoin), et schémas ms-windows-store

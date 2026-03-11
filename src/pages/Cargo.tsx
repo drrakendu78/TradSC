@@ -173,12 +173,12 @@ export default function Cargo() {
                 onError={handleError}
                 style={{
                     position: 'absolute',
-                    top: '0.5rem',
-                    left: '0.5rem',
+                    top: '3.5rem',
+                    left: 0,
                     right: 0,
-                    bottom: '0.5rem',
-                    width: 'calc(100% - 0.5rem)',
-                    height: 'calc(100% - 1rem)',
+                    bottom: 0,
+                    width: '100%',
+                    height: 'calc(100% - 3.5rem)',
                     maxHeight: '100%',
                     maxWidth: '100%',
                     overflow: 'hidden',
