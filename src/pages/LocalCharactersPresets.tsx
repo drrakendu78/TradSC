@@ -13,7 +13,7 @@ import { isProtectedPath } from "@/utils/fs-permissions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Folder, Users, Loader2, Save } from "lucide-react";
+import { Plus, Folder, Users, Loader2, Save, Globe2 } from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -33,6 +33,7 @@ function LocalCharactersPresets() {
     const [isLoading, setIsLoading] = useState(true);
     const [loadingDot, setLoadingDot] = useState(0);
     const [gamePaths, setGamePaths] = useState<GamePaths | null>(null);
+    const [gameCheckDone, setGameCheckDone] = useState(false);
     const [isAdmin, setIsAdmin] = useState(true); // Supposer admin par défaut pour éviter flash de toast
     const { toast } = useToast();
     const [backups, setBackups] = useState<Backup[]>([]);
@@ -120,6 +121,7 @@ function LocalCharactersPresets() {
             ]);
             setGamePaths(versions && isGamePaths(versions) ? versions : null);
             setIsAdmin(adminStatus);
+            setGameCheckDone(true);
         };
 
         init();
@@ -286,13 +288,30 @@ function LocalCharactersPresets() {
     }, [gamePaths]);
 
 
-    if (!gamePaths) {
+    if (!gameCheckDone) {
         return (
             <div className="flex h-full w-full flex-col items-center justify-center gap-4">
                 <div className="p-4 rounded-full bg-muted animate-pulse">
                     <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
                 </div>
                 <p className="text-muted-foreground">Recherche des installations de Star Citizen...</p>
+            </div>
+        );
+    }
+
+    if (!gamePaths) {
+        return (
+            <div className="flex flex-col items-center justify-center w-full h-full gap-4">
+                <div className="p-4 rounded-full bg-muted">
+                    <Globe2 className="h-12 w-12 text-muted-foreground" />
+                </div>
+                <div className="text-center space-y-2">
+                    <h2 className="text-2xl font-bold">Aucune version détectée</h2>
+                    <p className="text-muted-foreground max-w-md">
+                        Lancez Star Citizen au moins une fois, puis rechargez cette page avec
+                        <kbd className="mx-2 px-2 py-1 text-xs bg-muted rounded border">CTRL + R</kbd>
+                    </p>
+                </div>
             </div>
         );
     }

@@ -6,12 +6,15 @@ import { RemoteCharactersPresetsList, Row } from "@/types/charactersList";
 import { CharacterCard } from '@/components/custom/character-card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Download, Search, TrendingUp, Clock, Loader2, ExternalLink } from 'lucide-react';
+import { Download, Search, TrendingUp, Clock, Loader2, ExternalLink, Globe2 } from 'lucide-react';
 import logger from "@/utils/logger";
 import openExternal from "@/utils/external";
+import { GamePaths, isGamePaths } from "@/types/translation";
 
 function CharactersPresetsList() {
     const { toast } = useToast();
+    const [gamePaths, setGamePaths] = useState<GamePaths | null>(null);
+    const [gameCheckDone, setGameCheckDone] = useState(false);
     const [charactersPresets, setCharactersPresets] = useState<Row[]>([]);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
@@ -22,6 +25,22 @@ function CharactersPresetsList() {
     const hasInitialized = useRef(false);
     const orderRef = useRef<"latest" | "download">("latest");
     const lastSearchTerm = useRef<string>("");
+
+    useEffect(() => {
+        const checkGame = async () => {
+            try {
+                const versions = await invoke("get_star_citizen_versions");
+                if (isGamePaths(versions) && Object.keys(versions.versions).length > 0) {
+                    setGamePaths(versions);
+                }
+            } catch (error) {
+                logger.error("Erreur lors de la vérification du jeu:", error);
+            } finally {
+                setGameCheckDone(true);
+            }
+        };
+        checkGame();
+    }, []);
 
     const getCharacters = useCallback(
         async (
@@ -123,6 +142,34 @@ function CharactersPresetsList() {
             getCharacters();
         }
     }, [charactersPresets.length, hasMore, isLoading, getCharacters]);
+
+    if (!gameCheckDone) {
+        return (
+            <div className="flex h-full w-full flex-col items-center justify-center gap-4">
+                <div className="p-4 rounded-full bg-muted animate-pulse">
+                    <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
+                </div>
+                <p className="text-muted-foreground">Recherche des installations de Star Citizen...</p>
+            </div>
+        );
+    }
+
+    if (!gamePaths) {
+        return (
+            <div className="flex flex-col items-center justify-center w-full h-full gap-4">
+                <div className="p-4 rounded-full bg-muted">
+                    <Globe2 className="h-12 w-12 text-muted-foreground" />
+                </div>
+                <div className="text-center space-y-2">
+                    <h2 className="text-2xl font-bold">Aucune version détectée</h2>
+                    <p className="text-muted-foreground max-w-md">
+                        Lancez Star Citizen au moins une fois, puis rechargez cette page avec
+                        <kbd className="mx-2 px-2 py-1 text-xs bg-muted rounded border">CTRL + R</kbd>
+                    </p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <m.div

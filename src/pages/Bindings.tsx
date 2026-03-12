@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState, useCallback } from "react";
 import { columns } from "@/components/custom/bindings/columns";
 import { DataTable } from "@/components/custom/bindings/data-table";
-import { Plus, Folder, Keyboard, Loader2, RefreshCw } from "lucide-react";
+import { Plus, Folder, Keyboard, Loader2, RefreshCw, Globe2 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { GamePaths, isGamePaths } from "@/types/translation";
@@ -21,6 +21,7 @@ export default function Bindings() {
     const [bindings, setBindings] = useState<BindingFile[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [gamePaths, setGamePaths] = useState<GamePaths | null>(null);
+    const [gameCheckDone, setGameCheckDone] = useState(false);
     const [selectedVersion, setSelectedVersion] = useState<string>('');
 
     const loadGameVersions = useCallback(async () => {
@@ -40,6 +41,8 @@ export default function Bindings() {
             }
         } catch (error) {
             console.error('Erreur lors du chargement des versions:', error);
+        } finally {
+            setGameCheckDone(true);
         }
     }, []);
 
@@ -145,6 +148,34 @@ export default function Bindings() {
         loadGameVersions();
     }, [loadGameVersions]);
 
+
+    if (!gameCheckDone) {
+        return (
+            <div className="flex h-full w-full flex-col items-center justify-center gap-4">
+                <div className="p-4 rounded-full bg-muted animate-pulse">
+                    <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
+                </div>
+                <p className="text-muted-foreground">Recherche des installations de Star Citizen...</p>
+            </div>
+        );
+    }
+
+    if (!gamePaths) {
+        return (
+            <div className="flex flex-col items-center justify-center w-full h-full gap-4">
+                <div className="p-4 rounded-full bg-muted">
+                    <Globe2 className="h-12 w-12 text-muted-foreground" />
+                </div>
+                <div className="text-center space-y-2">
+                    <h2 className="text-2xl font-bold">Aucune version détectée</h2>
+                    <p className="text-muted-foreground max-w-md">
+                        Lancez Star Citizen au moins une fois, puis rechargez cette page avec
+                        <kbd className="mx-2 px-2 py-1 text-xs bg-muted rounded border">CTRL + R</kbd>
+                    </p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <m.div
