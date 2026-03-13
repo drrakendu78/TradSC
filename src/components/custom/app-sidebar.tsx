@@ -6,7 +6,7 @@ import {
     Settings,
     ChevronDown
 } from 'lucide-react';
-import { IconHome, IconBrandDiscord, IconCloud, IconBrandGithub, IconLanguage, IconUsers, IconNews, IconKeyboard, IconCalculator, IconMap2, IconSearch, IconSwords, IconPackage } from "@tabler/icons-react";
+import { IconHome, IconBrandDiscord, IconCloud, IconBrandGithub, IconLanguage, IconUsers, IconNews, IconKeyboard, IconCalculator, IconMap2, IconSearch, IconSwords, IconPackage, IconHammer } from "@tabler/icons-react";
 import { BrushCleaning, Download, Power, PowerOff, Loader2, RotateCcw, Monitor, Route, BarChart3, Calendar, Languages, Trash2, Save, Users } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { ColorPicker } from "@/components/custom/color-picker";
@@ -32,6 +32,7 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { invoke } from "@tauri-apps/api/core";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { supabase } from "@/lib/supabase";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 import { LogIn, LogOut, User } from "lucide-react";
@@ -446,6 +447,7 @@ export function AppSidebar() {
     const [isOpen, setIsOpen] = useState(false);
     const [buildInfo, setBuildInfo] = useState<BuildInfo | null>(null);
     const [isToolsExpanded, setIsToolsExpanded] = useState(true);
+    const [isToolsSubExpanded, setIsToolsSubExpanded] = useState(false);
     const [isNetworksExpanded, setIsNetworksExpanded] = useState(true);
     const [isExternalServicesExpanded, setIsExternalServicesExpanded] = useState(true);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -687,9 +689,13 @@ export function AppSidebar() {
                         <button
                             onClick={() => setIsNetworksExpanded(prev => !prev)}
                             className={`
-                                w-full text-[10px] font-medium text-muted-foreground/70 uppercase tracking-widest 
-                                hover:text-muted-foreground transition-all duration-200 flex items-center gap-2 group
-                                ${isCollapsed ? "px-2 py-1 justify-center" : "px-3 py-1.5"}
+                                w-full text-[11px] font-semibold uppercase tracking-widest rounded-md
+                                transition-all duration-200 flex items-center gap-2 group
+                                ${isNetworksExpanded
+                                    ? "text-muted-foreground/70 hover:text-muted-foreground hover:bg-white/5"
+                                    : "text-muted-foreground bg-white/5 hover:bg-white/8 hover:text-foreground"
+                                }
+                                ${isCollapsed ? "px-2 py-1 justify-center" : "px-3 py-1.5 justify-between"}
                             `}
                             title={isCollapsed ? "Réseaux / actu SC" : undefined}
                         >
@@ -742,183 +748,8 @@ export function AppSidebar() {
                                 </Link>
                             </li>
 
-                            {/* DPS Calculator */}
-                            <li>
-                                <Link
-                                    to="/dps-calculator"
-                                    onClick={() => handleItemClick('dps-calculator', '/dps-calculator')}
-                                    className={`
-                                        flex items-center gap-3 rounded-lg text-left group relative
-                                        transition-all duration-200 ease-out
-                                        ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"}
-                                        ${activeItem === 'dps-calculator'
-                                            ? "bg-primary/15 text-primary"
-                                            : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
-                                        }
-                                    `}
-                                    title={isCollapsed ? "DPS Calculator" : undefined}
-                                >
-                                    {activeItem === 'dps-calculator' && !isCollapsed && (
-                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />
-                                    )}
-                                    <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === 'dps-calculator' ? '' : 'group-hover:scale-110'}`}>
-                                        <IconCalculator size={18} />
-                                    </div>
-                                    {!isCollapsed && (
-                                        <span className={`text-sm ${activeItem === 'dps-calculator' ? "font-medium" : "font-normal"}`}>
-                                        DPS Calculator
-                                    </span>
-                                    )}
-                                    {isCollapsed && (
-                                        <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">
-                                            DPS Calculator
-                                        </div>
-                                    )}
-                                </Link>
-                            </li>
-
-                            {/* Ship Maps (ADI) */}
-                            <li>
-                                <Link
-                                    to="/ship-maps"
-                                    onClick={() => handleItemClick('ship-maps', '/ship-maps')}
-                                    className={`
-                                        flex items-center gap-3 rounded-lg text-left group relative
-                                        transition-all duration-200 ease-out
-                                        ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"}
-                                        ${activeItem === 'ship-maps'
-                                            ? "bg-primary/15 text-primary"
-                                            : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
-                                        }
-                                    `}
-                                    title={isCollapsed ? "Cartes de vaisseaux (ADI)" : undefined}
-                                >
-                                    {activeItem === 'ship-maps' && !isCollapsed && (
-                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />
-                                    )}
-                                    <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === 'ship-maps' ? '' : 'group-hover:scale-110'}`}>
-                                        <IconMap2 size={18} />
-                                    </div>
-                                    {!isCollapsed && (
-                                        <span className={`text-sm ${activeItem === 'ship-maps' ? "font-medium" : "font-normal"}`}>
-                                            Cartes vaisseaux
-                                        </span>
-                                    )}
-                                    {isCollapsed && (
-                                        <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">
-                                            Cartes de vaisseaux (ADI)
-                                        </div>
-                                    )}
-                                </Link>
-                            </li>
-
-                            {/* Finder (Cornerstone) */}
-                            <li>
-                                <Link
-                                    to="/finder"
-                                    onClick={() => handleItemClick('finder', '/finder')}
-                                    className={`
-                                        flex items-center gap-3 rounded-lg text-left group relative
-                                        transition-all duration-200 ease-out
-                                        ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"}
-                                        ${activeItem === 'finder'
-                                            ? "bg-primary/15 text-primary"
-                                            : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
-                                        }
-                                    `}
-                                    title={isCollapsed ? "Finder (Cornerstone)" : undefined}
-                                >
-                                    {activeItem === 'finder' && !isCollapsed && (
-                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />
-                                    )}
-                                    <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === 'finder' ? '' : 'group-hover:scale-110'}`}>
-                                        <IconSearch size={18} />
-                                    </div>
-                                    {!isCollapsed && (
-                                        <span className={`text-sm ${activeItem === 'finder' ? "font-medium" : "font-normal"}`}>
-                                            Finder
-                                        </span>
-                                    )}
-                                    {isCollapsed && (
-                                        <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">
-                                            Finder (Cornerstone)
-                                        </div>
-                                    )}
-                                </Link>
-                            </li>
-
-                            {/* Zones PVP */}
-                            <li>
-                                <Link
-                                    to="/pvp"
-                                    onClick={() => handleItemClick('pvp', '/pvp')}
-                                    className={`
-                                        flex items-center gap-3 rounded-lg text-left group relative
-                                        transition-all duration-200 ease-out
-                                        ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"}
-                                        ${activeItem === 'pvp'
-                                            ? "bg-primary/15 text-primary"
-                                            : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
-                                        }
-                                    `}
-                                    title={isCollapsed ? "Zones PVP" : undefined}
-                                >
-                                    {activeItem === 'pvp' && !isCollapsed && (
-                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />
-                                    )}
-                                    <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === 'pvp' ? '' : 'group-hover:scale-110'}`}>
-                                        <IconSwords size={18} />
-                                    </div>
-                                    {!isCollapsed && (
-                                        <span className={`text-sm ${activeItem === 'pvp' ? "font-medium" : "font-normal"}`}>
-                                            Zones PVP
-                                        </span>
-                                    )}
-                                    {isCollapsed && (
-                                        <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">
-                                            Zones PVP
-                                        </div>
-                                    )}
-                                </Link>
-                            </li>
-
-                            {/* Cargo Grids */}
-                            <li>
-                                <Link
-                                    to="/cargo"
-                                    onClick={() => handleItemClick('cargo', '/cargo')}
-                                    className={`
-                                        flex items-center gap-3 rounded-lg text-left group relative
-                                        transition-all duration-200 ease-out
-                                        ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"}
-                                        ${activeItem === 'cargo'
-                                            ? "bg-primary/15 text-primary"
-                                            : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
-                                        }
-                                    `}
-                                    title={isCollapsed ? "Grilles Cargo" : undefined}
-                                >
-                                    {activeItem === 'cargo' && !isCollapsed && (
-                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />
-                                    )}
-                                    <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === 'cargo' ? '' : 'group-hover:scale-110'}`}>
-                                        <IconPackage size={18} />
-                                    </div>
-                                    {!isCollapsed && (
-                                        <span className={`text-sm ${activeItem === 'cargo' ? "font-medium" : "font-normal"}`}>
-                                            Grilles Cargo
-                                        </span>
-                                    )}
-                                    {isCollapsed && (
-                                        <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">
-                                            Grilles Cargo
-                                        </div>
-                                    )}
-                                </Link>
-                            </li>
-
-                            {/* Social Links */}
-                            {socialLinks.map((link) => (
+                            {/* Discord + Site web */}
+                            {socialLinks.filter(l => l.id !== 'uexcorp').map((link) => (
                                 <li key={link.id}>
                                     <button
                                         onClick={() => handleItemClick(link.id, link.href, true)}
@@ -937,23 +768,172 @@ export function AppSidebar() {
                                             <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />
                                         )}
                                         <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === link.id ? '' : 'group-hover:scale-110'}`}>
-                                                {link.icon}
-                                            </div>
+                                            {link.icon}
+                                        </div>
                                         {!isCollapsed && (
-                                            <span className={`text-sm ${activeItem === link.id ? "font-medium" : "font-normal"}`}>
-                                            {link.name}
-                                        </span>
+                                            <span className={`text-sm ${activeItem === link.id ? "font-medium" : "font-normal"}`}>{link.name}</span>
                                         )}
                                         {isCollapsed && (
                                             <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">
                                                 {link.tooltip || link.name}
-                                                <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-1.5 h-1.5 bg-popover border-l border-b border-border rotate-45" />
                                             </div>
                                         )}
                                     </button>
                                 </li>
                             ))}
+
                         </ul>
+                        )}
+                    </div>
+
+                    {/* Outils SC - section indépendante */}
+                    <div className="mb-2">
+                        {!isCollapsed && (
+                            <button
+                                onClick={() => setIsToolsSubExpanded(p => !p)}
+                                className={`
+                                    w-full text-[11px] font-semibold uppercase tracking-widest rounded-md
+                                    transition-all duration-200 flex items-center gap-2 group
+                                    px-3 py-1.5 justify-between
+                                    ${isToolsSubExpanded
+                                        ? "text-muted-foreground/70 hover:text-muted-foreground hover:bg-white/5"
+                                        : "text-muted-foreground bg-white/5 hover:bg-white/8 hover:text-foreground"
+                                    }
+                                `}
+                            >
+                                <span>Outils SC</span>
+                                <ChevronDown size={12} className={`transition-transform duration-300 ${isToolsSubExpanded ? '' : '-rotate-90'}`} />
+                            </button>
+                        )}
+                        {(isToolsSubExpanded || isCollapsed) && (
+                            <ul className="space-y-0">
+                                {/* DPS Calculator */}
+                                <li>
+                                    <Link
+                                        to="/dps-calculator"
+                                        onClick={() => handleItemClick('dps-calculator', '/dps-calculator')}
+                                        className={`
+                                            flex items-center gap-3 rounded-lg text-left group relative
+                                            transition-all duration-200 ease-out
+                                            ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"}
+                                            ${activeItem === 'dps-calculator' ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}
+                                        `}
+                                        title={isCollapsed ? "DPS Calculator" : undefined}
+                                    >
+                                        {activeItem === 'dps-calculator' && !isCollapsed && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />}
+                                        <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === 'dps-calculator' ? '' : 'group-hover:scale-110'}`}><IconCalculator size={18} /></div>
+                                        {!isCollapsed && <span className={`text-sm ${activeItem === 'dps-calculator' ? "font-medium" : "font-normal"}`}>DPS Calculator</span>}
+                                        {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">DPS Calculator</div>}
+                                    </Link>
+                                </li>
+                                {/* Ship Maps */}
+                                <li>
+                                    <Link
+                                        to="/ship-maps"
+                                        onClick={() => handleItemClick('ship-maps', '/ship-maps')}
+                                        className={`
+                                            flex items-center gap-3 rounded-lg text-left group relative
+                                            transition-all duration-200 ease-out
+                                            ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"}
+                                            ${activeItem === 'ship-maps' ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}
+                                        `}
+                                        title={isCollapsed ? "Cartes de vaisseaux (ADI)" : undefined}
+                                    >
+                                        {activeItem === 'ship-maps' && !isCollapsed && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />}
+                                        <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === 'ship-maps' ? '' : 'group-hover:scale-110'}`}><IconMap2 size={18} /></div>
+                                        {!isCollapsed && <span className={`text-sm ${activeItem === 'ship-maps' ? "font-medium" : "font-normal"}`}>Cartes vaisseaux</span>}
+                                        {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">Cartes de vaisseaux (ADI)</div>}
+                                    </Link>
+                                </li>
+                                {/* Finder */}
+                                <li>
+                                    <Link
+                                        to="/finder"
+                                        onClick={() => handleItemClick('finder', '/finder')}
+                                        className={`
+                                            flex items-center gap-3 rounded-lg text-left group relative
+                                            transition-all duration-200 ease-out
+                                            ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"}
+                                            ${activeItem === 'finder' ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}
+                                        `}
+                                        title={isCollapsed ? "Finder (Cornerstone)" : undefined}
+                                    >
+                                        {activeItem === 'finder' && !isCollapsed && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />}
+                                        <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === 'finder' ? '' : 'group-hover:scale-110'}`}><IconSearch size={18} /></div>
+                                        {!isCollapsed && <span className={`text-sm ${activeItem === 'finder' ? "font-medium" : "font-normal"}`}>Finder</span>}
+                                        {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">Finder (Cornerstone)</div>}
+                                    </Link>
+                                </li>
+                                {/* Zones PVP */}
+                                <li>
+                                    <Link
+                                        to="/pvp"
+                                        onClick={() => handleItemClick('pvp', '/pvp')}
+                                        className={`
+                                            flex items-center gap-3 rounded-lg text-left group relative
+                                            transition-all duration-200 ease-out
+                                            ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"}
+                                            ${activeItem === 'pvp' ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}
+                                        `}
+                                        title={isCollapsed ? "Zones PVP" : undefined}
+                                    >
+                                        {activeItem === 'pvp' && !isCollapsed && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />}
+                                        <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === 'pvp' ? '' : 'group-hover:scale-110'}`}><IconSwords size={18} /></div>
+                                        {!isCollapsed && <span className={`text-sm ${activeItem === 'pvp' ? "font-medium" : "font-normal"}`}>Zones PVP</span>}
+                                        {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">Zones PVP</div>}
+                                    </Link>
+                                </li>
+                                {/* Cargo */}
+                                <li>
+                                    <Link
+                                        to="/cargo"
+                                        onClick={() => handleItemClick('cargo', '/cargo')}
+                                        className={`
+                                            flex items-center gap-3 rounded-lg text-left group relative
+                                            transition-all duration-200 ease-out
+                                            ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"}
+                                            ${activeItem === 'cargo' ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}
+                                        `}
+                                        title={isCollapsed ? "Grilles Cargo" : undefined}
+                                    >
+                                        {activeItem === 'cargo' && !isCollapsed && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />}
+                                        <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === 'cargo' ? '' : 'group-hover:scale-110'}`}><IconPackage size={18} /></div>
+                                        {!isCollapsed && <span className={`text-sm ${activeItem === 'cargo' ? "font-medium" : "font-normal"}`}>Grilles Cargo</span>}
+                                        {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">Grilles Cargo</div>}
+                                    </Link>
+                                </li>
+                                {/* Crafter */}
+                                <li>
+                                    <button
+                                        onClick={async () => {
+                                            try {
+                                                const existing = await WebviewWindow.getByLabel("crafter");
+                                                if (existing) { try { await existing.setFocus(); return; } catch { /* recréer */ } }
+                                                const win = new WebviewWindow("crafter_" + Date.now(), { url: "https://crafter.infinityfreeapp.com/", title: "Crafter - Star Citizen", width: 1280, height: 900, center: true });
+                                                win.once("tauri://error", async () => { await openExternal("https://crafter.infinityfreeapp.com/"); });
+                                            } catch { await openExternal("https://crafter.infinityfreeapp.com/"); }
+                                        }}
+                                        className={`flex items-center gap-3 rounded-lg text-left group relative transition-all duration-200 ease-out ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"} text-muted-foreground hover:bg-white/5 hover:text-foreground`}
+                                        title={isCollapsed ? "Crafter" : undefined}
+                                    >
+                                        <div className="flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110"><IconHammer size={18} /></div>
+                                        {!isCollapsed && <span className="text-sm font-normal">Crafter</span>}
+                                        {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">Crafter</div>}
+                                    </button>
+                                </li>
+                                {/* Routes de trading */}
+                                <li>
+                                    <button
+                                        onClick={() => handleItemClick('uexcorp', 'https://uexcorp.space/', true)}
+                                        className={`flex items-center gap-3 rounded-lg text-left group relative transition-all duration-200 ease-out ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"} text-muted-foreground hover:bg-white/5 hover:text-foreground`}
+                                        title={isCollapsed ? "Routes de trading (UEX Corp)" : undefined}
+                                    >
+                                        <div className="flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110"><Route size={18} /></div>
+                                        {!isCollapsed && <span className="text-sm font-normal">Routes de trading</span>}
+                                        {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">Routes de trading (UEX Corp)</div>}
+                                    </button>
+                                </li>
+                            </ul>
                         )}
                     </div>
 
@@ -966,9 +946,13 @@ export function AppSidebar() {
                     <div className="mb-2">
                         <div
                             className={`
-                                w-full text-[10px] font-medium text-muted-foreground/70 uppercase tracking-widest
-                                hover:text-muted-foreground transition-all duration-200 flex items-center gap-2 group
-                                ${isCollapsed ? "px-2 py-1 justify-center" : "px-3 py-1.5"}
+                                w-full text-[11px] font-semibold uppercase tracking-widest rounded-md
+                                transition-all duration-200 flex items-center gap-2 group
+                                ${isExternalServicesExpanded
+                                    ? "text-muted-foreground/70 hover:text-muted-foreground hover:bg-white/5"
+                                    : "text-muted-foreground bg-white/5 hover:bg-white/8 hover:text-foreground"
+                                }
+                                ${isCollapsed ? "px-2 py-1 justify-center" : "px-3 py-1.5 justify-between"}
                             `}
                             title={isCollapsed ? "Services externes" : undefined}
                         >
@@ -983,7 +967,7 @@ export function AppSidebar() {
                                 <>
                                     <button
                                         onClick={() => setIsExternalServicesExpanded(prev => !prev)}
-                                        className="flex items-center gap-2 flex-1 whitespace-nowrap"
+                                        className="flex items-center justify-between flex-1 whitespace-nowrap"
                                     >
                                         <span>Services Externes</span>
                                         <ChevronDown
