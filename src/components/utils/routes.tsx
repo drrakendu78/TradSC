@@ -16,6 +16,8 @@ import ShipMaps from '@/pages/ShipMaps';
 import Finder from '@/pages/Finder';
 import Pvp from '@/pages/Pvp';
 import Cargo from '@/pages/Cargo';
+import VerseGuide from '@/pages/VerseGuide';
+import Regolith from '@/pages/Regolith';
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -68,6 +70,8 @@ const AppRouter = () => (
         <Route path='/finder' element={<Finder />} />
         <Route path='/pvp' element={<Pvp />} />
         <Route path='/cargo' element={<Cargo />} />
+        <Route path='/verseguide' element={<VerseGuide />} />
+        <Route path='/regolith' element={<Regolith />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Layout>

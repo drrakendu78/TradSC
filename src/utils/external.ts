@@ -23,6 +23,10 @@ const ALLOWED_DOMAINS = [
     "cstone.space",
     "ratjack.net",
     "www.ratjack.net",
+    "verseguide.com",
+    "www.verseguide.com",
+    "regolith.rocks",
+    "www.regolith.rocks",
 ];
 
 // Autorise https, http (si besoin), et schémas ms-windows-store
