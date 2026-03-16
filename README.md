@@ -20,7 +20,6 @@ _Traduction française pour Star Citizen – Version 3_
 <br/>
 
 <sub>
-⚠️ Version <strong>Microsoft Store</strong> : <strong>temporairement indisponible</strong> — problème technique en cours de résolution<br/>
 ✔️ Versions <strong>EXE / MSI</strong> disponibles sur GitHub (non signées)<br/>
 ➡️ Les versions EXE / MSI incluent une fonctionnalité supplémentaire :<br/>
 <strong>bouton de téléchargement automatique du RSI Launcher</strong> s’il n’est pas installé.
@@ -133,9 +132,7 @@ Développée avec <strong>Tauri 2</strong>, <strong>React</strong> et <strong>Ty
 
 ### Microsoft Store
 
-> ⚠️ **La version Microsoft Store est temporairement indisponible** en raison d’un problème technique. Utilisez l’une des versions ci-dessous en attendant.
-
-~~StarTrad FR est disponible sur le **Microsoft Store**~~
+StarTrad FR est disponible sur le **Microsoft Store**
 
 <a href="https://apps.microsoft.com/detail/9P29JDL68WBZ?referrer=appbadge&mode=full">
   <img src="https://get.microsoft.com/images/fr%20light.svg" width="200"/>
