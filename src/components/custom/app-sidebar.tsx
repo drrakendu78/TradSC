@@ -939,9 +939,9 @@ export function AppSidebar() {
                                             try {
                                                 const existing = await WebviewWindow.getByLabel("crafter");
                                                 if (existing) { try { await existing.setFocus(); return; } catch { /* recréer */ } }
-                                                const win = new WebviewWindow("crafter_" + Date.now(), { url: "https://crafter.infinityfreeapp.com/", title: "Crafter - Star Citizen", width: 1280, height: 900, center: true });
-                                                win.once("tauri://error", async () => { await openExternal("https://crafter.infinityfreeapp.com/"); });
-                                            } catch { await openExternal("https://crafter.infinityfreeapp.com/"); }
+                                                const win = new WebviewWindow("crafter_" + Date.now(), { url: "https://www.sccrafter.com/", title: "Crafter - Star Citizen", width: 1280, height: 900, center: true });
+                                                win.once("tauri://error", async () => { await openExternal("https://www.sccrafter.com/"); });
+                                            } catch { await openExternal("https://www.sccrafter.com/"); }
                                         }}
                                         className={`flex items-center gap-3 rounded-lg text-left group relative transition-all duration-200 ease-out ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"} text-muted-foreground hover:bg-white/5 hover:text-foreground`}
                                         title={isCollapsed ? "Crafter" : undefined}
