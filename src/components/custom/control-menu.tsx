@@ -1,5 +1,5 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { X, Minus, Volume2, VolumeX, SkipBack, SkipForward } from "lucide-react";
+import { X, Minus, Volume2, VolumeX, SkipBack, SkipForward, Play, Pause } from "lucide-react";
 import { useState, useEffect } from 'react';
 import { Slider } from '@/components/ui/slider';
 import ServerStatus from '@/components/custom/server-status';
@@ -12,6 +12,9 @@ export default function ControlMenu() {
     });
     const [isMuted, setIsMuted] = useState(() => {
         return localStorage.getItem('videoMuted') === 'true';
+    });
+    const [isPlaying, setIsPlaying] = useState(() => {
+        return localStorage.getItem('youtubePaused') !== 'true';
     });
 
     const minimize = async () => await appWindow?.minimize();
@@ -44,6 +47,13 @@ export default function ControlMenu() {
         window.dispatchEvent(new CustomEvent('youtubeNext'));
     };
 
+    const togglePlayPause = () => {
+        const newState = !isPlaying;
+        setIsPlaying(newState);
+        localStorage.setItem('youtubePaused', (!newState).toString());
+        window.dispatchEvent(new CustomEvent('youtubePlayPause', { detail: newState }));
+    };
+
     return (
         <div className='flex flex-row gap-2 fixed right-4 top-4 z-[100] items-center pointer-events-auto'>
             {/* Statut serveurs SC */}
@@ -54,14 +64,25 @@ export default function ControlMenu() {
             {/* Contrôle de volume et navigation */}
             <div className='flex items-center gap-2 bg-background/70 backdrop-blur-xl rounded-lg px-3 py-1.5 border border-border/50 shadow-md'>
                 {/* Boutons précédent/suivant */}
-                <button 
+                <button
                     onClick={handlePreviousVideo}
                     className='hover:opacity-70 transition-opacity'
                     title="Vidéo précédente"
                 >
                     <SkipBack className='h-4 w-4 text-muted-foreground' />
                 </button>
-                <button 
+                <button
+                    onClick={togglePlayPause}
+                    className='hover:opacity-70 transition-opacity'
+                    title={isPlaying ? "Pause" : "Lecture"}
+                >
+                    {isPlaying ? (
+                        <Pause className='h-4 w-4 text-muted-foreground' />
+                    ) : (
+                        <Play className='h-4 w-4 text-muted-foreground' />
+                    )}
+                </button>
+                <button
                     onClick={handleNextVideo}
                     className='hover:opacity-70 transition-opacity'
                     title="Vidéo suivante"

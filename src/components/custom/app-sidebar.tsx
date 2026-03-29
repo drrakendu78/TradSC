@@ -6,7 +6,7 @@ import {
     Settings,
     ChevronDown
 } from 'lucide-react';
-import { IconHome, IconBrandDiscord, IconCloud, IconBrandGithub, IconLanguage, IconUsers, IconNews, IconKeyboard, IconCalculator, IconMap2, IconSearch, IconSwords, IconPackage, IconHammer, IconBook, IconPick } from "@tabler/icons-react";
+import { IconHome, IconBrandDiscord, IconCloud, IconBrandGithub, IconLanguage, IconUsers, IconNews, IconKeyboard, IconCalculator, IconMap2, IconSearch, IconSwords, IconPackage, IconHammer, IconBook } from "@tabler/icons-react";
 import { BrushCleaning, Download, Power, PowerOff, Loader2, RotateCcw, Monitor, Route, BarChart3, Calendar, Languages, Trash2, Save, Users } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { ColorPicker } from "@/components/custom/color-picker";
@@ -468,7 +468,7 @@ export function AppSidebar() {
         if (currentPath === '/ship-maps') return 'ship-maps';
         if (currentPath === '/finder') return 'finder';
         if (currentPath === '/verseguide') return 'verseguide';
-        if (currentPath === '/regolith') return 'regolith';
+
         if (currentPath === '/cargo') return 'cargo';
         return '';
     }, [location.pathname]);
@@ -918,20 +918,6 @@ export function AppSidebar() {
                                         {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">VerseGuide</div>}
                                     </Link>
                                 </li>
-                                {/* Regolith */}
-                                <li>
-                                    <Link
-                                        to="/regolith"
-                                        onClick={() => handleItemClick('regolith', '/regolith')}
-                                        className={`flex items-center gap-3 rounded-lg group relative transition-all duration-200 ease-out ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"} ${activeItem === 'regolith' ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}`}
-                                        title={isCollapsed ? "Regolith - Mining" : undefined}
-                                    >
-                                        {activeItem === 'regolith' && !isCollapsed && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />}
-                                        <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === 'regolith' ? '' : 'group-hover:scale-110'}`}><IconPick size={18} /></div>
-                                        {!isCollapsed && <span className={`text-sm ${activeItem === 'regolith' ? "font-medium" : "font-normal"}`}>Regolith</span>}
-                                        {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">Regolith</div>}
-                                    </Link>
-                                </li>
                                 {/* Crafter */}
                                 <li>
                                     <button
@@ -1280,6 +1266,7 @@ function SettingsContent() {
                 // Activer - on sauvegarde l'état même si Discord n'est pas disponible
                 localStorage.setItem('discordRPCEnabled', 'true');
                 setDiscordState(s => ({ ...s, discordEnabled: true }));
+                invoke('update_tray_service', { service: 'discord', enabled: true }).catch(() => {});
 
                 // Tenter de se connecter maintenant
                 try {
@@ -1303,6 +1290,7 @@ function SettingsContent() {
                 await invoke('disconnect_discord');
                 localStorage.setItem('discordRPCEnabled', 'false');
                 setDiscordState(s => ({ ...s, discordEnabled: false }));
+                invoke('update_tray_service', { service: 'discord', enabled: false }).catch(() => {});
                 setDiscordConnected(false);
                 toast({
                     title: 'Discord déconnecté',
@@ -1357,6 +1345,7 @@ function SettingsContent() {
                 });
             }
             setServiceState(s => ({ ...s, autoStartupEnabled: checked }));
+            invoke('update_tray_service', { service: 'auto_startup', enabled: checked }).catch(() => {});
         } catch (error) {
             toast({
                 title: 'Erreur',
@@ -1393,6 +1382,7 @@ function SettingsContent() {
             }
 
             setServiceState(s => ({ ...s, config: newConfig, serviceRunning: checked }));
+            invoke('update_tray_service', { service: 'bg_service', enabled: checked }).catch(() => {});
         } catch (error) {
             toast({
                 title: 'Erreur',
@@ -1486,6 +1476,7 @@ function SettingsContent() {
                             setCacheState(s => ({ ...s, backgroundVideoEnabled: checked }));
                             localStorage.setItem('backgroundVideoEnabled', String(checked));
                             window.dispatchEvent(new CustomEvent('backgroundVideoToggle', { detail: checked }));
+                            invoke('update_tray_service', { service: 'video', enabled: checked }).catch(() => {});
                             toast({
                                 title: checked ? 'Vidéo activée' : 'Vidéo désactivée',
                                 description: checked

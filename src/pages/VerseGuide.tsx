@@ -1,5 +1,5 @@
 import { m } from "framer-motion";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, RefreshCw, Loader2, BookOpen } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -10,6 +10,11 @@ export default function VerseGuide() {
     const [hasError, setHasError] = useState(false);
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const { toast } = useToast();
+
+    useEffect(() => {
+        const timeout = setTimeout(() => setIsLoading(false), 8000);
+        return () => clearTimeout(timeout);
+    }, []);
 
     const handleLoad = () => {
         setIsLoading(false);
@@ -65,7 +70,7 @@ export default function VerseGuide() {
             </div>
 
             {/* Zone iframe */}
-            <div className="relative flex-1 min-h-0">
+            <div className="relative flex-1 min-h-0 overflow-hidden">
                 {isLoading && (
                     <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm z-10">
                         <div className="flex flex-col items-center gap-3">

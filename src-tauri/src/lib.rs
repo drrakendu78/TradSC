@@ -60,9 +60,25 @@ use scripts::offline_cache::{
     delete_cached_translation, clear_translation_cache, is_translation_cached,
     get_translation_cache_info, open_translation_cache_folder, cache_all_installed_translations,
 };
+use std::sync::Mutex;
 use tauri::{command, Emitter, Manager};
 use tauri_plugin_deep_link::DeepLinkExt;
 use window_vibrancy::apply_acrylic;
+use scripts::system_tray::TrayState;
+
+#[command]
+async fn update_tray_service(app_handle: tauri::AppHandle, service: String, enabled: bool) -> Result<(), String> {
+    let state = app_handle.state::<Mutex<TrayState>>();
+    let tray = state.lock().map_err(|e| e.to_string())?;
+    match service.as_str() {
+        "discord" => tray.discord_item.set_checked(enabled).map_err(|e| e.to_string())?,
+        "bg_service" => tray.bg_service_item.set_checked(enabled).map_err(|e| e.to_string())?,
+        "video" => tray.video_item.set_checked(enabled).map_err(|e| e.to_string())?,
+        "auto_startup" => tray.auto_startup_item.set_checked(enabled).map_err(|e| e.to_string())?,
+        _ => {}
+    }
+    Ok(())
+}
 
 #[command]
 async fn write_text_file(path: String, content: String) -> Result<(), String> {
@@ -435,6 +451,7 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            update_tray_service,
             save_theme_selected,
             load_theme_selected,
             get_latest_commits,

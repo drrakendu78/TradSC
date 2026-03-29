@@ -93,9 +93,14 @@ export function BackgroundVideo() {
     // Initialiser le player YouTube quand l'API est prête
     useEffect(() => {
         if (!youtubeReady || !youtubeIframeRef.current) return;
-        
+
         // Si le player existe déjà, ne pas le recréer
         if (youtubePlayerRef.current) {
+            return;
+        }
+
+        // Ne pas créer le player si la musique est en pause
+        if (localStorage.getItem('youtubePaused') === 'true') {
             return;
         }
         
@@ -175,16 +180,74 @@ export function BackgroundVideo() {
             }
         };
         
+        const handlePlayPause = (e: CustomEvent) => {
+            const playing = e.detail;
+            if (playing) {
+                // Recréer le player YouTube s'il a été détruit
+                if (!youtubePlayerRef.current && youtubeIframeRef.current && window.YT && window.YT.Player) {
+                    try {
+                        youtubePlayerRef.current = new window.YT.Player(youtubeIframeRef.current, {
+                            height: '1',
+                            width: '1',
+                            playerVars: {
+                                listType: 'playlist',
+                                list: PLAYLIST_ID,
+                                autoplay: 1,
+                                loop: 1,
+                                mute: 0,
+                                controls: 0,
+                                showinfo: 0,
+                                rel: 0,
+                                iv_load_policy: 3,
+                                modestbranding: 1,
+                                playsinline: 1,
+                            },
+                            events: {
+                                onReady: (event: any) => {
+                                    const savedVolume = localStorage.getItem('videoVolume');
+                                    const vol = savedVolume ? parseFloat(savedVolume) : 0.5;
+                                    const savedMuted = localStorage.getItem('videoMuted') === 'true';
+                                    event.target.setVolume(savedMuted ? 0 : vol * 100);
+                                    event.target.playVideo();
+                                },
+                                onStateChange: (event: any) => {
+                                    if (event.data === window.YT.PlayerState.ENDED) {
+                                        event.target.playVideo();
+                                    }
+                                },
+                            },
+                        });
+                    } catch (error) {
+                        console.error('Erreur lors de la recréation du player YouTube:', error);
+                    }
+                } else if (youtubePlayerRef.current && youtubePlayerRef.current.playVideo) {
+                    youtubePlayerRef.current.playVideo();
+                }
+            } else {
+                // Détruire le player YouTube pour libérer la mémoire (~700 Mo)
+                if (youtubePlayerRef.current) {
+                    try {
+                        youtubePlayerRef.current.destroy();
+                    } catch (e) {
+                        console.log('Erreur lors de la destruction du player YouTube:', e);
+                    }
+                    youtubePlayerRef.current = null;
+                }
+            }
+        };
+
         window.addEventListener('videoVolumeChange', handleVolumeChange as EventListener);
         window.addEventListener('videoMuteChange', handleMuteChange as EventListener);
         window.addEventListener('youtubePrevious', handlePrevious);
         window.addEventListener('youtubeNext', handleNext);
-        
+        window.addEventListener('youtubePlayPause', handlePlayPause as EventListener);
+
         return () => {
             window.removeEventListener('videoVolumeChange', handleVolumeChange as EventListener);
             window.removeEventListener('videoMuteChange', handleMuteChange as EventListener);
             window.removeEventListener('youtubePrevious', handlePrevious);
             window.removeEventListener('youtubeNext', handleNext);
+            window.removeEventListener('youtubePlayPause', handlePlayPause as EventListener);
         };
     }, []);
     

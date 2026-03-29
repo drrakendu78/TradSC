@@ -1,5 +1,7 @@
 import { HashRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
+import { listen } from '@tauri-apps/api/event';
+import { invoke } from '@tauri-apps/api/core';
 import Home from '@/pages/Home';
 import Traduction from '@/pages/Traduction';
 import Layout from '@/components/custom/layout';
@@ -17,12 +19,12 @@ import Finder from '@/pages/Finder';
 import Pvp from '@/pages/Pvp';
 import Cargo from '@/pages/Cargo';
 import VerseGuide from '@/pages/VerseGuide';
-import Regolith from '@/pages/Regolith';
+
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  
+
   useEffect(() => {
     // Nettoyer l'URL si elle contient des paramètres OAuth (comme /access_token=...)
     if (pathname.includes('access_token') || pathname.includes('error=') || pathname.includes('code=')) {
@@ -30,11 +32,85 @@ const ScrollToTop = () => {
       navigate('/', { replace: true });
       return;
     }
-    
+
     const el = document.querySelector('.app-scroll-root');
     if (el) el.scrollTo({ top: 0, behavior: 'smooth' });
     else window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [pathname, navigate]);
+
+  // Écouter les événements de navigation depuis le system tray
+  useEffect(() => {
+    const unlisten = listen<string>('tray-navigate', (event) => {
+      navigate(event.payload, { replace: true });
+    });
+    return () => { unlisten.then(fn => fn()); };
+  }, [navigate]);
+
+  // Sync l'état des services dans le tray au démarrage
+  useEffect(() => {
+    const syncTray = async () => {
+      const discord = localStorage.getItem('discordRPCEnabled') === 'true';
+      const video = localStorage.getItem('backgroundVideoEnabled') !== 'false';
+      await invoke('update_tray_service', { service: 'discord', enabled: discord }).catch(() => {});
+      await invoke('update_tray_service', { service: 'video', enabled: video }).catch(() => {});
+      invoke<{ enabled: boolean }>('get_background_service_config').then(config => {
+        invoke('update_tray_service', { service: 'bg_service', enabled: config.enabled }).catch(() => {});
+      }).catch(() => {});
+      invoke<boolean>('is_auto_startup_enabled').then(enabled => {
+        invoke('update_tray_service', { service: 'auto_startup', enabled }).catch(() => {});
+      }).catch(() => {});
+    };
+    syncTray();
+  }, []);
+
+  // Écouter les toggles de services depuis le system tray
+  useEffect(() => {
+    const unlisten = listen<string>('tray-toggle', (event) => {
+      const service = event.payload;
+      if (service === 'video') {
+        const current = localStorage.getItem('backgroundVideoEnabled') !== 'false';
+        const next = !current;
+        localStorage.setItem('backgroundVideoEnabled', String(next));
+        window.dispatchEvent(new CustomEvent('backgroundVideoToggle', { detail: next }));
+        invoke('update_tray_service', { service: 'video', enabled: next }).catch(() => {});
+      } else if (service === 'discord') {
+        const current = localStorage.getItem('discordRPCEnabled') === 'true';
+        if (current) {
+          invoke('disconnect_discord').catch(console.error);
+          localStorage.setItem('discordRPCEnabled', 'false');
+          invoke('update_tray_service', { service: 'discord', enabled: false }).catch(() => {});
+        } else {
+          invoke('connect_discord').catch(console.error);
+          localStorage.setItem('discordRPCEnabled', 'true');
+          invoke('update_tray_service', { service: 'discord', enabled: true }).catch(() => {});
+        }
+      } else if (service === 'bg_service') {
+        invoke<{ enabled: boolean }>('get_background_service_config').then(async (config) => {
+          const next = !config.enabled;
+          const newConfig = { ...config, enabled: next };
+          await invoke('save_background_service_config', { config: newConfig }).catch(console.error);
+          await invoke('set_background_service_config', { config: newConfig }).catch(console.error);
+          if (next) {
+            await invoke('start_background_service').catch(console.error);
+          } else {
+            await invoke('stop_background_service').catch(console.error);
+          }
+          invoke('update_tray_service', { service: 'bg_service', enabled: next }).catch(() => {});
+        }).catch(console.error);
+      } else if (service === 'auto_startup') {
+        invoke<boolean>('is_auto_startup_enabled').then(async (current) => {
+          if (current) {
+            await invoke('disable_auto_startup').catch(console.error);
+          } else {
+            await invoke('enable_auto_startup').catch(console.error);
+          }
+          invoke('update_tray_service', { service: 'auto_startup', enabled: !current }).catch(() => {});
+        }).catch(console.error);
+      }
+    });
+    return () => { unlisten.then(fn => fn()); };
+  }, []);
+
   return null;
 };
 
@@ -71,7 +147,7 @@ const AppRouter = () => (
         <Route path='/pvp' element={<Pvp />} />
         <Route path='/cargo' element={<Cargo />} />
         <Route path='/verseguide' element={<VerseGuide />} />
-        <Route path='/regolith' element={<Regolith />} />
+
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Layout>
