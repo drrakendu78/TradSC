@@ -30,12 +30,23 @@ export default function Bindings() {
             if (isGamePaths(versions)) {
                 setGamePaths(versions);
                 // Sélectionner LIVE par défaut s'il existe, sinon la première version disponible
+                let defaultVersion = '';
                 if (versions.versions['LIVE']) {
-                    setSelectedVersion('LIVE');
+                    defaultVersion = 'LIVE';
                 } else {
-                    const firstVersion = Object.keys(versions.versions)[0];
-                    if (firstVersion) {
-                        setSelectedVersion(firstVersion);
+                    defaultVersion = Object.keys(versions.versions)[0] || '';
+                }
+                if (defaultVersion) {
+                    setSelectedVersion(defaultVersion);
+                    // Charger les bindings immédiatement avec la version sélectionnée
+                    setIsLoading(true);
+                    try {
+                        const files = await invoke<BindingFile[]>("list_bindings_files", { version: defaultVersion });
+                        setBindings(files);
+                    } catch {
+                        // silently fail, user can refresh
+                    } finally {
+                        setIsLoading(false);
                     }
                 }
             }

@@ -25,6 +25,8 @@ const ALLOWED_DOMAINS = [
     "www.ratjack.net",
     "verseguide.com",
     "www.verseguide.com",
+    "scmdb.net",
+    "www.scmdb.net",
 ];
 
 // Autorise https, http (si besoin), et schémas ms-windows-store

@@ -18,51 +18,55 @@ struct Output {
 }
 
 #[command]
-pub fn get_cache_informations() -> String {
-    let appdata = match env::var("LOCALAPPDATA") {
-        Ok(val) => val,
-        Err(e) => {
-            println!("Impossible de lire la variable d'environnement APPDATA: {}", e);
-            return serde_json::to_string(&Output { folders: Vec::new() })
-                .unwrap_or_else(|_| "{\"folders\":[]}".to_string());
-        }
-    };
-    let star_citizen_path = format!("{}\\Star Citizen", appdata);
+pub async fn get_cache_informations() -> String {
+    tokio::task::spawn_blocking(|| {
+        let appdata = match env::var("LOCALAPPDATA") {
+            Ok(val) => val,
+            Err(e) => {
+                println!("Impossible de lire la variable d'environnement APPDATA: {}", e);
+                return serde_json::to_string(&Output { folders: Vec::new() })
+                    .unwrap_or_else(|_| "{\"folders\":[]}".to_string());
+            }
+        };
+        let star_citizen_path = format!("{}\\Star Citizen", appdata);
 
-    let mut folders = Vec::new();
+        let mut folders = Vec::new();
 
-    match fs::read_dir(&star_citizen_path) {
-        Ok(entries) => {
-            for entry in entries {
-                match entry {
-                    Ok(entry) => {
-                        let path = entry.path();
-                        if path.is_dir() {
-                            if let Ok(folder_info) = get_folder_info_safe(&path) {
-                                folders.push(folder_info);
+        match fs::read_dir(&star_citizen_path) {
+            Ok(entries) => {
+                for entry in entries {
+                    match entry {
+                        Ok(entry) => {
+                            let path = entry.path();
+                            if path.is_dir() {
+                                if let Ok(folder_info) = get_folder_info_safe(&path) {
+                                    folders.push(folder_info);
+                                }
                             }
                         }
-                    }
-                    Err(e) => {
-                        println!("Erreur lors de la lecture de l'entrée: {}", e);
+                        Err(e) => {
+                            println!("Erreur lors de la lecture de l'entrée: {}", e);
+                        }
                     }
                 }
             }
+            Err(e) => {
+                println!(
+                    "Erreur lors de l'accès au répertoire {}: {}",
+                    star_citizen_path, e
+                );
+            }
         }
-        Err(e) => {
-            println!(
-                "Erreur lors de l'accès au répertoire {}: {}",
-                star_citizen_path, e
-            );
-        }
-    }
 
-    let output = Output { folders };
-    serde_json::to_string_pretty(&output)
-        .unwrap_or_else(|e| {
-            println!("Erreur lors de la sérialisation en JSON: {}", e);
-            "{\"folders\":[]}".to_string()
-        })
+        let output = Output { folders };
+        serde_json::to_string_pretty(&output)
+            .unwrap_or_else(|e| {
+                println!("Erreur lors de la sérialisation en JSON: {}", e);
+                "{\"folders\":[]}".to_string()
+            })
+    })
+    .await
+    .unwrap_or_else(|_| "{\"folders\":[]}".to_string())
 }
 
 fn get_folder_info_safe(path: &Path) -> Result<FolderInfo, String> {

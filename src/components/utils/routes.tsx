@@ -19,6 +19,7 @@ import Finder from '@/pages/Finder';
 import Pvp from '@/pages/Pvp';
 import Cargo from '@/pages/Cargo';
 import VerseGuide from '@/pages/VerseGuide';
+import ScmDb from '@/pages/ScmDb';
 
 
 const ScrollToTop = () => {
@@ -147,6 +148,7 @@ const AppRouter = () => (
         <Route path='/pvp' element={<Pvp />} />
         <Route path='/cargo' element={<Cargo />} />
         <Route path='/verseguide' element={<VerseGuide />} />
+        <Route path='/scmdb' element={<ScmDb />} />
 
         <Route path="*" element={<NotFound />} />
       </Routes>
