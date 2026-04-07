@@ -18,7 +18,8 @@ pub fn setup_system_tray(app: &AppHandle) -> Result<(), String> {
     let e = |e: tauri::Error| e.to_string();
 
     // === En-tête ===
-    let header = MenuItem::with_id(app, "header", "StarTrad FR v3.3.9", false, None::<&str>).map_err(e)?;
+    let version = app.config().version.clone().unwrap_or_default();
+    let header = MenuItem::with_id(app, "header", format!("StarTrad FR v{}", version), false, None::<&str>).map_err(e)?;
     let sep1 = PredefinedMenuItem::separator(app).map_err(e)?;
 
     // === Navigation rapide ===
