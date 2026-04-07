@@ -1,0 +1,46 @@
+name: Discord Release Notification
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Discord
+        env:
+          WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          # Infos release
+          TAG="${{ github.event.release.tag_name }}"
+          URL="${{ github.event.release.html_url }}"
+
+          # Nettoyer le body : retirer checksums, SmartScreen, badge Store, séparateurs
+          BODY=$(cat <<'BODY_EOF'
+          ${{ github.event.release.body }}
+          BODY_EOF
+          )
+
+          # Garder seulement Nouveautés et Corrections
+          CLEAN=$(echo "$BODY" | sed '/^## 🔐 Checksums/,$d' | sed '/^---$/d' | sed 's/^# 🚀 .*//' | sed '/^$/N;/^\n$/d' | head -c 2000)
+
+          # Construire l'embed Discord
+          PAYLOAD=$(jq -n \
+            --arg title "StarTrad FR $TAG" \
+            --arg desc "$CLEAN" \
+            --arg url "$URL" \
+            '{
+              embeds: [{
+                title: $title,
+                description: $desc,
+                url: $url,
+                color: 5814783,
+                footer: { text: "StarTrad FR - Mise à jour" },
+                timestamp: (now | todate)
+              }]
+            }')
+
+          curl -s -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "$WEBHOOK_URL"
