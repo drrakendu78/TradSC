@@ -10,7 +10,7 @@ import { IconHome, IconBrandDiscord, IconCloud, IconBrandGithub, IconLanguage, I
 import { BrushCleaning, Download, Power, PowerOff, Loader2, RotateCcw, Monitor, Route, BarChart3, Calendar, Languages, Trash2, Save, Users } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { ColorPicker } from "@/components/custom/color-picker";
-import openExternal from "@/utils/external";
+import openExternal, { openExternalCustom } from "@/utils/external";
 import { useCustomLinksStore } from "@/stores/custom-links-store";
 import CustomLinkDialog, { getIconByName } from "./custom-link-dialog";
 import { Plus, Pencil } from "lucide-react";
@@ -1060,7 +1060,7 @@ export function AppSidebar() {
                                             text-muted-foreground hover:bg-white/5 hover:text-foreground
                                         `}
                                         title={isCollapsed ? link.name : undefined}
-                                        onClick={() => invoke('open_overlay', { id: 'custom_' + link.id, url: link.url, x: 100.0, y: 100.0, width: 600.0, height: 800.0, opacity: 0.9 }).catch(console.error)}
+                                        onClick={() => openExternalCustom(link.url).catch(console.error)}
                                     >
                                         <div className="flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110">
                                             {(() => {
