@@ -3,6 +3,12 @@ name: Discord Release Notification
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag de release (ex: v3.5.0)"
+        required: true
+        type: string
 
 jobs:
   notify:
@@ -11,19 +17,34 @@ jobs:
       - name: Notify Discord
         env:
           WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          # Infos release
-          TAG="${{ github.event.release.tag_name }}"
-          URL="${{ github.event.release.html_url }}"
+          # Tag cible (release event ou lancement manuel)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${{ github.event.release.tag_name }}"
+          fi
 
-          # Nettoyer le body : retirer checksums, SmartScreen, badge Store, séparateurs
-          BODY=$(cat <<'BODY_EOF'
-          ${{ github.event.release.body }}
-          BODY_EOF
-          )
+          # Toujours récupérer la release "live" via API (évite le payload figé des reruns)
+          API_URL="https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG"
+          RELEASE_JSON=$(curl -sSL \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "$API_URL")
+          URL=$(echo "$RELEASE_JSON" | jq -r '.html_url // empty')
+          BODY=$(echo "$RELEASE_JSON" | jq -r '.body // empty')
 
-          # Garder seulement Nouveautés et Corrections
-          CLEAN=$(echo "$BODY" | sed '/^## 🔐 Checksums/,$d' | sed '/^---$/d' | sed 's/^# 🚀 .*//' | sed '/^$/N;/^\n$/d' | head -c 2000)
+          # Garder uniquement les sections principales (sans checksums / SmartScreen / Store)
+          CLEAN=$(printf '%s\n' "$BODY" \
+            | sed 's/\r$//' \
+            | sed '/^## .*[Cc]hecksums/,$d' \
+            | sed '/^## Note Windows SmartScreen/,$d' \
+            | sed '/^## Microsoft Store/,$d' \
+            | sed '/^# /d' \
+            | sed '/^---$/d' \
+            | awk 'NF{blank=0; print; next} !blank{print ""; blank=1}' \
+            | head -c 2000)
 
           # Construire l'embed Discord
           PAYLOAD=$(jq -n \
