@@ -70,19 +70,30 @@ const OverlayView = () => {
                 <button
                     onMouseDown={(e) => e.stopPropagation()}
                     onClick={handleGameMode}
-                    className="h-5 px-1.5 rounded-sm border border-sky-300/30 bg-[linear-gradient(180deg,rgba(28,52,72,0.96),rgba(18,34,49,0.96))] shadow-[inset_0_1px_0_rgba(148,197,255,0.18),0_1px_4px_rgba(0,0,0,0.45)] hover:bg-[linear-gradient(180deg,rgba(34,61,84,0.96),rgba(21,40,58,0.96))] active:scale-[0.98] flex items-center justify-center transition-all"
+                    className="w-5 h-5 min-w-5 min-h-5 flex-none rounded-sm border border-sky-300/30 bg-[linear-gradient(180deg,rgba(28,52,72,0.96),rgba(18,34,49,0.96))] shadow-[inset_0_1px_0_rgba(148,197,255,0.18),0_1px_4px_rgba(0,0,0,0.45)] flex items-center justify-center leading-none text-[0px] transition-none"
                     title="Mode edit actif - clic pour mode jeu"
                 >
-                    <span className="text-[9px] text-slate-100 font-semibold tracking-[0.04em] uppercase">Mode edit</span>
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-2.5 w-2.5 text-slate-100"
+                        aria-hidden="true"
+                    >
+                        <rect x="5" y="11" width="14" height="10" rx="2" />
+                        <path d="M9 11V8a3.5 3.5 0 0 1 6-1.8" />
+                    </svg>
                 </button>
                 <button
                     onMouseDown={(e) => e.stopPropagation()}
                     onClick={() => setHidden(!hidden)}
-                    className="h-5 px-1.5 rounded-sm border border-amber-300/30 bg-[linear-gradient(180deg,rgba(72,54,25,0.95),rgba(45,35,16,0.95))] shadow-[inset_0_1px_0_rgba(252,211,77,0.16),0_1px_4px_rgba(0,0,0,0.45)] hover:bg-[linear-gradient(180deg,rgba(82,61,29,0.95),rgba(54,42,20,0.95))] active:scale-[0.98] flex items-center justify-center gap-1 transition-all"
+                    className="w-5 h-5 rounded-sm border border-amber-300/30 bg-[linear-gradient(180deg,rgba(72,54,25,0.95),rgba(45,35,16,0.95))] shadow-[inset_0_1px_0_rgba(252,211,77,0.16),0_1px_4px_rgba(0,0,0,0.45)] hover:bg-[linear-gradient(180deg,rgba(82,61,29,0.95),rgba(54,42,20,0.95))] active:scale-[0.98] flex items-center justify-center transition-all"
                     title={hidden ? "Afficher" : "Masquer"}
                 >
                     {hidden ? <Eye size={10} className="text-amber-100" /> : <EyeOff size={10} className="text-amber-100" />}
-                    <span className="text-[9px] text-amber-50 font-semibold tracking-[0.04em] uppercase">{hidden ? "Show" : "Hide"}</span>
                 </button>
                 <button
                     onMouseDown={(e) => e.stopPropagation()}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
+import { Loader2 } from "lucide-react";
 
 const OverlayControl = () => {
     const [searchParams] = useSearchParams();
@@ -41,10 +42,26 @@ const OverlayControl = () => {
             <button
                 onClick={backToEditMode}
                 title="Mode jeu actif - cliquer pour passer en mode edit"
-                className="h-full w-full rounded-sm border border-sky-300/60 bg-[linear-gradient(180deg,rgba(28,52,72,0.99),rgba(18,34,49,0.99))] shadow-[inset_0_1px_0_rgba(148,197,255,0.22),inset_0_0_0_1px_rgba(56,189,248,0.24),0_0_0_1px_rgba(56,189,248,0.45),0_0_12px_rgba(56,189,248,0.42),0_0_22px_rgba(37,99,235,0.28),0_2px_6px_rgba(0,0,0,0.55)] hover:bg-[linear-gradient(180deg,rgba(34,61,84,0.99),rgba(21,40,58,0.99))] hover:shadow-[inset_0_1px_0_rgba(148,197,255,0.24),inset_0_0_0_1px_rgba(56,189,248,0.26),0_0_0_1px_rgba(56,189,248,0.52),0_0_14px_rgba(56,189,248,0.5),0_0_26px_rgba(37,99,235,0.34),0_2px_8px_rgba(0,0,0,0.6)] active:scale-[0.98] flex items-center justify-center transition-all disabled:opacity-70"
+                className="h-full w-full rounded-sm border border-sky-300/60 bg-[linear-gradient(180deg,rgba(28,52,72,0.99),rgba(18,34,49,0.99))] shadow-[inset_0_1px_0_rgba(148,197,255,0.22),inset_0_0_0_1px_rgba(56,189,248,0.24),0_0_0_1px_rgba(56,189,248,0.45),0_0_12px_rgba(56,189,248,0.42),0_0_22px_rgba(37,99,235,0.28),0_2px_6px_rgba(0,0,0,0.55)] flex items-center justify-center disabled:opacity-70"
                 disabled={loading}
             >
-                <span className="text-[9px] text-slate-100 font-semibold tracking-[0.04em] uppercase">{loading ? "..." : "Mode jeu"}</span>
+                {loading ? (
+                    <Loader2 className="h-3 w-3 text-slate-100" />
+                ) : (
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-3 w-3 text-slate-100"
+                        aria-hidden="true"
+                    >
+                        <rect x="5" y="11" width="14" height="10" rx="2" />
+                        <path d="M9 11V8a3.5 3.5 0 0 1 6-1.8" />
+                    </svg>
+                )}
             </button>
         </div>
     );

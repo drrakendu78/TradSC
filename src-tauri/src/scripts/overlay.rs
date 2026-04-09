@@ -1,5 +1,6 @@
 use tauri::{command, AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use tokio::time::{sleep, Duration};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 #[cfg(target_os = "windows")]
 use windows::Win32::Foundation::HWND;
@@ -37,6 +38,7 @@ const OVERLAY_HUB_LABEL: &str = "overlayhub_main";
 const OVERLAY_HUB_WIDTH: f64 = 46.0;
 const OVERLAY_HUB_HEIGHT: f64 = 34.0;
 const OVERLAY_HUB_TOP_OFFSET: f64 = 10.0;
+static OVERLAY_HUB_EDIT_MODE: AtomicBool = AtomicBool::new(true);
 
 #[derive(Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -65,11 +67,11 @@ fn control_geometry(
         let mut w = anchor_width
             .unwrap_or(CONTROL_WIDTH as f64)
             .round()
-            .max(24.0) as i32;
+            .max(20.0) as i32;
         let mut h = anchor_height
             .unwrap_or(CONTROL_HEIGHT as f64)
             .round()
-            .max(18.0) as i32;
+            .max(20.0) as i32;
 
         if x < 0 {
             x = 0;
@@ -128,10 +130,12 @@ fn overlay_hub_geometry(app_handle: &AppHandle, hub_width: f64) -> (f64, f64) {
 #[command]
 pub async fn open_overlay_hub(app_handle: AppHandle) -> Result<(), String> {
     let label = OVERLAY_HUB_LABEL;
+    let edit_mode = OVERLAY_HUB_EDIT_MODE.load(Ordering::Relaxed);
 
     if let Some(win) = app_handle.get_webview_window(label) {
         let _ = win.show();
         let _ = win.unminimize();
+        let _ = win.set_ignore_cursor_events(false);
         if win.set_focus().is_ok() {
             return Ok(());
         }
@@ -177,8 +181,11 @@ pub async fn open_overlay_hub(app_handle: AppHandle) -> Result<(), String> {
         last_err.unwrap_or_else(|| "Failed to create overlay hub window".to_string())
     })?;
 
+    let _ = win.set_ignore_cursor_events(false);
     let _ = win.set_shadow(false);
-    let _ = win.set_focus();
+    if edit_mode {
+        let _ = win.set_focus();
+    }
     Ok(())
 }
 
@@ -202,6 +209,25 @@ pub async fn is_overlay_hub_open(app_handle: AppHandle) -> Result<bool, String> 
     }
 
     Ok(false)
+}
+
+#[command]
+pub async fn set_overlay_hub_mode(app_handle: AppHandle, edit_mode: bool) -> Result<bool, String> {
+    OVERLAY_HUB_EDIT_MODE.store(edit_mode, Ordering::Relaxed);
+
+    if let Some(win) = app_handle.get_webview_window(OVERLAY_HUB_LABEL) {
+        win.set_ignore_cursor_events(false).map_err(|e| e.to_string())?;
+        if edit_mode {
+            let _ = win.set_focus();
+        }
+    }
+
+    Ok(edit_mode)
+}
+
+#[command]
+pub fn get_overlay_hub_mode() -> bool {
+    OVERLAY_HUB_EDIT_MODE.load(Ordering::Relaxed)
 }
 
 #[command]
@@ -414,29 +440,26 @@ pub async fn open_webview_overlay(
                 slider.title = 'Opacite';
                 bar.appendChild(slider);
 
+                var lockIconSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:10px !important;height:10px !important;min-width:10px !important;max-width:10px !important;min-height:10px !important;max-height:10px !important;display:block !important;flex:0 0 auto !important;transform:none !important;transition:none !important;animation:none !important;max-inline-size:none !important;"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M9 11V8a3.5 3.5 0 0 1 6-1.8"></path></svg>';
+                var eyeIconSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:11px !important;height:11px !important;min-width:11px !important;max-width:11px !important;min-height:11px !important;max-height:11px !important;display:block !important;flex:0 0 auto !important;transform:none !important;transition:none !important;animation:none !important;max-inline-size:none !important;"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+                var eyeOffIconSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:11px !important;height:11px !important;min-width:11px !important;max-width:11px !important;min-height:11px !important;max-height:11px !important;display:block !important;flex:0 0 auto !important;transform:none !important;transition:none !important;animation:none !important;max-inline-size:none !important;"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7"></path><circle cx="12" cy="12" r="3"></circle><line x1="3" y1="3" x2="21" y2="21"></line></svg>';
+                var hidden = false;
+
                 var gameBtn = document.createElement('button');
-                gameBtn.style.cssText = 'height:20px;padding:0 6px;border:1px solid rgba(148,197,255,0.28);border-radius:3px;background:linear-gradient(to bottom,rgba(28,52,72,0.96),rgba(18,34,49,0.96));box-shadow:inset 0 1px 0 rgba(148,197,255,0.15),0 1px 4px rgba(0,0,0,0.45);cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(241,245,249,0.95);font-size:9px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;transition:all .12s ease;';
+                gameBtn.style.cssText = 'box-sizing:border-box;width:20px;height:20px;min-width:20px;max-width:20px;min-height:20px;max-height:20px;flex:0 0 20px;padding:0;margin:0;line-height:1;font-size:0;border:1px solid rgba(148,197,255,0.28);border-radius:3px;background:linear-gradient(to bottom,rgba(28,52,72,0.96),rgba(18,34,49,0.96));box-shadow:inset 0 1px 0 rgba(148,197,255,0.15),0 1px 4px rgba(0,0,0,0.45);cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(241,245,249,0.95);appearance:none;-webkit-appearance:none;outline:none;transform:none;transition:none;animation:none;overflow:hidden;';
                 gameBtn.title = 'Mode edit actif - clic pour mode jeu';
-                gameBtn.textContent = 'Mode edit';
+                gameBtn.innerHTML = lockIconSvg;
                 bar.appendChild(gameBtn);
 
                 var hideBtn = document.createElement('button');
-                hideBtn.style.cssText = 'height:20px;padding:0 6px;border:1px solid rgba(252,211,77,0.28);border-radius:3px;background:linear-gradient(to bottom,rgba(72,54,25,0.95),rgba(45,35,16,0.95));box-shadow:inset 0 1px 0 rgba(252,211,77,0.14),0 1px 4px rgba(0,0,0,0.45);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;color:rgba(255,251,235,0.95);font-size:9px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;transition:all .12s ease;';
-                hideBtn.title = 'Masquer';
-                var hideIcon = document.createElement('span');
-                hideIcon.textContent = '\uD83D\uDC41';
-                var hideText = document.createElement('span');
-                hideText.textContent = 'Hide';
-                hideBtn.appendChild(hideIcon);
-                hideBtn.appendChild(hideText);
+                hideBtn.style.cssText = 'box-sizing:border-box;width:20px;height:20px;min-width:20px;max-width:20px;min-height:20px;max-height:20px;flex:0 0 20px;padding:0;margin:0;line-height:1;font-size:0;border:1px solid rgba(252,211,77,0.28);border-radius:3px;background:linear-gradient(to bottom,rgba(72,54,25,0.95),rgba(45,35,16,0.95));box-shadow:inset 0 1px 0 rgba(252,211,77,0.14),0 1px 4px rgba(0,0,0,0.45);cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(255,251,235,0.95);appearance:none;-webkit-appearance:none;outline:none;transform:none;animation:none;';
                 bar.appendChild(hideBtn);
 
-                gameBtn.addEventListener('mouseenter', function() {{
-                    gameBtn.style.background = 'linear-gradient(to bottom,rgba(34,61,84,0.96),rgba(21,40,58,0.96))';
-                }});
-                gameBtn.addEventListener('mouseleave', function() {{
-                    gameBtn.style.background = 'linear-gradient(to bottom,rgba(28,52,72,0.96),rgba(18,34,49,0.96))';
-                }});
+                function renderHideButton() {{
+                    hideBtn.innerHTML = hidden ? eyeIconSvg : eyeOffIconSvg;
+                    hideBtn.title = hidden ? 'Afficher' : 'Masquer';
+                }}
+                renderHideButton();
 
                 hideBtn.addEventListener('mouseenter', function() {{
                     hideBtn.style.background = 'linear-gradient(to bottom,rgba(82,61,29,0.95),rgba(54,42,20,0.95))';
@@ -452,8 +475,6 @@ pub async fn open_webview_overlay(
                 bar.appendChild(closeBtn);
 
                 document.documentElement.appendChild(bar);
-
-                var hidden = false;
 
                 bar.addEventListener('mousedown', function(e) {{
                     e.preventDefault();
@@ -471,10 +492,11 @@ pub async fn open_webview_overlay(
                 hideBtn.addEventListener('click', function() {{
                     hidden = !hidden;
                     document.body.style.visibility = hidden ? 'hidden' : 'visible';
-                    hideText.textContent = hidden ? 'Show' : 'Hide';
+                    renderHideButton();
                 }});
 
-                gameBtn.addEventListener('mousedown', function(e) {{ e.stopPropagation(); }});
+                gameBtn.addEventListener('pointerdown', function(e) {{ e.preventDefault(); e.stopPropagation(); }});
+                gameBtn.addEventListener('mousedown', function(e) {{ e.preventDefault(); e.stopPropagation(); }});
                 gameBtn.addEventListener('click', function() {{
                     if (window.__TAURI_INTERNALS__) {{
                         var rect = gameBtn.getBoundingClientRect();
@@ -652,15 +674,9 @@ pub async fn set_overlay_interaction(
 
     if let Some(control) = app_handle.get_webview_window(&control_label) {
         let _ = control.show();
-        let _ = control.set_size(tauri::LogicalSize::new(
-            control_width as f64,
-            control_height as f64,
-        ));
+        let _ = control.set_size(tauri::PhysicalSize::new(control_width, control_height));
         let _ = control.set_position(anchored_pos);
-        let _ = control.set_size(tauri::LogicalSize::new(
-            control_width as f64,
-            control_height as f64,
-        ));
+        let _ = control.set_size(tauri::PhysicalSize::new(control_width, control_height));
         let _ = control.set_focus();
     } else {
         let control_url = format!(
@@ -687,10 +703,7 @@ pub async fn set_overlay_interaction(
         .map_err(|e| e.to_string())?;
 
         let _ = control.set_shadow(false);
-        let _ = control.set_size(tauri::LogicalSize::new(
-            control_width as f64,
-            control_height as f64,
-        ));
+        let _ = control.set_size(tauri::PhysicalSize::new(control_width, control_height));
         let _ = control.set_focus();
     }
 

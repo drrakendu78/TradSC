@@ -6,6 +6,7 @@ import {
     Calculator,
     Database,
     Hammer,
+    Lock,
     Link2,
     Map,
     Package,
@@ -20,13 +21,20 @@ import { getOverlayHubItems } from "@/utils/overlay-hub-registry";
 import type { OverlayHubItem } from "@/types/overlay-hub";
 
 const HUB_TOP_OFFSET = 10;
+const HUB_COLLAPSED_WIDTH = 74;
+const HUB_COLLAPSED_HEIGHT = 34;
 const HUB_EXPANDED_HEIGHT = 74;
 const ITEM_STAGGER_MS = 18;
+const GAME_UNLOCK_HOLD_MS = 1200;
 
 const OverlayHub = () => {
     const [expanded, setExpanded] = useState(false);
+    const [isEditMode, setIsEditMode] = useState(true);
+    const [isGeometrySyncing, setIsGeometrySyncing] = useState(false);
+    const [isUnlockHolding, setIsUnlockHolding] = useState(false);
     const hubWindow = useMemo(() => getCurrentWindow(), []);
     const geometryRunIdRef = useRef(0);
+    const unlockTimerRef = useRef<number | null>(null);
     const customLinks = useCustomLinksStore((state) => state.links);
     const { toast } = useToast();
 
@@ -34,10 +42,25 @@ const OverlayHub = () => {
     const items = useMemo(() => getOverlayHubItems(customLinks, baseAppUrl), [customLinks, baseAppUrl]);
     const slots = items.length;
     const expandedWidth = useMemo(
-        () => Math.min(980, Math.max(320, slots * 92 + 20)),
+        () => Math.min(1120, Math.max(360, slots * 92 + 20)),
         [slots]
     );
     const expandedHeight = HUB_EXPANDED_HEIGHT;
+
+    useEffect(() => {
+        let mounted = true;
+        invoke<boolean>("get_overlay_hub_mode")
+            .then((mode) => {
+                if (mounted) {
+                    setIsEditMode(Boolean(mode));
+                }
+            })
+            .catch(console.error);
+
+        return () => {
+            mounted = false;
+        };
+    }, []);
 
     useEffect(() => {
         document.documentElement.style.background = "transparent";
@@ -59,10 +82,21 @@ const OverlayHub = () => {
     }, []);
 
     useEffect(() => {
+        return () => {
+            if (unlockTimerRef.current !== null) {
+                window.clearTimeout(unlockTimerRef.current);
+                unlockTimerRef.current = null;
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        const runId = ++geometryRunIdRef.current;
         const syncWindowGeometry = async () => {
-            const runId = ++geometryRunIdRef.current;
-            const width = expandedWidth;
-            const height = expandedHeight;
+            const width = expanded ? expandedWidth : HUB_COLLAPSED_WIDTH;
+            const height = expanded ? expandedHeight : HUB_COLLAPSED_HEIGHT;
+
+            setIsGeometrySyncing(true);
 
             const monitor = await currentMonitor().catch(() => null);
             if (runId !== geometryRunIdRef.current) return;
@@ -89,8 +123,14 @@ const OverlayHub = () => {
             }
         };
 
-        syncWindowGeometry().catch(console.error);
-    }, [expandedWidth, expandedHeight, hubWindow]);
+        syncWindowGeometry()
+            .catch(console.error)
+            .finally(() => {
+                if (runId === geometryRunIdRef.current) {
+                    setIsGeometrySyncing(false);
+                }
+            });
+    }, [expanded, expandedWidth, expandedHeight, hubWindow]);
 
     const openOverlayItem = async (item: OverlayHubItem) => {
         try {
@@ -123,6 +163,52 @@ const OverlayHub = () => {
                 variant: "destructive",
             });
         }
+    };
+
+    const setHubMode = async (nextEditMode: boolean) => {
+        const previousMode = isEditMode;
+        const appliedMode = await invoke<boolean>("set_overlay_hub_mode", {
+            editMode: nextEditMode,
+        }).catch((error) => {
+            console.error(error);
+            return previousMode;
+        });
+
+        setIsEditMode(Boolean(appliedMode));
+        if (!appliedMode) {
+            setExpanded(false);
+        }
+        return Boolean(appliedMode);
+    };
+
+    const clearUnlockHold = () => {
+        if (unlockTimerRef.current !== null) {
+            window.clearTimeout(unlockTimerRef.current);
+            unlockTimerRef.current = null;
+        }
+        setIsUnlockHolding(false);
+    };
+
+    const startUnlockHold = () => {
+        if (isEditMode) return;
+        clearUnlockHold();
+        setIsUnlockHolding(true);
+        unlockTimerRef.current = window.setTimeout(async () => {
+            unlockTimerRef.current = null;
+            setIsUnlockHolding(false);
+            const restored = await setHubMode(true);
+            if (restored) {
+                setExpanded(true);
+            }
+        }, GAME_UNLOCK_HOLD_MS);
+    };
+
+    const handleHubButtonClick = async () => {
+        if (!isEditMode) {
+            return;
+        }
+
+        setExpanded((previous) => !previous);
     };
 
     const renderItemIcon = (item: OverlayHubItem) => {
@@ -176,14 +262,78 @@ const OverlayHub = () => {
     return (
         <div className="w-full h-full bg-transparent pointer-events-none overflow-visible flex items-start justify-center">
             <div className="pt-1 flex flex-col items-center pointer-events-none">
-                <button
-                    type="button"
-                    onClick={() => setExpanded((previous) => !previous)}
-                    title={expanded ? "Replier hub overlay" : "Ouvrir hub overlay"}
-                    className="pointer-events-auto h-6 w-6 rounded-full border border-sky-300/45 bg-[linear-gradient(180deg,rgba(22,38,56,0.84),rgba(13,24,36,0.84))] text-sky-100 shadow-[inset_0_1px_0_rgba(148,197,255,0.18),0_0_6px_rgba(56,189,248,0.2),0_1px_3px_rgba(0,0,0,0.4)] hover:bg-[linear-gradient(180deg,rgba(29,49,71,0.9),rgba(18,31,46,0.9))] transition-all flex items-center justify-center"
+                <div
+                    className={`pointer-events-auto flex items-center gap-1 transition-opacity ${
+                        isGeometrySyncing ? "opacity-0" : "opacity-100"
+                    }`}
                 >
-                    <PanelsTopLeft className="h-3 w-3" />
-                </button>
+                    <button
+                        type="button"
+                        onClick={handleHubButtonClick}
+                        disabled={!isEditMode}
+                        title={
+                            !isEditMode
+                                ? "Mode jeu actif - bouton hub desactive"
+                                : expanded
+                                  ? "Replier hub overlay"
+                                  : "Ouvrir hub overlay"
+                        }
+                        className={`h-6 w-6 rounded-full border border-sky-300/45 bg-[linear-gradient(180deg,rgba(22,38,56,0.84),rgba(13,24,36,0.84))] text-sky-100 shadow-[inset_0_1px_0_rgba(148,197,255,0.18),0_0_6px_rgba(56,189,248,0.2),0_1px_3px_rgba(0,0,0,0.4)] transition-all flex items-center justify-center disabled:pointer-events-none ${
+                            isEditMode ? "opacity-100 hover:bg-[linear-gradient(180deg,rgba(29,49,71,0.9),rgba(18,31,46,0.9))]" : "opacity-30"
+                        }`}
+                    >
+                        <PanelsTopLeft className="h-3 w-3" />
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (isEditMode) {
+                                setHubMode(false).catch(console.error);
+                            }
+                        }}
+                        onMouseDown={(event) => {
+                            event.preventDefault();
+                            startUnlockHold();
+                        }}
+                        onMouseUp={clearUnlockHold}
+                        onMouseLeave={clearUnlockHold}
+                        onTouchStart={(event) => {
+                            event.preventDefault();
+                            startUnlockHold();
+                        }}
+                        onTouchEnd={clearUnlockHold}
+                        onTouchCancel={clearUnlockHold}
+                        className={`h-6 w-6 rounded-full border flex items-center justify-center ${
+                            isEditMode
+                                ? "border-sky-300/45 bg-[linear-gradient(180deg,rgba(22,38,56,0.84),rgba(13,24,36,0.84))] text-sky-100"
+                                : "border-amber-300/50 bg-[linear-gradient(180deg,rgba(72,54,25,0.9),rgba(45,35,16,0.9))] text-amber-100"
+                        } ${
+                            isUnlockHolding
+                                ? "shadow-[inset_0_1px_0_rgba(148,197,255,0.16),0_0_6px_rgba(14,165,233,0.16),0_1px_3px_rgba(0,0,0,0.35)]"
+                                : "shadow-[inset_0_1px_0_rgba(148,197,255,0.16),0_0_6px_rgba(14,165,233,0.16),0_1px_3px_rgba(0,0,0,0.35)]"
+                        }`}
+                        title={isEditMode ? "Passer en mode jeu" : "Mode jeu actif - maintenir 1.2s pour mode edit"}
+                    >
+                        {isEditMode ? (
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="h-3 w-3"
+                                aria-hidden="true"
+                            >
+                                <rect x="5" y="11" width="14" height="10" rx="2" />
+                                <path d="M9 11V8a3.5 3.5 0 0 1 6-1.8" />
+                            </svg>
+                        ) : (
+                            <Lock className="h-3 w-3" />
+                        )}
+                    </button>
+                </div>
 
                 <div
                     className={`mt-1 flex flex-col items-center origin-top transition-all duration-200 ease-out ${
