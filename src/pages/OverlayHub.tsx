@@ -198,13 +198,13 @@ const OverlayHub = () => {
                                 key={item.id}
                                 type="button"
                                 onClick={() => openOverlayItem(item)}
-                                className={`h-7 px-2.5 rounded-full border border-sky-300/28 bg-slate-950/22 text-slate-100/95 transition-all duration-200 ease-out flex items-center gap-1.5 whitespace-nowrap backdrop-blur-sm shadow-[inset_0_1px_0_rgba(148,197,255,0.2),0_0_8px_rgba(14,165,233,0.2)] hover:border-sky-200/45 hover:bg-slate-900/35 hover:shadow-[inset_0_1px_0_rgba(186,230,253,0.25),0_0_12px_rgba(56,189,248,0.28)] ${
+                                className={`h-7 px-2.5 rounded-full border border-sky-300/35 bg-black/50 text-slate-100 transition-all duration-200 ease-out flex items-center gap-1.5 whitespace-nowrap backdrop-blur-md shadow-[inset_0_1px_0_rgba(148,197,255,0.2),0_0_8px_rgba(14,165,233,0.2)] hover:border-sky-200/55 hover:bg-black/62 hover:shadow-[inset_0_1px_0_rgba(186,230,253,0.25),0_0_12px_rgba(56,189,248,0.28)] ${
                                     expanded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1"
                                 }`}
                                 style={{ transitionDelay: expanded ? `${index * ITEM_STAGGER_MS}ms` : "0ms" }}
                                 title={`Ouvrir ${item.label} en overlay`}
                             >
-                                <span className="h-4 w-4 rounded-full bg-sky-300/14 text-sky-100 flex items-center justify-center">
+                                <span className="h-4 w-4 rounded-full bg-sky-300/18 text-sky-100 flex items-center justify-center">
                                     {renderItemIcon(item)}
                                 </span>
                                 <span className="text-[10px] font-semibold tracking-[0.03em] uppercase">{getItemLabel(item)}</span>

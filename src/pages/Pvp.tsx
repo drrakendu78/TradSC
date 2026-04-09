@@ -469,19 +469,18 @@ export default function Pvp({ isOverlayEmbed = false }: PvpProps) {
             transition={{ duration: 0.8, delay: 0.2, ease: [0, 0.71, 0.2, 1.01] }}
             className={`flex w-full h-full flex-col p-4 gap-4 overflow-y-auto app-scroll-root ${isOverlayEmbed ? "bg-black/20" : ""}`}
         >
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-red-500/10">
-                        <IconSwords size={22} className="text-red-500" />
+            {!isOverlayEmbed && (
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-red-500/10">
+                            <IconSwords size={22} className="text-red-500" />
+                        </div>
+                        <div>
+                            <h1 className="text-xl font-bold">Zones PVP</h1>
+                            <p className="text-xs text-muted-foreground">Contested Zone Timers</p>
+                        </div>
                     </div>
-                    <div>
-                        <h1 className="text-xl font-bold">Zones PVP</h1>
-                        <p className="text-xs text-muted-foreground">Contested Zone Timers</p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    {!isOverlayEmbed && (
+                    <div className="flex items-center gap-2">
                         <Button
                             variant="ghost"
                             size="sm"
@@ -492,12 +491,12 @@ export default function Pvp({ isOverlayEmbed = false }: PvpProps) {
                             <PictureInPicture2 className="h-4 w-4" />
                             <span className="text-xs">Overlay</span>
                         </Button>
-                    )}
-                    <Button variant="ghost" size="sm" onClick={fetchConfig} className="h-8 px-2">
-                        <RefreshCw className="h-4 w-4" />
-                    </Button>
+                        <Button variant="ghost" size="sm" onClick={fetchConfig} className="h-8 px-2">
+                            <RefreshCw className="h-4 w-4" />
+                        </Button>
+                    </div>
                 </div>
-            </div>
+            )}
 
             {isDetachedMode ? (
                 <div className="flex-1 flex items-center justify-center p-6">
@@ -543,6 +542,9 @@ export default function Pvp({ isOverlayEmbed = false }: PvpProps) {
                                         {phaseInfo.phaseLabel}
                                     </Badge>
                                 </div>
+                                <Button variant="ghost" size="sm" onClick={fetchConfig} className="h-8 px-2">
+                                    <RefreshCw className="h-4 w-4" />
+                                </Button>
                             </div>
 
                             {/* Grand timer - phase en cours */}
