@@ -174,6 +174,7 @@ function getZoneBadge(color: string): string {
 // === PERSISTENCE ===
 
 const STORAGE_KEY = "pvp-self-timers";
+const CYCLE_START_CACHE_KEY = "pvp-cycle-start";
 
 interface SavedTimer {
     startedAt: number | null; // timestamp ms quand lancé
@@ -205,6 +206,22 @@ function loadTimersFromStorage(): Record<string, SavedTimer> {
         return JSON.parse(raw);
     } catch {
         return {};
+    }
+}
+
+function saveCycleStartToCache(cycleStart: number) {
+    localStorage.setItem(CYCLE_START_CACHE_KEY, String(cycleStart));
+}
+
+function loadCycleStartFromCache(): number | null {
+    try {
+        const raw = localStorage.getItem(CYCLE_START_CACHE_KEY);
+        if (!raw) return null;
+        const timestamp = parseInt(raw, 10);
+        if (isNaN(timestamp)) return null;
+        return timestamp;
+    } catch {
+        return null;
     }
 }
 
@@ -350,16 +367,56 @@ export default function Pvp({ isOverlayEmbed = false }: PvpProps) {
     const fetchConfig = useCallback(async () => {
         setIsLoading(true);
         setHasError(false);
-        try {
-            const text = await invoke<string>("fetch_contested_zone_timer");
-            const timestamp = parseInt(text.trim(), 10);
-            if (isNaN(timestamp)) throw new Error("Invalid timestamp");
+
+        const applyCycleStart = (timestamp: number) => {
             setCycleStart(timestamp);
             setPhaseInfo(getPhaseInfo(timestamp));
             setIsLoading(false);
+        };
+
+        const invokeWithTimeout = async (timeoutMs: number): Promise<string> => {
+            return await new Promise<string>((resolve, reject) => {
+                const timeoutId = window.setTimeout(() => {
+                    reject(new Error("fetch_contested_zone_timer timeout"));
+                }, timeoutMs);
+
+                invoke<string>("fetch_contested_zone_timer")
+                    .then((value) => {
+                        clearTimeout(timeoutId);
+                        resolve(value);
+                    })
+                    .catch((error) => {
+                        clearTimeout(timeoutId);
+                        reject(error);
+                    });
+            });
+        };
+
+        try {
+            const canUseTauriInvoke = "__TAURI_INTERNALS__" in window;
+            if (!canUseTauriInvoke) {
+                const cachedCycleStart = loadCycleStartFromCache();
+                if (cachedCycleStart !== null) {
+                    applyCycleStart(cachedCycleStart);
+                } else {
+                    applyCycleStart(FALLBACK_CYCLE_START);
+                }
+                return;
+            }
+
+            const text = await invokeWithTimeout(6000);
+            const timestamp = parseInt(text.trim(), 10);
+            if (isNaN(timestamp)) throw new Error("Invalid timestamp");
+
+            saveCycleStartToCache(timestamp);
+            applyCycleStart(timestamp);
         } catch {
-            setCycleStart(FALLBACK_CYCLE_START);
-            setIsLoading(false);
+            const cachedCycleStart = loadCycleStartFromCache();
+            if (cachedCycleStart !== null) {
+                applyCycleStart(cachedCycleStart);
+            } else {
+                applyCycleStart(FALLBACK_CYCLE_START);
+            }
         }
     }, []);
 

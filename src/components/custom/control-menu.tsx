@@ -1,13 +1,20 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { invoke } from '@tauri-apps/api/core';
+import { emit, listen } from '@tauri-apps/api/event';
 import { X, Minus, Volume2, VolumeX, SkipBack, SkipForward, Play, Pause, PanelsTopLeft } from "lucide-react";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Slider } from '@/components/ui/slider';
 import ServerStatus from '@/components/custom/server-status';
+import { useCustomLinksStore, type CustomLink } from "@/stores/custom-links-store";
+
+const HUB_REQUEST_EVENT = "overlay_hub_request_custom_links";
+const HUB_SYNC_EVENT = "overlay_hub_sync_custom_links";
 
 export default function ControlMenu() {
     const appWindow = getCurrentWindow();
     const [isOverlayHubOpen, setIsOverlayHubOpen] = useState(false);
+    const customLinks = useCustomLinksStore((state) => state.links);
+    const customLinksRef = useRef<CustomLink[]>(customLinks);
     const [volume, setVolume] = useState(() => {
         const saved = localStorage.getItem('videoVolume');
         return saved ? parseFloat(saved) : 0.5;
@@ -18,6 +25,10 @@ export default function ControlMenu() {
     const [isPlaying, setIsPlaying] = useState(() => {
         return localStorage.getItem('youtubePaused') !== 'true';
     });
+
+    useEffect(() => {
+        customLinksRef.current = customLinks;
+    }, [customLinks]);
 
     const minimize = async () => await appWindow?.minimize();
     const close = async () => await appWindow?.close();
@@ -71,12 +82,47 @@ export default function ControlMenu() {
         window.dispatchEvent(new CustomEvent('youtubePlayPause', { detail: newState }));
     };
 
+    const syncCustomLinksToHub = useCallback(async () => {
+        await emit(HUB_SYNC_EVENT, { links: customLinksRef.current }).catch(console.error);
+    }, []);
+
+    useEffect(() => {
+        let unlistenRequest: (() => void) | undefined;
+
+        const setup = async () => {
+            unlistenRequest = await listen(HUB_REQUEST_EVENT, () => {
+                syncCustomLinksToHub().catch(console.error);
+            });
+        };
+
+        setup().catch(console.error);
+        return () => {
+            if (unlistenRequest) unlistenRequest();
+        };
+    }, [syncCustomLinksToHub]);
+
+    useEffect(() => {
+        if (!isOverlayHubOpen) return;
+        syncCustomLinksToHub().catch(console.error);
+    }, [isOverlayHubOpen, customLinks, syncCustomLinksToHub]);
+
     const openOverlayHub = async () => {
         const isOpen = await invoke<boolean>('toggle_overlay_hub').catch((error) => {
             console.error(error);
             return isOverlayHubOpen;
         });
         setIsOverlayHubOpen(Boolean(isOpen));
+
+        if (isOpen) {
+            // Multi-shot sync pour couvrir la creation de fenetre hub et son hydration
+            syncCustomLinksToHub().catch(console.error);
+            window.setTimeout(() => {
+                syncCustomLinksToHub().catch(console.error);
+            }, 180);
+            window.setTimeout(() => {
+                syncCustomLinksToHub().catch(console.error);
+            }, 650);
+        }
     };
 
     return (

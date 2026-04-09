@@ -6,6 +6,18 @@ interface BuiltinOverlayHubDefinition extends Omit<OverlayHubItem, "url" | "sour
     resolveUrl?: (baseAppUrl: string) => string;
 }
 
+const ALLOWED_TOOL_DOMAINS = [
+    "erkul.games",
+    "spviewer.eu",
+    "adi.sc",
+    "cstone.space",
+    "ratjack.net",
+    "verseguide.com",
+    "scmdb.net",
+    "sccrafter.com",
+    "uexcorp.space",
+] as const;
+
 const BUILTIN_OVERLAY_ITEMS: BuiltinOverlayHubDefinition[] = [
     {
         id: "erkul",
@@ -109,6 +121,63 @@ const BUILTIN_OVERLAY_ITEMS: BuiltinOverlayHubDefinition[] = [
     },
 ];
 
+function extractHost(rawUrl: string): string | null {
+    const trimmed = rawUrl.trim();
+    if (!trimmed) return null;
+
+    try {
+        return new URL(trimmed).hostname.replace(/^www\./i, "").toLowerCase();
+    } catch {
+        try {
+            return new URL(`https://${trimmed}`).hostname.replace(/^www\./i, "").toLowerCase();
+        } catch {
+            return null;
+        }
+    }
+}
+
+function isAllowedToolUrl(url: string): boolean {
+    const host = extractHost(url);
+    if (!host) return false;
+
+    return ALLOWED_TOOL_DOMAINS.some((domain) => host === domain || host.endsWith(`.${domain}`));
+}
+
+function resolveCustomLabel(name: unknown, url: unknown): string {
+    const safeName = String(name ?? "");
+    const safeUrl = String(url ?? "");
+    const trimmedName = safeName.trim();
+    if (trimmedName) {
+        return trimmedName;
+    }
+
+    const normalizedUrl = safeUrl.trim();
+    if (!normalizedUrl) {
+        return "LIEN";
+    }
+
+    // Supporte aussi les URLs sans protocole (ex: "example.com/path")
+    const plainHost = normalizedUrl
+        .replace(/^https?:\/\//i, "")
+        .replace(/^www\./i, "")
+        .split("/")[0]
+        .trim();
+    if (plainHost) {
+        const firstPart = plainHost.split(".")[0]?.trim();
+        if (firstPart) return firstPart.toUpperCase();
+        return plainHost.toUpperCase();
+    }
+
+    try {
+        const hostname = new URL(normalizedUrl).hostname.replace(/^www\./i, "").trim();
+        if (!hostname) return "";
+        const firstPart = hostname.split(".")[0]?.trim();
+        return (firstPart || hostname).toUpperCase();
+    } catch {
+        return "LIEN";
+    }
+}
+
 export function getBuiltinOverlayHubItems(baseAppUrl: string): OverlayHubItem[] {
     return BUILTIN_OVERLAY_ITEMS.map((item) => ({
         ...item,
@@ -118,17 +187,32 @@ export function getBuiltinOverlayHubItems(baseAppUrl: string): OverlayHubItem[] 
 }
 
 export function getCustomOverlayHubItems(customLinks: CustomLink[]): OverlayHubItem[] {
-    return customLinks.map((link) => ({
-        id: `custom_${link.id}`,
-        label: link.name,
-        kind: "iframe" as const,
-        url: link.url,
-        width: 600,
-        height: 800,
-        opacity: 0.9,
-        source: "custom" as const,
-        iconKey: link.icon || "custom",
-    }));
+    return customLinks.flatMap((link, index) => {
+        const cleanedUrl = String(link.url ?? "").trim();
+        if (!cleanedUrl) {
+            return [];
+        }
+
+        if (!isAllowedToolUrl(cleanedUrl)) {
+            return [];
+        }
+
+        const label = resolveCustomLabel(link.name, cleanedUrl);
+        const cleanedId = String(link.id ?? "").trim() || `link_${index}`;
+        const iconKey = typeof link.icon === "string" && link.icon.trim() ? link.icon.trim() : "custom";
+
+        return [{
+            id: `custom_${cleanedId}`,
+            label,
+            kind: "iframe" as const,
+            url: cleanedUrl,
+            width: 600,
+            height: 800,
+            opacity: 0.9,
+            source: "custom" as const,
+            iconKey,
+        }];
+    });
 }
 
 export function getOverlayHubItems(customLinks: CustomLink[], baseAppUrl: string): OverlayHubItem[] {
