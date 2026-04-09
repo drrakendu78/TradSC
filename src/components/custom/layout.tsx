@@ -86,6 +86,11 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         }
     }, [location]);
 
+    // Fenêtre overlay : aucun layout, juste le contenu brut
+    if (location.pathname === '/overlay-view' || location.pathname === '/overlay-control') {
+        return <>{children}</>;
+    }
+
     return (
         <TooltipProvider>
             <DragRegion className="w-full h-screen max-h-screen max-w-full overflow-hidden flex" style={{ height: '100vh', maxHeight: '100vh', minHeight: '100vh', alignItems: 'stretch' }}>

@@ -1,8 +1,9 @@
 import { m } from "framer-motion";
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, RefreshCw, Loader2, Package } from "lucide-react";
+import { ExternalLink, RefreshCw, Loader2, Package, PictureInPicture2 } from "lucide-react";
 import openExternal from "@/utils/external";
+import { invoke } from "@tauri-apps/api/core";
 
 const CARGO_URL = "https://ratjack.net/Star-Citizen/Cargo-Grids/";
 
@@ -117,6 +118,16 @@ export default function Cargo() {
                         title="Rafraîchir"
                     >
                         <RefreshCw className="h-4 w-4" />
+                    </Button>
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => invoke('open_overlay', { id: 'cargo', url: CARGO_URL, x: 100.0, y: 100.0, width: 500.0, height: 700.0, opacity: 0.9 }).catch(console.error)}
+                        className="h-8 px-3 bg-background/80 backdrop-blur-sm border border-border/50 shadow-sm gap-2"
+                        title="Détacher en overlay"
+                    >
+                        <PictureInPicture2 className="h-4 w-4" />
+                        <span className="hidden sm:inline text-xs">Overlay</span>
                     </Button>
                     <Button
                         variant="secondary"

@@ -1,9 +1,10 @@
 import { m } from "framer-motion";
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, RefreshCw, Loader2 } from "lucide-react";
+import { ExternalLink, RefreshCw, Loader2, PictureInPicture2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import openExternal from "@/utils/external";
+import { invoke } from "@tauri-apps/api/core";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 export default function DpsCalculator() {
@@ -174,6 +175,16 @@ export default function DpsCalculator() {
                     title="Rafraîchir"
                 >
                     <RefreshCw className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => invoke('open_overlay', { id: 'erkul', url: 'https://www.erkul.games/live/calculator', x: 100.0, y: 100.0, width: 500.0, height: 700.0, opacity: 0.9 }).catch(console.error)}
+                    className="h-7 px-2 gap-1.5"
+                    title="Détacher en overlay"
+                >
+                    <PictureInPicture2 className="h-3.5 w-3.5" />
+                    <span className="text-xs">Overlay</span>
                 </Button>
                 <Button
                     variant="ghost"

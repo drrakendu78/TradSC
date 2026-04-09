@@ -20,6 +20,8 @@ import Pvp from '@/pages/Pvp';
 import Cargo from '@/pages/Cargo';
 import VerseGuide from '@/pages/VerseGuide';
 import ScmDb from '@/pages/ScmDb';
+import OverlayView from '@/pages/OverlayView';
+import OverlayControl from '@/pages/OverlayControl';
 
 
 const ScrollToTop = () => {
@@ -149,6 +151,8 @@ const AppRouter = () => (
         <Route path='/cargo' element={<Cargo />} />
         <Route path='/verseguide' element={<VerseGuide />} />
         <Route path='/scmdb' element={<ScmDb />} />
+        <Route path='/overlay-view' element={<OverlayView />} />
+        <Route path='/overlay-control' element={<OverlayControl />} />
 
         <Route path="*" element={<NotFound />} />
       </Routes>

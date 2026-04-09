@@ -36,17 +36,19 @@ function App() {
     }
   }, []);
 
+  const isOverlay = window.location.hash.includes('/overlay-view') || window.location.hash.includes('/overlay-control');
+
   return (
     <>
-      {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
-      {!showSplash && (
+      {showSplash && !isOverlay && <SplashScreen onComplete={() => setShowSplash(false)} />}
+      {(isOverlay || !showSplash) && (
         <>
-          <SecurityWarning onContinue={() => { }} />
-          <ControlMenu />
+          {!isOverlay && <SecurityWarning onContinue={() => { }} />}
+          {!isOverlay && <ControlMenu />}
           <AppRouter />
-          <AdminElevateButton />
-          <BorderBeam duration={8} size={150} colorFrom="#FAFAFA" colorTo="#FAFAFA" />
-          <BorderBeam delay={4} duration={8} size={150} colorFrom="#FAFAFA" colorTo="#FAFAFA" />
+          {!isOverlay && <AdminElevateButton />}
+          {!isOverlay && <BorderBeam duration={8} size={150} colorFrom="#FAFAFA" colorTo="#FAFAFA" />}
+          {!isOverlay && <BorderBeam delay={4} duration={8} size={150} colorFrom="#FAFAFA" colorTo="#FAFAFA" />}
         </>
       )}
     </>

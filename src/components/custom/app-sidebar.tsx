@@ -922,14 +922,7 @@ export function AppSidebar() {
                                 {/* Crafter */}
                                 <li>
                                     <button
-                                        onClick={async () => {
-                                            try {
-                                                const existing = await WebviewWindow.getByLabel("crafter");
-                                                if (existing) { try { await existing.setFocus(); return; } catch { /* recréer */ } }
-                                                const win = new WebviewWindow("crafter_" + Date.now(), { url: "https://www.sccrafter.com/", title: "Crafter - Star Citizen", width: 1280, height: 900, center: true });
-                                                win.once("tauri://error", async () => { await openExternal("https://www.sccrafter.com/"); });
-                                            } catch { await openExternal("https://www.sccrafter.com/"); }
-                                        }}
+                                        onClick={() => invoke('open_overlay', { id: 'crafter', url: 'https://www.sccrafter.com/', x: 100.0, y: 100.0, width: 600.0, height: 800.0, opacity: 0.9 }).catch(console.error)}
                                         className={`flex items-center gap-3 rounded-lg text-left group relative transition-all duration-200 ease-out ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"} text-muted-foreground hover:bg-white/5 hover:text-foreground`}
                                         title={isCollapsed ? "Crafter" : undefined}
                                     >
@@ -955,7 +948,7 @@ export function AppSidebar() {
                                 {/* Routes de trading */}
                                 <li>
                                     <button
-                                        onClick={() => handleItemClick('uexcorp', 'https://uexcorp.space/', true)}
+                                        onClick={() => invoke('open_webview_overlay', { id: 'uexcorp', url: 'https://uexcorp.space/', width: 600.0, height: 800.0, opacity: 0.9 }).catch(console.error)}
                                         className={`flex items-center gap-3 rounded-lg text-left group relative transition-all duration-200 ease-out ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"} text-muted-foreground hover:bg-white/5 hover:text-foreground`}
                                         title={isCollapsed ? "Routes de trading (UEX Corp)" : undefined}
                                     >
@@ -1068,7 +1061,7 @@ export function AppSidebar() {
                                             text-muted-foreground hover:bg-white/5 hover:text-foreground
                                         `}
                                         title={isCollapsed ? link.name : undefined}
-                                        onClick={() => openExternalCustom(link.url)}
+                                        onClick={() => invoke('open_overlay', { id: 'custom_' + link.id, url: link.url, x: 100.0, y: 100.0, width: 600.0, height: 800.0, opacity: 0.9 }).catch(console.error)}
                                     >
                                         <div className="flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110">
                                             {(() => {
