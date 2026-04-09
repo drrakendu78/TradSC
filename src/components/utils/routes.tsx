@@ -22,6 +22,7 @@ import VerseGuide from '@/pages/VerseGuide';
 import ScmDb from '@/pages/ScmDb';
 import OverlayView from '@/pages/OverlayView';
 import OverlayControl from '@/pages/OverlayControl';
+import OverlayHub from '@/pages/OverlayHub';
 
 
 const ScrollToTop = () => {
@@ -148,11 +149,13 @@ const AppRouter = () => (
         <Route path='/ship-maps' element={<ShipMaps />} />
         <Route path='/finder' element={<Finder />} />
         <Route path='/pvp' element={<Pvp />} />
+        <Route path='/pvp-overlay' element={<Pvp isOverlayEmbed />} />
         <Route path='/cargo' element={<Cargo />} />
         <Route path='/verseguide' element={<VerseGuide />} />
         <Route path='/scmdb' element={<ScmDb />} />
         <Route path='/overlay-view' element={<OverlayView />} />
         <Route path='/overlay-control' element={<OverlayControl />} />
+        <Route path='/overlay-hub' element={<OverlayHub />} />
 
         <Route path="*" element={<NotFound />} />
       </Routes>

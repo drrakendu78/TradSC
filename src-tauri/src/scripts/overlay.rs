@@ -1,4 +1,5 @@
-use tauri::{command, AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{command, AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
+use tokio::time::{sleep, Duration};
 
 #[cfg(target_os = "windows")]
 use windows::Win32::Foundation::HWND;
@@ -32,6 +33,17 @@ fn close_overlay_control_window(app_handle: &AppHandle, id: &str, overlay_type: 
 const CONTROL_WIDTH: i32 = 36;
 const CONTROL_HEIGHT: i32 = 20;
 const CONTROL_RIGHT_OFFSET: i32 = 72;
+const OVERLAY_HUB_LABEL: &str = "overlayhub_main";
+const OVERLAY_HUB_WIDTH: f64 = 46.0;
+const OVERLAY_HUB_HEIGHT: f64 = 34.0;
+const OVERLAY_HUB_TOP_OFFSET: f64 = 10.0;
+
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct OverlayClosedPayload {
+    id: String,
+    overlay_type: String,
+}
 
 fn control_geometry(
     target: &tauri::WebviewWindow,
@@ -93,6 +105,105 @@ fn control_geometry(
     )
 }
 
+fn overlay_hub_geometry(app_handle: &AppHandle, hub_width: f64) -> (f64, f64) {
+    if let Some(main) = app_handle.get_webview_window("main") {
+        if let Ok(Some(monitor)) = main.current_monitor() {
+            let monitor_pos = monitor.position();
+            let monitor_size = monitor.size();
+            let x = monitor_pos.x as f64 + ((monitor_size.width as f64 - hub_width) / 2.0).max(0.0);
+            let y = monitor_pos.y as f64 + OVERLAY_HUB_TOP_OFFSET;
+            return (x, y.max(0.0));
+        }
+
+        if let (Ok(main_pos), Ok(main_size)) = (main.outer_position(), main.outer_size()) {
+            let x = main_pos.x as f64 + ((main_size.width as f64 - hub_width) / 2.0).max(0.0);
+            let y = main_pos.y as f64 + OVERLAY_HUB_TOP_OFFSET;
+            return (x, y.max(0.0));
+        }
+    }
+
+    (120.0, OVERLAY_HUB_TOP_OFFSET)
+}
+
+#[command]
+pub async fn open_overlay_hub(app_handle: AppHandle) -> Result<(), String> {
+    let label = OVERLAY_HUB_LABEL;
+
+    if let Some(win) = app_handle.get_webview_window(label) {
+        let _ = win.show();
+        let _ = win.unminimize();
+        if win.set_focus().is_ok() {
+            return Ok(());
+        }
+
+        let _ = win.close();
+        sleep(Duration::from_millis(120)).await;
+    }
+
+    let (x, y) = overlay_hub_geometry(&app_handle, OVERLAY_HUB_WIDTH);
+    let hub_url = "index.html#/overlay-hub";
+
+    let mut last_err = None;
+    let mut created_win = None;
+
+    for _ in 0..2 {
+        match WebviewWindowBuilder::new(&app_handle, label, WebviewUrl::App(hub_url.into()))
+            .title("Overlay Hub")
+            .inner_size(OVERLAY_HUB_WIDTH, OVERLAY_HUB_HEIGHT)
+            .position(x, y)
+            .decorations(false)
+            .shadow(false)
+            .transparent(true)
+            .always_on_top(true)
+            .skip_taskbar(true)
+            .resizable(false)
+            .build()
+        {
+            Ok(win) => {
+                created_win = Some(win);
+                break;
+            }
+            Err(e) => {
+                last_err = Some(e.to_string());
+                if let Some(stale) = app_handle.get_webview_window(label) {
+                    let _ = stale.close();
+                }
+                sleep(Duration::from_millis(120)).await;
+            }
+        }
+    }
+
+    let win = created_win.ok_or_else(|| {
+        last_err.unwrap_or_else(|| "Failed to create overlay hub window".to_string())
+    })?;
+
+    let _ = win.set_shadow(false);
+    let _ = win.set_focus();
+    Ok(())
+}
+
+#[command]
+pub async fn toggle_overlay_hub(app_handle: AppHandle) -> Result<bool, String> {
+    if let Some(win) = app_handle.get_webview_window(OVERLAY_HUB_LABEL) {
+        if win.is_visible().unwrap_or(true) {
+            let _ = win.close();
+            return Ok(false);
+        }
+    }
+
+    open_overlay_hub(app_handle).await?;
+    Ok(true)
+}
+
+#[command]
+pub async fn is_overlay_hub_open(app_handle: AppHandle) -> Result<bool, String> {
+    if let Some(win) = app_handle.get_webview_window(OVERLAY_HUB_LABEL) {
+        return Ok(win.is_visible().unwrap_or(true));
+    }
+
+    Ok(false)
+}
+
 #[command]
 pub async fn open_overlay(
     app_handle: AppHandle,
@@ -109,9 +220,16 @@ pub async fn open_overlay(
     if let Some(win) = app_handle.get_webview_window(&label) {
         let _ = win.set_ignore_cursor_events(false);
         let _ = win.set_shadow(false);
+        let _ = win.show();
+        let _ = win.unminimize();
         close_overlay_control_window(&app_handle, &id, "iframe");
-        win.set_focus().map_err(|e| e.to_string())?;
-        return Ok(());
+        if win.set_focus().is_ok() {
+            return Ok(());
+        }
+
+        // Fenetre stale (fermee mais encore referencee): on force la fermeture puis recreation.
+        let _ = win.close();
+        sleep(Duration::from_millis(120)).await;
     }
 
     let opacity_clamped = (opacity * 100.0).clamp(10.0, 100.0) as u32;
@@ -122,22 +240,52 @@ pub async fn open_overlay(
         opacity_clamped
     );
 
-    let win = WebviewWindowBuilder::new(
-        &app_handle,
-        &label,
-        WebviewUrl::App(overlay_url.into()),
-    )
-    .title(format!("Overlay - {}", id))
-    .inner_size(width, height)
-    .position(x, y)
-    .decorations(false)
-    .shadow(false)
-    .transparent(true)
-    .always_on_top(true)
-    .skip_taskbar(true)
-    .resizable(true)
-    .build()
-    .map_err(|e| e.to_string())?;
+    let mut last_err = None;
+    let mut created_win = None;
+    for _ in 0..2 {
+        match WebviewWindowBuilder::new(&app_handle, &label, WebviewUrl::App(overlay_url.clone().into()))
+            .title(format!("Overlay - {}", id))
+            .inner_size(width, height)
+            .position(x, y)
+            .decorations(false)
+            .shadow(false)
+            .transparent(true)
+            .always_on_top(true)
+            .skip_taskbar(true)
+            .resizable(true)
+            .build()
+        {
+            Ok(win) => {
+                created_win = Some(win);
+                break;
+            }
+            Err(e) => {
+                last_err = Some(e.to_string());
+                if let Some(stale) = app_handle.get_webview_window(&label) {
+                    let _ = stale.close();
+                }
+                sleep(Duration::from_millis(120)).await;
+            }
+        }
+    }
+
+    let win = created_win.ok_or_else(|| {
+        last_err.unwrap_or_else(|| "Failed to create overlay window".to_string())
+    })?;
+
+    let app_handle_for_events = app_handle.clone();
+    let id_for_events = id.clone();
+    win.on_window_event(move |event| {
+        if matches!(event, tauri::WindowEvent::Destroyed) {
+            let _ = app_handle_for_events.emit(
+                "overlay_closed",
+                OverlayClosedPayload {
+                    id: id_for_events.clone(),
+                    overlay_type: "iframe".to_string(),
+                },
+            );
+        }
+    });
 
     let _ = win.set_ignore_cursor_events(false);
     let _ = win.set_shadow(false);
@@ -159,9 +307,16 @@ pub async fn open_webview_overlay(
     if let Some(win) = app_handle.get_webview_window(&label) {
         let _ = win.set_ignore_cursor_events(false);
         let _ = win.set_shadow(false);
+        let _ = win.show();
+        let _ = win.unminimize();
         close_overlay_control_window(&app_handle, &id, "webview");
-        win.set_focus().map_err(|e| e.to_string())?;
-        return Ok(());
+        if win.set_focus().is_ok() {
+            return Ok(());
+        }
+
+        // Fenetre stale (fermee mais encore referencee): on force la fermeture puis recreation.
+        let _ = win.close();
+        sleep(Duration::from_millis(120)).await;
     }
 
     let parsed_url = url.parse::<tauri::Url>().map_err(|e| e.to_string())?;
@@ -261,8 +416,8 @@ pub async fn open_webview_overlay(
 
                 var gameBtn = document.createElement('button');
                 gameBtn.style.cssText = 'height:20px;padding:0 6px;border:1px solid rgba(148,197,255,0.28);border-radius:3px;background:linear-gradient(to bottom,rgba(28,52,72,0.96),rgba(18,34,49,0.96));box-shadow:inset 0 1px 0 rgba(148,197,255,0.15),0 1px 4px rgba(0,0,0,0.45);cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(241,245,249,0.95);font-size:9px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;transition:all .12s ease;';
-                gameBtn.title = 'Focus jeu';
-                gameBtn.textContent = 'Focus jeu';
+                gameBtn.title = 'Mode edit actif - clic pour mode jeu';
+                gameBtn.textContent = 'Mode edit';
                 bar.appendChild(gameBtn);
 
                 var hideBtn = document.createElement('button');
@@ -360,19 +515,53 @@ pub async fn open_webview_overlay(
         overlay_id = id_js
     );
 
-    let win = WebviewWindowBuilder::new(&app_handle, &label, WebviewUrl::External(parsed_url))
-        .title(format!("Overlay - {}", id))
-        .inner_size(width, height)
-        .center()
-        .decorations(false)
-        .shadow(false)
-        .transparent(true)
-        .always_on_top(true)
-        .skip_taskbar(true)
-        .resizable(true)
-        .initialization_script(&init_script)
-        .build()
-        .map_err(|e| e.to_string())?;
+    let mut last_err = None;
+    let mut created_win = None;
+    for _ in 0..2 {
+        match WebviewWindowBuilder::new(&app_handle, &label, WebviewUrl::External(parsed_url.clone()))
+            .title(format!("Overlay - {}", id))
+            .inner_size(width, height)
+            .center()
+            .decorations(false)
+            .shadow(false)
+            .transparent(true)
+            .always_on_top(true)
+            .skip_taskbar(true)
+            .resizable(true)
+            .initialization_script(&init_script)
+            .build()
+        {
+            Ok(win) => {
+                created_win = Some(win);
+                break;
+            }
+            Err(e) => {
+                last_err = Some(e.to_string());
+                if let Some(stale) = app_handle.get_webview_window(&label) {
+                    let _ = stale.close();
+                }
+                sleep(Duration::from_millis(120)).await;
+            }
+        }
+    }
+
+    let win = created_win.ok_or_else(|| {
+        last_err.unwrap_or_else(|| "Failed to create webview overlay window".to_string())
+    })?;
+
+    let app_handle_for_events = app_handle.clone();
+    let id_for_events = id.clone();
+    win.on_window_event(move |event| {
+        if matches!(event, tauri::WindowEvent::Destroyed) {
+            let _ = app_handle_for_events.emit(
+                "overlay_closed",
+                OverlayClosedPayload {
+                    id: id_for_events.clone(),
+                    overlay_type: "webview".to_string(),
+                },
+            );
+        }
+    });
 
     #[cfg(target_os = "windows")]
     {
@@ -515,6 +704,13 @@ pub async fn close_overlay(app_handle: AppHandle, id: String) -> Result<(), Stri
         win.close().map_err(|e| e.to_string())?;
     }
     close_overlay_control_window(&app_handle, &id, "iframe");
+    let _ = app_handle.emit(
+        "overlay_closed",
+        OverlayClosedPayload {
+            id,
+            overlay_type: "iframe".to_string(),
+        },
+    );
     Ok(())
 }
 
@@ -525,6 +721,13 @@ pub async fn close_webview_overlay(app_handle: AppHandle, id: String) -> Result<
         win.close().map_err(|e| e.to_string())?;
     }
     close_overlay_control_window(&app_handle, &id, "webview");
+    let _ = app_handle.emit(
+        "overlay_closed",
+        OverlayClosedPayload {
+            id,
+            overlay_type: "webview".to_string(),
+        },
+    );
     Ok(())
 }
 

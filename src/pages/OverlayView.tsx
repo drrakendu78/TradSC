@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -34,11 +34,18 @@ const OverlayView = () => {
         invoke("close_overlay", { id }).catch(console.error);
     };
 
-    const handleGameMode = () => {
+    const handleGameMode = (event: MouseEvent<HTMLButtonElement>) => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+
         invoke("set_overlay_interaction", {
             id,
             overlayType: "iframe",
             interactive: false,
+            anchorX: Math.round(rect.left * dpr),
+            anchorY: Math.round(rect.top * dpr),
+            anchorWidth: Math.round(rect.width * dpr),
+            anchorHeight: Math.round(rect.height * dpr),
         }).catch(console.error);
     };
 
@@ -64,9 +71,9 @@ const OverlayView = () => {
                     onMouseDown={(e) => e.stopPropagation()}
                     onClick={handleGameMode}
                     className="h-5 px-1.5 rounded-sm border border-sky-300/30 bg-[linear-gradient(180deg,rgba(28,52,72,0.96),rgba(18,34,49,0.96))] shadow-[inset_0_1px_0_rgba(148,197,255,0.18),0_1px_4px_rgba(0,0,0,0.45)] hover:bg-[linear-gradient(180deg,rgba(34,61,84,0.96),rgba(21,40,58,0.96))] active:scale-[0.98] flex items-center justify-center transition-all"
-                    title="Focus jeu (clic traversant)"
+                    title="Mode edit actif - clic pour mode jeu"
                 >
-                    <span className="text-[9px] text-slate-100 font-semibold tracking-[0.04em] uppercase">Focus jeu</span>
+                    <span className="text-[9px] text-slate-100 font-semibold tracking-[0.04em] uppercase">Mode edit</span>
                 </button>
                 <button
                     onMouseDown={(e) => e.stopPropagation()}

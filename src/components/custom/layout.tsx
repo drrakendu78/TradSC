@@ -87,7 +87,12 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     }, [location]);
 
     // Fenêtre overlay : aucun layout, juste le contenu brut
-    if (location.pathname === '/overlay-view' || location.pathname === '/overlay-control') {
+    if (
+        location.pathname === '/overlay-view' ||
+        location.pathname === '/overlay-control' ||
+        location.pathname === '/pvp-overlay' ||
+        location.pathname === '/overlay-hub'
+    ) {
         return <>{children}</>;
     }
 

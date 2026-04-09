@@ -36,7 +36,11 @@ function App() {
     }
   }, []);
 
-  const isOverlay = window.location.hash.includes('/overlay-view') || window.location.hash.includes('/overlay-control');
+  const isOverlay =
+    window.location.hash.includes('/overlay-view') ||
+    window.location.hash.includes('/overlay-control') ||
+    window.location.hash.includes('/pvp-overlay') ||
+    window.location.hash.includes('/overlay-hub');
 
   return (
     <>

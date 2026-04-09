@@ -3,9 +3,11 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Play, RotateCcw, Loader2, Map as MapIcon, X } from "lucide-react";
+import { RefreshCw, Play, RotateCcw, Loader2, Map as MapIcon, X, PictureInPicture2 } from "lucide-react";
 import { IconSwords } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import { useToast } from "@/hooks/use-toast";
 
 // === CONSTANTES ===
 
@@ -178,6 +180,14 @@ interface SavedTimer {
     duration: number;
 }
 
+interface OverlayClosedPayload {
+    id: string;
+}
+
+interface PvpProps {
+    isOverlayEmbed?: boolean;
+}
+
 function saveTimersToStorage(timers: Map<string, SelfTimer>) {
     const data: Record<string, SavedTimer> = {};
     timers.forEach((t, id) => {
@@ -200,14 +210,60 @@ function loadTimersFromStorage(): Record<string, SavedTimer> {
 
 // === COMPOSANT ===
 
-export default function Pvp() {
+export default function Pvp({ isOverlayEmbed = false }: PvpProps) {
     const [cycleStart, setCycleStart] = useState<number | null>(null);
     const [phaseInfo, setPhaseInfo] = useState<ReturnType<typeof getPhaseInfo> | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [hasError, setHasError] = useState(false);
     const [selfTimers, setSelfTimers] = useState<Map<string, SelfTimer>>(new Map());
     const [selectedMap, setSelectedMap] = useState<string | null>(null);
+    const [isDetachedToOverlay, setIsDetachedToOverlay] = useState(false);
     const intervalsRef = useRef<Map<string, number>>(new Map());
+    const { toast } = useToast();
+
+    useEffect(() => {
+        if (!isOverlayEmbed) return;
+
+        const html = document.documentElement;
+        const body = document.body;
+        const root = document.getElementById("root");
+
+        const prevHtmlBackground = html.style.background;
+        const prevBodyBackground = body.style.background;
+        const prevBodyBackgroundColor = body.style.backgroundColor;
+        const prevRootBackground = root?.style.background ?? "";
+
+        html.style.setProperty("background", "transparent", "important");
+        body.style.setProperty("background", "transparent", "important");
+        body.style.setProperty("background-color", "transparent", "important");
+        if (root) {
+            root.style.setProperty("background", "transparent", "important");
+        }
+
+        const style = document.createElement("style");
+        style.id = "pvp-overlay-transparent-fix";
+        style.textContent = `
+            html, body, #root {
+                background: transparent !important;
+                background-color: transparent !important;
+            }
+            #root::before {
+                display: none !important;
+                background: transparent !important;
+            }
+        `;
+        document.head.appendChild(style);
+
+        return () => {
+            style.remove();
+            html.style.background = prevHtmlBackground;
+            body.style.background = prevBodyBackground;
+            body.style.backgroundColor = prevBodyBackgroundColor;
+            if (root) {
+                root.style.background = prevRootBackground;
+            }
+        };
+    }, [isOverlayEmbed]);
 
     // Initialiser les self-timers avec restauration depuis localStorage
     // Se relance à chaque mount (navigation entre pages)
@@ -270,6 +326,23 @@ export default function Pvp() {
             localIntervals.forEach((_, id) => intervalsRef.current.delete(id));
         };
     }, []);
+
+    useEffect(() => {
+        if (isOverlayEmbed) return;
+
+        let unlisten: (() => void) | undefined;
+        const setup = async () => {
+            unlisten = await listen<OverlayClosedPayload>("overlay_closed", (event) => {
+                if (event.payload?.id !== "pvp") return;
+                setIsDetachedToOverlay(false);
+            });
+        };
+
+        setup().catch(console.error);
+        return () => {
+            if (unlisten) unlisten();
+        };
+    }, [isOverlayEmbed]);
 
     // Fetch cfg.dat via commande Tauri (pas de CORS, pas de proxy, pas de tracking)
     const FALLBACK_CYCLE_START = 1769821187;
@@ -362,12 +435,39 @@ export default function Pvp() {
         });
     }, []);
 
+    const handleOpenOverlay = useCallback(async () => {
+        try {
+            const overlayUrl = `${window.location.origin}${window.location.pathname}#/pvp-overlay`;
+            await invoke("open_overlay", {
+                id: "pvp",
+                url: overlayUrl,
+                x: 120.0,
+                y: 120.0,
+                width: 900.0,
+                height: 760.0,
+                opacity: 1.0,
+            });
+            if (!isOverlayEmbed) {
+                setIsDetachedToOverlay(true);
+            }
+        } catch (error) {
+            console.error(error);
+            toast({
+                title: "Erreur overlay",
+                description: "Impossible d'ouvrir l'overlay Zone PVP.",
+                variant: "destructive",
+            });
+        }
+    }, [isOverlayEmbed, toast]);
+
+    const isDetachedMode = !isOverlayEmbed && isDetachedToOverlay;
+
     return (
         <m.div
             initial={{ opacity: 0, x: 100 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.2, ease: [0, 0.71, 0.2, 1.01] }}
-            className="flex w-full h-full flex-col p-4 gap-4 overflow-y-auto app-scroll-root"
+            className={`flex w-full h-full flex-col p-4 gap-4 overflow-y-auto app-scroll-root ${isOverlayEmbed ? "bg-black/20" : ""}`}
         >
             {/* Header */}
             <div className="flex items-center justify-between">
@@ -380,11 +480,45 @@ export default function Pvp() {
                         <p className="text-xs text-muted-foreground">Contested Zone Timers</p>
                     </div>
                 </div>
-                <Button variant="ghost" size="sm" onClick={fetchConfig} className="h-8 px-2">
-                    <RefreshCw className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center gap-2">
+                    {!isOverlayEmbed && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleOpenOverlay}
+                            className="h-8 px-2 gap-1.5"
+                            title="Detacher en overlay"
+                        >
+                            <PictureInPicture2 className="h-4 w-4" />
+                            <span className="text-xs">Overlay</span>
+                        </Button>
+                    )}
+                    <Button variant="ghost" size="sm" onClick={fetchConfig} className="h-8 px-2">
+                        <RefreshCw className="h-4 w-4" />
+                    </Button>
+                </div>
             </div>
 
+            {isDetachedMode ? (
+                <div className="flex-1 flex items-center justify-center p-6">
+                    <Card className="max-w-md w-full border-border/60 bg-card/70 backdrop-blur-sm">
+                        <CardContent className="p-5 text-center space-y-3">
+                            <p className="text-sm text-muted-foreground">
+                                Zone PVP est detachee en overlay pour eviter le rendu en double.
+                            </p>
+                            <div className="flex items-center justify-center gap-2">
+                                <Button variant="outline" size="sm" onClick={() => setIsDetachedToOverlay(false)}>
+                                    Recharger dans l'app
+                                </Button>
+                                <Button variant="default" size="sm" onClick={handleOpenOverlay}>
+                                    Re-focus overlay
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            ) : (
+                <>
             {/* Timer principal - Executive Hangar */}
             <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
                 <CardContent className="p-5">
@@ -588,6 +722,8 @@ export default function Pvp() {
             <p className="text-[10px] text-muted-foreground/40 text-center pb-2">
                 Données & cartes : contestedzonetimers.com
             </p>
+                </>
+            )}
         </m.div>
     );
 }

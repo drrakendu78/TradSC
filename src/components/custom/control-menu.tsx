@@ -1,11 +1,13 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { X, Minus, Volume2, VolumeX, SkipBack, SkipForward, Play, Pause } from "lucide-react";
+import { invoke } from '@tauri-apps/api/core';
+import { X, Minus, Volume2, VolumeX, SkipBack, SkipForward, Play, Pause, PanelsTopLeft } from "lucide-react";
 import { useState, useEffect } from 'react';
 import { Slider } from '@/components/ui/slider';
 import ServerStatus from '@/components/custom/server-status';
 
 export default function ControlMenu() {
     const appWindow = getCurrentWindow();
+    const [isOverlayHubOpen, setIsOverlayHubOpen] = useState(false);
     const [volume, setVolume] = useState(() => {
         const saved = localStorage.getItem('videoVolume');
         return saved ? parseFloat(saved) : 0.5;
@@ -19,6 +21,21 @@ export default function ControlMenu() {
 
     const minimize = async () => await appWindow?.minimize();
     const close = async () => await appWindow?.close();
+
+    useEffect(() => {
+        let mounted = true;
+        invoke<boolean>('is_overlay_hub_open')
+            .then((isOpen) => {
+                if (mounted) {
+                    setIsOverlayHubOpen(Boolean(isOpen));
+                }
+            })
+            .catch(console.error);
+
+        return () => {
+            mounted = false;
+        };
+    }, []);
 
     // Émettre l'état initial au montage
     useEffect(() => {
@@ -54,12 +71,32 @@ export default function ControlMenu() {
         window.dispatchEvent(new CustomEvent('youtubePlayPause', { detail: newState }));
     };
 
+    const openOverlayHub = async () => {
+        const isOpen = await invoke<boolean>('toggle_overlay_hub').catch((error) => {
+            console.error(error);
+            return isOverlayHubOpen;
+        });
+        setIsOverlayHubOpen(Boolean(isOpen));
+    };
+
     return (
         <div className='flex flex-row gap-2 fixed right-4 top-4 z-[100] items-center pointer-events-auto'>
             {/* Statut serveurs SC */}
             <div className='flex items-center bg-background/70 backdrop-blur-xl rounded-lg border border-border/50 shadow-md'>
                 <ServerStatus />
             </div>
+
+            <button
+                onClick={openOverlayHub}
+                className={`flex items-center justify-center h-8 w-8 rounded-lg backdrop-blur-xl border shadow-md transition-all ${
+                    isOverlayHubOpen
+                        ? 'bg-sky-500/20 border-sky-300/55 shadow-[0_0_10px_rgba(56,189,248,0.45)]'
+                        : 'bg-background/70 border-border/50 hover:bg-background/85'
+                }`}
+                title={isOverlayHubOpen ? 'Hub overlay actif' : 'Hub overlay'}
+            >
+                <PanelsTopLeft className={`h-4 w-4 ${isOverlayHubOpen ? 'text-sky-200' : 'text-muted-foreground'}`} />
+            </button>
 
             {/* Contrôle de volume et navigation */}
             <div className='flex items-center gap-2 bg-background/70 backdrop-blur-xl rounded-lg px-3 py-1.5 border border-border/50 shadow-md'>

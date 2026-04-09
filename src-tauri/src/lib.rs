@@ -61,7 +61,7 @@ use scripts::offline_cache::{
     get_translation_cache_info, open_translation_cache_folder, cache_all_installed_translations,
 };
 use scripts::overlay::{
-    open_overlay, open_webview_overlay, close_overlay, close_webview_overlay, set_overlay_size, set_window_opacity, set_overlay_interaction,
+    open_overlay_hub, toggle_overlay_hub, is_overlay_hub_open, open_overlay, open_webview_overlay, close_overlay, close_webview_overlay, set_overlay_size, set_window_opacity, set_overlay_interaction,
 };
 use std::sync::Mutex;
 use tauri::{command, Emitter, Manager};
@@ -557,6 +557,9 @@ pub fn run() {
             get_custom_avatar,
             remove_custom_avatar,
             fetch_contested_zone_timer,
+            open_overlay_hub,
+            toggle_overlay_hub,
+            is_overlay_hub_open,
             open_overlay,
             open_webview_overlay,
             close_overlay,

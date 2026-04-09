@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "overlay",
   "description": "Capability for overlay and external webview windows",
-  "windows": ["overlay_*", "wvoverlay_*", "overlayctl_*", "crafter_*", "uexcorp_*", "custom_*"],
+  "windows": ["overlay_*", "wvoverlay_*", "overlayctl_*", "overlayhub_*", "crafter_*", "uexcorp_*", "custom_*"],
   "remote": {
     "urls": ["https://*"]
   },
@@ -11,7 +11,9 @@
     "core:window:allow-start-dragging",
     "core:window:allow-close",
     "core:window:allow-set-size",
+    "core:window:allow-set-position",
     "core:window:allow-set-focus",
+    "core:window:allow-current-monitor",
     "core:window:allow-inner-size",
     "core:event:default"
   ]
