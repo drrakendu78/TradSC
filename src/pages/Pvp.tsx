@@ -365,14 +365,26 @@ export default function Pvp({ isOverlayEmbed = false }: PvpProps) {
     const FALLBACK_CYCLE_START = 1769821187;
 
     const fetchConfig = useCallback(async () => {
-        setIsLoading(true);
         setHasError(false);
 
+        const cachedCycleStart = loadCycleStartFromCache();
+        const hasVisibleValue = cycleStart !== null;
+
+        // Affichage instantane: si cache dispo, on l'applique avant tout appel reseau.
+        // Le spinner n'apparait que si on n'a strictement aucune valeur a montrer.
+        if (!hasVisibleValue && cachedCycleStart === null) {
+            setIsLoading(true);
+        }
+
         const applyCycleStart = (timestamp: number) => {
-            setCycleStart(timestamp);
+            setCycleStart((prev) => (prev === timestamp ? prev : timestamp));
             setPhaseInfo(getPhaseInfo(timestamp));
             setIsLoading(false);
         };
+
+        if (cachedCycleStart !== null) {
+            applyCycleStart(cachedCycleStart);
+        }
 
         const invokeWithTimeout = async (timeoutMs: number): Promise<string> => {
             return await new Promise<string>((resolve, reject) => {
@@ -395,10 +407,7 @@ export default function Pvp({ isOverlayEmbed = false }: PvpProps) {
         try {
             const canUseTauriInvoke = "__TAURI_INTERNALS__" in window;
             if (!canUseTauriInvoke) {
-                const cachedCycleStart = loadCycleStartFromCache();
-                if (cachedCycleStart !== null) {
-                    applyCycleStart(cachedCycleStart);
-                } else {
+                if (!hasVisibleValue && cachedCycleStart === null) {
                     applyCycleStart(FALLBACK_CYCLE_START);
                 }
                 return;
@@ -411,14 +420,13 @@ export default function Pvp({ isOverlayEmbed = false }: PvpProps) {
             saveCycleStartToCache(timestamp);
             applyCycleStart(timestamp);
         } catch {
-            const cachedCycleStart = loadCycleStartFromCache();
-            if (cachedCycleStart !== null) {
-                applyCycleStart(cachedCycleStart);
-            } else {
+            if (!hasVisibleValue && cachedCycleStart === null) {
                 applyCycleStart(FALLBACK_CYCLE_START);
+            } else {
+                setIsLoading(false);
             }
         }
-    }, []);
+    }, [cycleStart]);
 
     // Fetch initial + re-fetch toutes les heures
     useEffect(() => {
@@ -521,7 +529,7 @@ export default function Pvp({ isOverlayEmbed = false }: PvpProps) {
 
     return (
         <m.div
-            initial={{ opacity: 0, x: 100 }}
+            initial={isOverlayEmbed ? false : { opacity: 0, x: 100 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.2, ease: [0, 0.71, 0.2, 1.01] }}
             className={`flex w-full h-full flex-col p-4 gap-4 overflow-y-auto app-scroll-root ${isOverlayEmbed ? "bg-black/20" : ""}`}
@@ -576,7 +584,7 @@ export default function Pvp({ isOverlayEmbed = false }: PvpProps) {
             ) : (
                 <>
             {/* Timer principal - Executive Hangar */}
-            <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+            <Card className={`border-border/50 ${isOverlayEmbed ? "bg-card/85" : "bg-card/50 backdrop-blur-sm"}`}>
                 <CardContent className="p-5">
                     {isLoading ? (
                         <div className="flex items-center justify-center py-8">
@@ -643,7 +651,7 @@ export default function Pvp({ isOverlayEmbed = false }: PvpProps) {
             {/* Self-Timers par zone */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                 {ZONES.map((zone) => (
-                    <Card key={zone.name} className={`border bg-card/50 backdrop-blur-sm ${getZoneAccent(zone.color)}`}>
+                    <Card key={zone.name} className={`border ${isOverlayEmbed ? "bg-card/85" : "bg-card/50 backdrop-blur-sm"} ${getZoneAccent(zone.color)}`}>
                         <CardContent className="p-4">
                             <div className="flex items-center gap-2 mb-3">
                                 <Badge variant="outline" className={`text-xs ${getZoneBadge(zone.color)}`}>
@@ -734,7 +742,7 @@ export default function Pvp({ isOverlayEmbed = false }: PvpProps) {
                     <button
                         key={map.name}
                         onClick={() => setSelectedMap(map.url)}
-                        className="group relative rounded-lg overflow-hidden border border-border/50 hover:border-primary/50 transition-all duration-200 bg-card/50"
+                        className={`group relative rounded-lg overflow-hidden border border-border/50 hover:border-primary/50 transition-all duration-200 ${isOverlayEmbed ? "bg-card/85" : "bg-card/50"}`}
                     >
                         <img
                             src={map.url}
