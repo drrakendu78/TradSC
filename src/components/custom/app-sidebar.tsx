@@ -10,7 +10,7 @@ import { IconHome, IconBrandDiscord, IconCloud, IconBrandGithub, IconLanguage, I
 import { BrushCleaning, Download, Power, PowerOff, Loader2, RotateCcw, Monitor, Route, BarChart3, Calendar, Languages, Trash2, Save, Users } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { ColorPicker } from "@/components/custom/color-picker";
-import openExternal, { openExternalCustom } from "@/utils/external";
+import openExternal from "@/utils/external";
 import { useCustomLinksStore } from "@/stores/custom-links-store";
 import CustomLinkDialog, { getIconByName } from "./custom-link-dialog";
 import { Plus, Pencil } from "lucide-react";
@@ -32,7 +32,6 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { invoke } from "@tauri-apps/api/core";
-import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { supabase } from "@/lib/supabase";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 import { LogIn, LogOut, User } from "lucide-react";
