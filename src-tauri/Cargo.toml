@@ -1,6 +1,6 @@
 [package]
 name = "startradfr"
-version = "3.5.2"
+version = "3.5.3"
 description = "StarTrad FR - Traduction franÃ§aise pour Star Citizen"
 authors = ["Drrakendu78"]
 edition = "2021"
@@ -48,4 +48,3 @@ base64 = "0.22"
 auto-launch = "0.5.0"
 winreg = "0.55"
 windows = { version = "0.58", features = ["Win32_UI_WindowsAndMessaging", "Win32_Foundation"] }
-

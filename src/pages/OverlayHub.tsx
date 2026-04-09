@@ -23,13 +23,20 @@ import { getOverlayHubItems } from "@/utils/overlay-hub-registry";
 import type { OverlayHubItem } from "@/types/overlay-hub";
 
 const HUB_TOP_OFFSET = 10;
-const HUB_COLLAPSED_WIDTH = 74;
-const HUB_COLLAPSED_HEIGHT = 34;
+const HUB_COLLAPSED_WIDTH = 52;
+const HUB_COLLAPSED_HEIGHT = 26;
 const HUB_EXPANDED_HEIGHT = 74;
 const ITEM_STAGGER_MS = 18;
 const GAME_UNLOCK_HOLD_MS = 1200;
+const LOCK_REARM_DELAY_MS = 350;
 const HUB_REQUEST_EVENT = "overlay_hub_request_custom_links";
 const HUB_SYNC_EVENT = "overlay_hub_sync_custom_links";
+
+interface OverlayClosedPayload {
+    id: string;
+    overlayType?: string;
+    overlay_type?: string;
+}
 
 function sanitizeCustomLinks(payload: unknown): CustomLink[] {
     if (!Array.isArray(payload)) return [];
@@ -69,12 +76,15 @@ const OverlayHub = () => {
     const [isEditMode, setIsEditMode] = useState(true);
     const [isGeometrySyncing, setIsGeometrySyncing] = useState(false);
     const [isUnlockHolding, setIsUnlockHolding] = useState(false);
+    const [isLockRearming, setIsLockRearming] = useState(false);
     const [unlockHoldProgress, setUnlockHoldProgress] = useState(0);
+    const [activeOverlayIds, setActiveOverlayIds] = useState<Set<string>>(new Set());
     const hubWindow = useMemo(() => getCurrentWindow(), []);
     const geometryRunIdRef = useRef(0);
     const unlockTimerRef = useRef<number | null>(null);
     const unlockProgressRafRef = useRef<number | null>(null);
     const unlockProgressStartRef = useRef<number | null>(null);
+    const lockRearmTimerRef = useRef<number | null>(null);
     const itemsScrollerRef = useRef<HTMLDivElement | null>(null);
     const customLinks = useCustomLinksStore((state) => state.links);
     const setCustomLinks = useCustomLinksStore((state) => state.setLinks);
@@ -138,8 +148,24 @@ const OverlayHub = () => {
                 window.cancelAnimationFrame(unlockProgressRafRef.current);
                 unlockProgressRafRef.current = null;
             }
+            if (lockRearmTimerRef.current !== null) {
+                window.clearTimeout(lockRearmTimerRef.current);
+                lockRearmTimerRef.current = null;
+            }
         };
     }, []);
+
+    const startLockRearmDelay = () => {
+        if (lockRearmTimerRef.current !== null) {
+            window.clearTimeout(lockRearmTimerRef.current);
+            lockRearmTimerRef.current = null;
+        }
+        setIsLockRearming(true);
+        lockRearmTimerRef.current = window.setTimeout(() => {
+            lockRearmTimerRef.current = null;
+            setIsLockRearming(false);
+        }, LOCK_REARM_DELAY_MS);
+    };
 
     useEffect(() => {
         let unlistenSync: (() => void) | undefined;
@@ -161,6 +187,51 @@ const OverlayHub = () => {
             if (unlistenSync) unlistenSync();
         };
     }, [setCustomLinks]);
+
+    useEffect(() => {
+        let cancelled = false;
+        let unlistenClosed: (() => void) | undefined;
+
+        const refreshActiveOverlays = async () => {
+            const entries = await Promise.all(
+                items.map(async (item) => {
+                    const isOpen = await invoke<boolean>("is_overlay_open", {
+                        id: item.id,
+                        overlayType: item.kind,
+                    }).catch(() => false);
+                    return [item.id, Boolean(isOpen)] as const;
+                })
+            );
+
+            if (cancelled) return;
+            const next = new Set<string>();
+            entries.forEach(([id, isOpen]) => {
+                if (isOpen) next.add(id);
+            });
+            setActiveOverlayIds(next);
+        };
+
+        const setup = async () => {
+            unlistenClosed = await listen<OverlayClosedPayload>("overlay_closed", (event) => {
+                const closedId = event.payload?.id;
+                if (!closedId) return;
+                setActiveOverlayIds((previous) => {
+                    if (!previous.has(closedId)) return previous;
+                    const next = new Set(previous);
+                    next.delete(closedId);
+                    return next;
+                });
+            });
+        };
+
+        refreshActiveOverlays().catch(console.error);
+        setup().catch(console.error);
+
+        return () => {
+            cancelled = true;
+            if (unlistenClosed) unlistenClosed();
+        };
+    }, [items]);
 
     useEffect(() => {
         if (!expanded) return;
@@ -212,7 +283,24 @@ const OverlayHub = () => {
     }, [expanded, expandedWidth, expandedHeight, hubWindow]);
 
     const openOverlayItem = async (item: OverlayHubItem) => {
+        const isActive = activeOverlayIds.has(item.id);
         try {
+            if (isActive) {
+                if (item.kind === "webview") {
+                    await invoke("close_webview_overlay", { id: item.id });
+                } else {
+                    await invoke("close_overlay", { id: item.id });
+                }
+
+                setActiveOverlayIds((previous) => {
+                    if (!previous.has(item.id)) return previous;
+                    const next = new Set(previous);
+                    next.delete(item.id);
+                    return next;
+                });
+                return;
+            }
+
             if (item.kind === "webview") {
                 await invoke("open_webview_overlay", {
                     id: item.id,
@@ -233,12 +321,19 @@ const OverlayHub = () => {
                 });
             }
 
-            setExpanded(false);
+            setActiveOverlayIds((previous) => {
+                if (previous.has(item.id)) return previous;
+                const next = new Set(previous);
+                next.add(item.id);
+                return next;
+            });
         } catch (error) {
             console.error(error);
             toast({
                 title: "Erreur overlay",
-                description: `Impossible d'ouvrir ${item.label} en overlay.`,
+                description: isActive
+                    ? `Impossible de fermer ${item.label}.`
+                    : `Impossible d'ouvrir ${item.label} en overlay.`,
                 variant: "destructive",
             });
         }
@@ -256,6 +351,9 @@ const OverlayHub = () => {
         setIsEditMode(Boolean(appliedMode));
         if (!appliedMode) {
             setExpanded(false);
+        }
+        if (Boolean(appliedMode) !== previousMode) {
+            startLockRearmDelay();
         }
         return Boolean(appliedMode);
     };
@@ -381,10 +479,11 @@ const OverlayHub = () => {
     const unlockRingCircumference = 2 * Math.PI * unlockRingRadius;
     const unlockRingOffset = unlockRingCircumference * (1 - unlockHoldProgress);
     const unlockRemainingSeconds = Math.max(0, (GAME_UNLOCK_HOLD_MS * (1 - unlockHoldProgress)) / 1000);
+    const lockButtonDisabled = isLockRearming || isGeometrySyncing;
 
     return (
         <div className="w-full h-full bg-transparent pointer-events-none overflow-visible flex items-start justify-center">
-            <div className="pt-1 flex flex-col items-center pointer-events-none w-full">
+            <div className="pt-0 flex flex-col items-center pointer-events-none w-full">
                 <div
                     className={`relative pointer-events-auto flex items-center gap-1 transition-opacity ${
                         isGeometrySyncing ? "opacity-0" : "opacity-100"
@@ -410,18 +509,22 @@ const OverlayHub = () => {
 
                     <button
                         type="button"
+                        disabled={lockButtonDisabled}
                         onClick={() => {
+                            if (lockButtonDisabled) return;
                             if (isEditMode) {
                                 setHubMode(false).catch(console.error);
                             }
                         }}
                         onMouseDown={(event) => {
+                            if (lockButtonDisabled) return;
                             event.preventDefault();
                             startUnlockHold();
                         }}
                         onMouseUp={clearUnlockHold}
                         onMouseLeave={clearUnlockHold}
                         onTouchStart={(event) => {
+                            if (lockButtonDisabled) return;
                             event.preventDefault();
                             startUnlockHold();
                         }}
@@ -435,8 +538,14 @@ const OverlayHub = () => {
                             isUnlockHolding
                                 ? "shadow-[inset_0_1px_0_rgba(148,197,255,0.16),0_0_6px_rgba(14,165,233,0.16),0_1px_3px_rgba(0,0,0,0.35)]"
                                 : "shadow-[inset_0_1px_0_rgba(148,197,255,0.16),0_0_6px_rgba(14,165,233,0.16),0_1px_3px_rgba(0,0,0,0.35)]"
-                        }`}
-                        title={isEditMode ? "Passer en mode jeu" : "Mode jeu actif - maintenir 1.2s pour mode edit"}
+                        } ${lockButtonDisabled ? "opacity-75 cursor-default" : ""}`}
+                        title={
+                            lockButtonDisabled
+                                ? "Reactivation du cadenas..."
+                                : isEditMode
+                                  ? "Passer en mode jeu"
+                                  : "Mode jeu actif - maintenir 1.2s pour mode edit"
+                        }
                     >
                         {!isEditMode && (
                             <svg
@@ -511,23 +620,31 @@ const OverlayHub = () => {
                         className="w-full max-w-full overflow-x-auto px-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
                     >
                         <div className="w-max mx-auto flex items-center gap-1.5">
-                            {items.map((item, index) => (
+                            {items.map((item, index) => {
+                                const isActive = activeOverlayIds.has(item.id);
+                                return (
                                 <button
                                     key={item.id}
                                     type="button"
                                     onClick={() => openOverlayItem(item)}
-                                    className={`h-7 px-2.5 rounded-full border border-sky-300/35 bg-black/50 text-slate-100 transition-all duration-200 ease-out flex items-center gap-1.5 whitespace-nowrap backdrop-blur-md shadow-[inset_0_1px_0_rgba(148,197,255,0.2),0_0_8px_rgba(14,165,233,0.2)] hover:border-sky-200/55 hover:bg-black/62 hover:shadow-[inset_0_1px_0_rgba(186,230,253,0.25),0_0_12px_rgba(56,189,248,0.28)] ${
+                                    className={`h-7 px-2.5 rounded-full border text-slate-100 transition-all duration-200 ease-out flex items-center gap-1.5 whitespace-nowrap backdrop-blur-md ${
+                                        isActive
+                                            ? "border-emerald-300/60 bg-[linear-gradient(180deg,rgba(7,27,20,0.72),rgba(6,20,17,0.72))] shadow-[inset_0_1px_0_rgba(110,231,183,0.28),0_0_12px_rgba(16,185,129,0.35)]"
+                                            : "border-sky-300/35 bg-black/50 shadow-[inset_0_1px_0_rgba(148,197,255,0.2),0_0_8px_rgba(14,165,233,0.2)] hover:border-sky-200/55 hover:bg-black/62 hover:shadow-[inset_0_1px_0_rgba(186,230,253,0.25),0_0_12px_rgba(56,189,248,0.28)]"
+                                    } ${
                                         expanded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1"
                                     }`}
                                     style={{ transitionDelay: expanded ? `${index * ITEM_STAGGER_MS}ms` : "0ms" }}
-                                    title={`Ouvrir ${item.label} en overlay`}
+                                    title={isActive ? `${item.label} actif (clic = fermer)` : `Ouvrir ${item.label} en overlay`}
                                 >
-                                    <span className="h-4 w-4 rounded-full bg-sky-300/18 text-sky-100 flex items-center justify-center">
+                                    <span className={`h-4 w-4 rounded-full flex items-center justify-center ${isActive ? "bg-emerald-300/20 text-emerald-100" : "bg-sky-300/18 text-sky-100"}`}>
                                         {renderItemIcon(item)}
                                     </span>
                                     <span className="text-[10px] font-semibold tracking-[0.03em] uppercase">{getItemLabel(item)}</span>
+                                    {isActive && <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" aria-hidden="true" />}
                                 </button>
-                            ))}
+                                );
+                            })}
                         </div>
                     </div>
                 </div>

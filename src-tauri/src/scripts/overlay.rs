@@ -231,6 +231,22 @@ pub fn get_overlay_hub_mode() -> bool {
 }
 
 #[command]
+pub fn is_overlay_open(
+    app_handle: AppHandle,
+    id: String,
+    overlay_type: Option<String>,
+) -> Result<bool, String> {
+    let overlay_type = overlay_type.unwrap_or_else(|| "iframe".to_string());
+    let label = overlay_target_label(&id, &overlay_type);
+
+    if let Some(win) = app_handle.get_webview_window(&label) {
+        return Ok(win.is_visible().unwrap_or(true));
+    }
+
+    Ok(false)
+}
+
+#[command]
 pub async fn open_overlay(
     app_handle: AppHandle,
     id: String,
