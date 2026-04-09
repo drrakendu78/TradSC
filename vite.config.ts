@@ -12,7 +12,7 @@ const isVercel = process.env.VERCEL === '1';
 let appVersion = "0.0.0";
 if (existsSync("./src-tauri/tauri.conf.json")) {
 const tauriConfig = JSON.parse(
-    readFileSync("./src-tauri/tauri.conf.json", "utf8")
+    readFileSync("./src-tauri/tauri.conf.json", "utf8").replace(/^\uFEFF/, "")
 );
     appVersion = tauriConfig.version;
 }
