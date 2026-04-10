@@ -23,9 +23,10 @@ import { getOverlayHubItems } from "@/utils/overlay-hub-registry";
 import type { OverlayHubItem } from "@/types/overlay-hub";
 
 const HUB_TOP_OFFSET = 10;
-const HUB_COLLAPSED_WIDTH = 52;
-const HUB_COLLAPSED_HEIGHT = 26;
+const HUB_COLLAPSED_WIDTH = 62;
+const HUB_COLLAPSED_HEIGHT = 32;
 const HUB_EXPANDED_HEIGHT = 74;
+const HUB_CLOSE_ANIMATION_MS = 180;
 const ITEM_STAGGER_MS = 18;
 const GAME_UNLOCK_HOLD_MS = 1200;
 const LOCK_REARM_DELAY_MS = 350;
@@ -73,6 +74,7 @@ function sanitizeCustomLinks(payload: unknown): CustomLink[] {
 
 const OverlayHub = () => {
     const [expanded, setExpanded] = useState(false);
+    const [menuVisible, setMenuVisible] = useState(false);
     const [isEditMode, setIsEditMode] = useState(true);
     const [isGeometrySyncing, setIsGeometrySyncing] = useState(false);
     const [isUnlockHolding, setIsUnlockHolding] = useState(false);
@@ -85,6 +87,7 @@ const OverlayHub = () => {
     const unlockProgressRafRef = useRef<number | null>(null);
     const unlockProgressStartRef = useRef<number | null>(null);
     const lockRearmTimerRef = useRef<number | null>(null);
+    const collapseTimerRef = useRef<number | null>(null);
     const itemsScrollerRef = useRef<HTMLDivElement | null>(null);
     const customLinks = useCustomLinksStore((state) => state.links);
     const setCustomLinks = useCustomLinksStore((state) => state.setLinks);
@@ -152,8 +155,38 @@ const OverlayHub = () => {
                 window.clearTimeout(lockRearmTimerRef.current);
                 lockRearmTimerRef.current = null;
             }
+            if (collapseTimerRef.current !== null) {
+                window.clearTimeout(collapseTimerRef.current);
+                collapseTimerRef.current = null;
+            }
         };
     }, []);
+
+    const clearCollapseTimer = () => {
+        if (collapseTimerRef.current !== null) {
+            window.clearTimeout(collapseTimerRef.current);
+            collapseTimerRef.current = null;
+        }
+    };
+
+    const openHub = () => {
+        clearCollapseTimer();
+        if (!expanded) {
+            setExpanded(true);
+        }
+        window.requestAnimationFrame(() => {
+            setMenuVisible(true);
+        });
+    };
+
+    const closeHub = () => {
+        setMenuVisible(false);
+        clearCollapseTimer();
+        collapseTimerRef.current = window.setTimeout(() => {
+            collapseTimerRef.current = null;
+            setExpanded(false);
+        }, HUB_CLOSE_ANIMATION_MS);
+    };
 
     const startLockRearmDelay = () => {
         if (lockRearmTimerRef.current !== null) {
@@ -350,7 +383,7 @@ const OverlayHub = () => {
 
         setIsEditMode(Boolean(appliedMode));
         if (!appliedMode) {
-            setExpanded(false);
+            closeHub();
         }
         if (Boolean(appliedMode) !== previousMode) {
             startLockRearmDelay();
@@ -404,7 +437,7 @@ const OverlayHub = () => {
             setUnlockHoldProgress(0);
             const restored = await setHubMode(true);
             if (restored) {
-                setExpanded(true);
+                openHub();
             }
         }, GAME_UNLOCK_HOLD_MS);
     };
@@ -414,7 +447,11 @@ const OverlayHub = () => {
             return;
         }
 
-        setExpanded((previous) => !previous);
+        if (menuVisible) {
+            closeHub();
+            return;
+        }
+        openHub();
     };
 
     const handleItemsWheel = (event: WheelEvent<HTMLDivElement>) => {
@@ -475,36 +512,40 @@ const OverlayHub = () => {
         }
     };
 
-    const unlockRingRadius = 9;
+    const unlockRingRadius = 10;
     const unlockRingCircumference = 2 * Math.PI * unlockRingRadius;
     const unlockRingOffset = unlockRingCircumference * (1 - unlockHoldProgress);
     const unlockRemainingSeconds = Math.max(0, (GAME_UNLOCK_HOLD_MS * (1 - unlockHoldProgress)) / 1000);
-    const lockButtonDisabled = isLockRearming || isGeometrySyncing;
+    const lockButtonDisabled = isLockRearming;
 
     return (
         <div className="w-full h-full bg-transparent pointer-events-none overflow-visible flex items-start justify-center">
             <div className="pt-0 flex flex-col items-center pointer-events-none w-full">
-                <div
-                    className={`relative pointer-events-auto flex items-center gap-1 transition-opacity ${
-                        isGeometrySyncing ? "opacity-0" : "opacity-100"
-                    }`}
-                >
+                <div className="relative pointer-events-auto flex items-center gap-1.5">
                     <button
                         type="button"
                         onClick={handleHubButtonClick}
-                        disabled={!isEditMode}
+                        disabled={!isEditMode || isGeometrySyncing}
                         title={
-                            !isEditMode
+                            isGeometrySyncing
+                                ? "Synchronisation du hub..."
+                                : !isEditMode
                                 ? "Mode jeu actif - bouton hub desactive"
-                                : expanded
+                                : menuVisible
                                   ? "Replier hub overlay"
                                   : "Ouvrir hub overlay"
                         }
-                        className={`h-6 w-6 rounded-full border border-sky-300/45 bg-[linear-gradient(180deg,rgba(22,38,56,0.84),rgba(13,24,36,0.84))] text-sky-100 shadow-[inset_0_1px_0_rgba(148,197,255,0.18),0_0_6px_rgba(56,189,248,0.2),0_1px_3px_rgba(0,0,0,0.4)] transition-all flex items-center justify-center disabled:pointer-events-none ${
-                            isEditMode ? "opacity-100 hover:bg-[linear-gradient(180deg,rgba(29,49,71,0.9),rgba(18,31,46,0.9))]" : "opacity-30"
+                        className={`relative overflow-visible h-7 w-7 rounded-full border border-sky-200/70 bg-[linear-gradient(180deg,rgba(30,50,73,0.94),rgba(15,28,43,0.92))] text-sky-50 shadow-[inset_0_1px_0_rgba(186,230,253,0.28),0_0_12px_rgba(56,189,248,0.35),0_1px_4px_rgba(0,0,0,0.5)] transition-all flex items-center justify-center disabled:pointer-events-none ${
+                            isEditMode ? "opacity-100 hover:bg-[linear-gradient(180deg,rgba(38,61,88,0.96),rgba(22,37,55,0.95))]" : "opacity-55"
                         }`}
                     >
-                        <PanelsTopLeft className="h-3 w-3" />
+                        <span
+                            aria-hidden="true"
+                            className={`pointer-events-none absolute -inset-1 rounded-full blur-[5px] transition-opacity ${
+                                isEditMode ? "bg-sky-400/45 opacity-95" : "bg-sky-300/30 opacity-80"
+                            }`}
+                        />
+                        <PanelsTopLeft className="relative z-10 h-3.5 w-3.5" />
                     </button>
 
                     <button
@@ -530,14 +571,14 @@ const OverlayHub = () => {
                         }}
                         onTouchEnd={clearUnlockHold}
                         onTouchCancel={clearUnlockHold}
-                        className={`relative h-6 w-6 rounded-full border flex items-center justify-center ${
+                        className={`relative overflow-visible h-7 w-7 rounded-full border flex items-center justify-center ${
                             isEditMode
-                                ? "border-sky-300/45 bg-[linear-gradient(180deg,rgba(22,38,56,0.84),rgba(13,24,36,0.84))] text-sky-100"
-                                : "border-amber-300/50 bg-[linear-gradient(180deg,rgba(72,54,25,0.9),rgba(45,35,16,0.9))] text-amber-100"
+                                ? "border-sky-200/70 bg-[linear-gradient(180deg,rgba(30,50,73,0.94),rgba(15,28,43,0.92))] text-sky-50"
+                                : "border-amber-200/75 bg-[linear-gradient(180deg,rgba(96,72,30,0.95),rgba(64,49,22,0.94))] text-amber-50"
                         } ${
                             isUnlockHolding
-                                ? "shadow-[inset_0_1px_0_rgba(148,197,255,0.16),0_0_6px_rgba(14,165,233,0.16),0_1px_3px_rgba(0,0,0,0.35)]"
-                                : "shadow-[inset_0_1px_0_rgba(148,197,255,0.16),0_0_6px_rgba(14,165,233,0.16),0_1px_3px_rgba(0,0,0,0.35)]"
+                                ? "shadow-[inset_0_1px_0_rgba(186,230,253,0.26),0_0_12px_rgba(56,189,248,0.35),0_1px_4px_rgba(0,0,0,0.5)]"
+                                : "shadow-[inset_0_1px_0_rgba(186,230,253,0.26),0_0_12px_rgba(56,189,248,0.35),0_1px_4px_rgba(0,0,0,0.5)]"
                         } ${lockButtonDisabled ? "opacity-75 cursor-default" : ""}`}
                         title={
                             lockButtonDisabled
@@ -547,10 +588,16 @@ const OverlayHub = () => {
                                   : "Mode jeu actif - maintenir 1.2s pour mode edit"
                         }
                     >
+                        <span
+                            aria-hidden="true"
+                            className={`pointer-events-none absolute -inset-1 rounded-full blur-[5px] transition-opacity ${
+                                isEditMode ? "bg-sky-400/45 opacity-95" : "bg-amber-300/45 opacity-95"
+                            }`}
+                        />
                         {!isEditMode && (
                             <svg
                                 viewBox="0 0 24 24"
-                                className="pointer-events-none absolute inset-0 h-full w-full -rotate-90"
+                                className="pointer-events-none absolute inset-0 z-[1] h-full w-full -rotate-90"
                                 aria-hidden="true"
                             >
                                 <circle
@@ -585,14 +632,14 @@ const OverlayHub = () => {
                                 strokeWidth="2"
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
-                                className="h-3 w-3"
+                                className="relative z-10 h-3.5 w-3.5"
                                 aria-hidden="true"
                             >
                                 <rect x="5" y="11" width="14" height="10" rx="2" />
                                 <path d="M9 11V8a3.5 3.5 0 0 1 6-1.8" />
                             </svg>
                         ) : (
-                            <Lock className="h-3 w-3" />
+                            <Lock className="relative z-10 h-3.5 w-3.5" />
                         )}
                     </button>
 
@@ -609,7 +656,7 @@ const OverlayHub = () => {
 
                 <div
                     className={`mt-1 flex flex-col items-center origin-top transition-all duration-200 ease-out ${
-                        expanded
+                        menuVisible
                             ? "opacity-100 translate-y-0 scale-100 pointer-events-auto"
                             : "opacity-0 -translate-y-1 scale-[0.98] pointer-events-none"
                     }`}
@@ -629,12 +676,12 @@ const OverlayHub = () => {
                                     onClick={() => openOverlayItem(item)}
                                     className={`h-7 px-2.5 rounded-full border text-slate-100 transition-all duration-200 ease-out flex items-center gap-1.5 whitespace-nowrap backdrop-blur-md ${
                                         isActive
-                                            ? "border-emerald-300/60 bg-[linear-gradient(180deg,rgba(7,27,20,0.72),rgba(6,20,17,0.72))] shadow-[inset_0_1px_0_rgba(110,231,183,0.28),0_0_12px_rgba(16,185,129,0.35)]"
-                                            : "border-sky-300/35 bg-black/50 shadow-[inset_0_1px_0_rgba(148,197,255,0.2),0_0_8px_rgba(14,165,233,0.2)] hover:border-sky-200/55 hover:bg-black/62 hover:shadow-[inset_0_1px_0_rgba(186,230,253,0.25),0_0_12px_rgba(56,189,248,0.28)]"
+                                            ? "border-emerald-300/60 bg-[linear-gradient(180deg,rgba(13,44,34,0.52),rgba(10,32,26,0.46))] shadow-[inset_0_1px_0_rgba(110,231,183,0.3),0_0_12px_rgba(16,185,129,0.32)]"
+                                            : "border-sky-300/35 bg-[linear-gradient(180deg,rgba(24,38,58,0.46),rgba(14,25,40,0.4))] shadow-[inset_0_1px_0_rgba(148,197,255,0.22),0_0_8px_rgba(14,165,233,0.18)] hover:border-sky-200/55 hover:bg-[linear-gradient(180deg,rgba(33,50,74,0.56),rgba(20,34,53,0.5))] hover:shadow-[inset_0_1px_0_rgba(186,230,253,0.26),0_0_12px_rgba(56,189,248,0.24)]"
                                     } ${
-                                        expanded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1"
+                                        menuVisible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1"
                                     }`}
-                                    style={{ transitionDelay: expanded ? `${index * ITEM_STAGGER_MS}ms` : "0ms" }}
+                                    style={{ transitionDelay: menuVisible ? `${index * ITEM_STAGGER_MS}ms` : "0ms" }}
                                     title={isActive ? `${item.label} actif (clic = fermer)` : `Ouvrir ${item.label} en overlay`}
                                 >
                                     <span className={`h-4 w-4 rounded-full flex items-center justify-center ${isActive ? "bg-emerald-300/20 text-emerald-100" : "bg-sky-300/18 text-sky-100"}`}>

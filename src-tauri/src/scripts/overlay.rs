@@ -31,6 +31,30 @@ fn close_overlay_control_window(app_handle: &AppHandle, id: &str, overlay_type: 
     }
 }
 
+fn parse_overlay_target_label(label: &str) -> Option<(String, String)> {
+    if let Some(id) = label.strip_prefix("wvoverlay_") {
+        if !id.is_empty() {
+            return Some((id.to_string(), "webview".to_string()));
+        }
+    }
+
+    if let Some(id) = label.strip_prefix("overlay_") {
+        if !id.is_empty() {
+            return Some((id.to_string(), "iframe".to_string()));
+        }
+    }
+
+    None
+}
+
+fn open_overlay_targets(app_handle: &AppHandle) -> Vec<(String, String)> {
+    app_handle
+        .webview_windows()
+        .keys()
+        .filter_map(|label| parse_overlay_target_label(label.as_str()))
+        .collect()
+}
+
 const CONTROL_WIDTH: i32 = 36;
 const CONTROL_HEIGHT: i32 = 20;
 const CONTROL_RIGHT_OFFSET: i32 = 72;
@@ -222,6 +246,20 @@ pub async fn set_overlay_hub_mode(app_handle: AppHandle, edit_mode: bool) -> Res
         }
     }
 
+    for (id, overlay_type) in open_overlay_targets(&app_handle) {
+        let _ = set_overlay_interaction_internal(
+            &app_handle,
+            &id,
+            &overlay_type,
+            edit_mode,
+            None,
+            None,
+            None,
+            None,
+            false,
+        );
+    }
+
     Ok(edit_mode)
 }
 
@@ -258,6 +296,7 @@ pub async fn open_overlay(
     opacity: f64,
 ) -> Result<(), String> {
     let label = overlay_target_label(&id, "iframe");
+    let global_edit_mode = OVERLAY_HUB_EDIT_MODE.load(Ordering::Relaxed);
 
     if let Some(win) = app_handle.get_webview_window(&label) {
         let _ = win.set_ignore_cursor_events(false);
@@ -265,7 +304,22 @@ pub async fn open_overlay(
         let _ = win.show();
         let _ = win.unminimize();
         close_overlay_control_window(&app_handle, &id, "iframe");
-        if win.set_focus().is_ok() {
+        if global_edit_mode {
+            if win.set_focus().is_ok() {
+                return Ok(());
+            }
+        } else {
+            let _ = set_overlay_interaction_internal(
+                &app_handle,
+                &id,
+                "iframe",
+                false,
+                None,
+                None,
+                None,
+                None,
+                false,
+            );
             return Ok(());
         }
 
@@ -332,6 +386,19 @@ pub async fn open_overlay(
     let _ = win.set_ignore_cursor_events(false);
     let _ = win.set_shadow(false);
     close_overlay_control_window(&app_handle, &id, "iframe");
+    if !global_edit_mode {
+        let _ = set_overlay_interaction_internal(
+            &app_handle,
+            &id,
+            "iframe",
+            false,
+            None,
+            None,
+            None,
+            None,
+            false,
+        );
+    }
     Ok(())
 }
 
@@ -345,6 +412,7 @@ pub async fn open_webview_overlay(
     opacity: f64,
 ) -> Result<(), String> {
     let label = overlay_target_label(&id, "webview");
+    let global_edit_mode = OVERLAY_HUB_EDIT_MODE.load(Ordering::Relaxed);
 
     if let Some(win) = app_handle.get_webview_window(&label) {
         let _ = win.set_ignore_cursor_events(false);
@@ -352,7 +420,22 @@ pub async fn open_webview_overlay(
         let _ = win.show();
         let _ = win.unminimize();
         close_overlay_control_window(&app_handle, &id, "webview");
-        if win.set_focus().is_ok() {
+        if global_edit_mode {
+            if win.set_focus().is_ok() {
+                return Ok(());
+            }
+        } else {
+            let _ = set_overlay_interaction_internal(
+                &app_handle,
+                &id,
+                "webview",
+                false,
+                None,
+                None,
+                None,
+                None,
+                false,
+            );
             return Ok(());
         }
 
@@ -616,6 +699,19 @@ pub async fn open_webview_overlay(
     let _ = win.set_ignore_cursor_events(false);
     let _ = win.set_shadow(false);
     close_overlay_control_window(&app_handle, &id, "webview");
+    if !global_edit_mode {
+        let _ = set_overlay_interaction_internal(
+            &app_handle,
+            &id,
+            "webview",
+            false,
+            None,
+            None,
+            None,
+            None,
+            false,
+        );
+    }
     let _ = win;
     Ok(())
 }
@@ -646,20 +742,19 @@ pub async fn set_window_opacity(
     Ok(())
 }
 
-#[command]
-pub async fn set_overlay_interaction(
-    app_handle: AppHandle,
-    id: String,
-    overlay_type: Option<String>,
+fn set_overlay_interaction_internal(
+    app_handle: &AppHandle,
+    id: &str,
+    overlay_type: &str,
     interactive: bool,
     anchor_x: Option<f64>,
     anchor_y: Option<f64>,
     anchor_width: Option<f64>,
     anchor_height: Option<f64>,
+    focus_target: bool,
 ) -> Result<(), String> {
-    let overlay_type = overlay_type.unwrap_or_else(|| "iframe".to_string());
-    let target_label = overlay_target_label(&id, &overlay_type);
-    let control_label = overlay_control_label(&id, &overlay_type);
+    let target_label = overlay_target_label(id, overlay_type);
+    let control_label = overlay_control_label(id, overlay_type);
 
     let target = app_handle
         .get_webview_window(&target_label)
@@ -669,7 +764,9 @@ pub async fn set_overlay_interaction(
         target
             .set_ignore_cursor_events(false)
             .map_err(|e| e.to_string())?;
-        let _ = target.set_focus();
+        if focus_target {
+            let _ = target.set_focus();
+        }
         if let Some(control) = app_handle.get_webview_window(&control_label) {
             let _ = control.hide();
         }
@@ -693,16 +790,18 @@ pub async fn set_overlay_interaction(
         let _ = control.set_size(tauri::PhysicalSize::new(control_width, control_height));
         let _ = control.set_position(anchored_pos);
         let _ = control.set_size(tauri::PhysicalSize::new(control_width, control_height));
-        let _ = control.set_focus();
+        if focus_target {
+            let _ = control.set_focus();
+        }
     } else {
         let control_url = format!(
             "index.html#/overlay-control?id={}&overlayType={}",
-            urlencoding::encode(&id),
-            urlencoding::encode(&overlay_type)
+            urlencoding::encode(id),
+            urlencoding::encode(overlay_type)
         );
 
         let control = WebviewWindowBuilder::new(
-            &app_handle,
+            app_handle,
             &control_label,
             WebviewUrl::App(control_url.into()),
         )
@@ -720,10 +819,37 @@ pub async fn set_overlay_interaction(
 
         let _ = control.set_shadow(false);
         let _ = control.set_size(tauri::PhysicalSize::new(control_width, control_height));
-        let _ = control.set_focus();
+        if focus_target {
+            let _ = control.set_focus();
+        }
     }
 
     Ok(())
+}
+
+#[command]
+pub async fn set_overlay_interaction(
+    app_handle: AppHandle,
+    id: String,
+    overlay_type: Option<String>,
+    interactive: bool,
+    anchor_x: Option<f64>,
+    anchor_y: Option<f64>,
+    anchor_width: Option<f64>,
+    anchor_height: Option<f64>,
+) -> Result<(), String> {
+    let overlay_type = overlay_type.unwrap_or_else(|| "iframe".to_string());
+    set_overlay_interaction_internal(
+        &app_handle,
+        &id,
+        &overlay_type,
+        interactive,
+        anchor_x,
+        anchor_y,
+        anchor_width,
+        anchor_height,
+        true,
+    )
 }
 
 #[command]
