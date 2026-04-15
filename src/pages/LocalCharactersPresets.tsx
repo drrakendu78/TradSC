@@ -86,7 +86,7 @@ function LocalCharactersPresets() {
             console.error("Erreur lors du scan du cache:", error);
             toast({
                 title: "Erreur",
-                description: "Impossible de rÃ©cupÃ©rer les informations des personnages",
+                description: "Impossible de récupérer les informations des personnages",
                 variant: "destructive",
             });
         }
@@ -117,8 +117,8 @@ function LocalCharactersPresets() {
         const init = async () => {
             const [versions, adminStatus] = await Promise.all([
                 invoke("get_star_citizen_versions").catch((error) => {
-                    logger.error("Erreur lors de la rÃ©cupÃ©ration des versions:", error);
-                    toast({ title: "Erreur", description: "Impossible de rÃ©cupÃ©rer les versions de Star Citizen", variant: "destructive" });
+                    logger.error("Erreur lors de la récupération des versions:", error);
+                    toast({ title: "Erreur", description: "Impossible de récupérer les versions de Star Citizen", variant: "destructive" });
                     return null;
                 }),
                 getAdminStatus(),
@@ -146,15 +146,16 @@ function LocalCharactersPresets() {
                 .filter(([_, version]) => version?.path)
                 .map(([versionName, version]) => ({ versionName, path: version!.path }));
 
+            const hasProtectedPath = entries.some(({ path }) => isProtectedPath(path) && !isAdmin);
+            if (hasProtectedPath) {
+                toast({
+                    title: "Chemin protégé",
+                    description: "Certaines opérations peuvent nécessiter l'administrateur (bouclier en bas à droite).",
+                    variant: "warning",
+                    duration: 4000,
+                });
+            }
             for (const { path } of entries) {
-                if (isProtectedPath(path) && !isAdmin) {
-                    toast({
-                        title: "Chemin protÃ©gÃ©",
-                        description: "Certaines opÃ©rations peuvent nÃ©cessiter l'administrateur (bouclier en bas Ã  droite).",
-                        variant: "warning",
-                        duration: 4000,
-                    });
-                }
                 await scanLocalCharacters(path);
             }
             setIsLoading(false);
@@ -206,15 +207,15 @@ function LocalCharactersPresets() {
         try {
             await invoke("create_character_backup", { version });
             toast({
-                title: "SuccÃ¨s",
-                description: `Sauvegarde de ${version} crÃ©Ã©e !`,
+                title: "Succès",
+                description: `Sauvegarde de ${version} créée !`,
                 variant: "default",
             });
             refreshBackups();
         } catch (e: unknown) {
             toast({
                 title: "Erreur",
-                description: e instanceof Error ? e.message : "Erreur lors de la crÃ©ation de la sauvegarde",
+                description: e instanceof Error ? e.message : "Erreur lors de la création de la sauvegarde",
                 variant: "destructive",
             });
         }
@@ -225,7 +226,7 @@ function LocalCharactersPresets() {
             const selected = await open({ 
                 directory: true,
                 multiple: false,
-                title: "SÃ©lectionner un dossier pour les sauvegardes"
+                title: "Sélectionner un dossier pour les sauvegardes"
             });
             
             if (!selected) {
@@ -245,8 +246,8 @@ function LocalCharactersPresets() {
             console.log("Tentative de changement de dossier vers:", dir);
             await invoke("set_character_backup_directory", { path: dir });
             toast({
-                title: "SuccÃ¨s",
-                description: "Dossier de sauvegarde mis Ã  jour. RedÃ©marrage requis.",
+                title: "Succès",
+                description: "Dossier de sauvegarde mis à jour. Redémarrage requis.",
                 variant: "default",
             });
             refreshBackups();

@@ -140,7 +140,19 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id">;
 
+const recentToastKeys = new Map<string, number>();
+
 function toast({ ...props }: Toast) {
+    const dedupeKey = `${props.title ?? ""}|${props.description ?? ""}|${props.variant ?? "default"}`;
+    const now = Date.now();
+    const lastSeen = recentToastKeys.get(dedupeKey);
+    if (lastSeen && now - lastSeen < 300) {
+        const id = genId();
+        const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id });
+        return { id, dismiss, update: (_p: ToasterToast) => {} };
+    }
+    recentToastKeys.set(dedupeKey, now);
+
     const id = genId();
 
     const pickDefaultDuration = (
@@ -201,7 +213,7 @@ function useToast() {
                 listeners.splice(index, 1);
             }
         };
-    }, [state]);
+    }, []);
 
     return {
         ...state,

@@ -9,9 +9,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Download, ExternalLink, Sparkles, Calendar, Tag } from 'lucide-react';
-import { useTheme } from '@/components/utils/theme-provider';
-import logoW from '@/assets/svg/logo-w.svg';
-import logoB from '@/assets/svg/logo-b.svg';
 
 interface UpdateInfo {
     version: string;
