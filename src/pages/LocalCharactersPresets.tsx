@@ -12,33 +12,38 @@ import logger from "@/utils/logger";
 import { isProtectedPath } from "@/utils/fs-permissions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Folder, Users, Loader2, Save, Globe2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Plus, Folder, Users, Loader2, Save, Globe2, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { open } from "@tauri-apps/plugin-dialog";
 
 function LocalCharactersPresets() {
-    // Nouvelle structure : chaque personnage a une liste de versions et chemins associés
+    // Nouvelle structure : chaque personnage a une liste de versions et chemins associÃ©s
     type CharacterRow = {
         name: string;
         versions: { version: string; path: string }[];
-        // Ajoute d'autres propriétés si besoin (ex: description, etc.)
+        // Ajoute d'autres propriÃ©tÃ©s si besoin (ex: description, etc.)
     };
     const [localCharacters, setLocalCharacters] = useState<CharacterRow[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [loadingDot, setLoadingDot] = useState(0);
     const [gamePaths, setGamePaths] = useState<GamePaths | null>(null);
     const [gameCheckDone, setGameCheckDone] = useState(false);
-    const [isAdmin, setIsAdmin] = useState(true); // Supposer admin par défaut pour éviter flash de toast
+    const [isAdmin, setIsAdmin] = useState(true); // Supposer admin par dÃ©faut pour Ã©viter flash de toast
     const { toast } = useToast();
     const [backups, setBackups] = useState<Backup[]>([]);
     const [backupDir, setBackupDir] = useState("");
     const [isLoadingBackups, setIsLoadingBackups] = useState(false);
+    const [selectedBackupVersion, setSelectedBackupVersion] = useState("");
+    const [createBackupModalOpen, setCreateBackupModalOpen] = useState(false);
 
     // On regroupe les personnages par identifiant unique (ex: path ou name)
     // Regroupe les personnages par nom et stocke les versions et chemins
@@ -49,7 +54,7 @@ function LocalCharactersPresets() {
             );
 
             setLocalCharacters(prev => {
-                // Récupère toutes les versions connues
+                // RÃ©cupÃ¨re toutes les versions connues
                 const allVersions = Object.keys(gamePaths?.versions || {});
                 const map = new Map<string, CharacterRow>();
                 // Ajoute les anciens
@@ -81,13 +86,12 @@ function LocalCharactersPresets() {
             console.error("Erreur lors du scan du cache:", error);
             toast({
                 title: "Erreur",
-                description: "Impossible de récupérer les informations des personnages",
+                description: "Impossible de rÃ©cupÃ©rer les informations des personnages",
                 variant: "destructive",
             });
         }
     }, [toast, gamePaths]);
-
-    // Fonction pour rafraîchir complètement les données
+    // Fonction pour rafraichir completement les donnees
     const refreshLocalCharacters = useCallback(async () => {
         if (!gamePaths) return;
 
@@ -102,19 +106,19 @@ function LocalCharactersPresets() {
         setIsLoading(false);
     }, [gamePaths, scanLocalCharacters]);
 
-    // Récupération des versions de jeu et statut admin au chargement
+    // RÃ©cupÃ©ration des versions de jeu et statut admin au chargement
     useEffect(() => {
         const getAdminStatus = (): Promise<boolean> =>
             invoke<boolean>("is_running_as_admin").catch((error) => {
-                logger.error("Erreur lors de la vérification du statut admin:", error);
+                logger.error("Erreur lors de la vÃ©rification du statut admin:", error);
                 return false;
             });
 
         const init = async () => {
             const [versions, adminStatus] = await Promise.all([
                 invoke("get_star_citizen_versions").catch((error) => {
-                    logger.error("Erreur lors de la récupération des versions:", error);
-                    toast({ title: "Erreur", description: "Impossible de récupérer les versions de Star Citizen", variant: "destructive" });
+                    logger.error("Erreur lors de la rÃ©cupÃ©ration des versions:", error);
+                    toast({ title: "Erreur", description: "Impossible de rÃ©cupÃ©rer les versions de Star Citizen", variant: "destructive" });
                     return null;
                 }),
                 getAdminStatus(),
@@ -126,7 +130,7 @@ function LocalCharactersPresets() {
 
         init();
 
-        // Vérification périodique du statut admin (toutes les 5 secondes)
+        // Verification periodique du statut admin (toutes les 5 secondes)
         const adminCheckInterval = setInterval(() => {
             getAdminStatus().then(setIsAdmin);
         }, 5000);
@@ -145,8 +149,8 @@ function LocalCharactersPresets() {
             for (const { path } of entries) {
                 if (isProtectedPath(path) && !isAdmin) {
                     toast({
-                        title: "Chemin protégé",
-                        description: "Certaines opérations peuvent nécessiter l'administrateur (bouclier en bas à droite).",
+                        title: "Chemin protÃ©gÃ©",
+                        description: "Certaines opÃ©rations peuvent nÃ©cessiter l'administrateur (bouclier en bas Ã  droite).",
                         variant: "warning",
                         duration: 4000,
                     });
@@ -202,15 +206,15 @@ function LocalCharactersPresets() {
         try {
             await invoke("create_character_backup", { version });
             toast({
-                title: "Succès",
-                description: `Sauvegarde de ${version} créée !`,
+                title: "SuccÃ¨s",
+                description: `Sauvegarde de ${version} crÃ©Ã©e !`,
                 variant: "default",
             });
             refreshBackups();
         } catch (e: unknown) {
             toast({
                 title: "Erreur",
-                description: e instanceof Error ? e.message : "Erreur lors de la création de la sauvegarde",
+                description: e instanceof Error ? e.message : "Erreur lors de la crÃ©ation de la sauvegarde",
                 variant: "destructive",
             });
         }
@@ -221,11 +225,11 @@ function LocalCharactersPresets() {
             const selected = await open({ 
                 directory: true,
                 multiple: false,
-                title: "Sélectionner un dossier pour les sauvegardes"
+                title: "SÃ©lectionner un dossier pour les sauvegardes"
             });
             
             if (!selected) {
-                return; // L'utilisateur a annulé
+                return; // L'utilisateur a annulÃ©
             }
             
             // Dans Tauri v2, open peut retourner string | string[] | null
@@ -235,19 +239,19 @@ function LocalCharactersPresets() {
             } else if (typeof selected === 'string') {
                 dir = selected;
             } else {
-                return; // Annulé
+                return; // AnnulÃ©
             }
             
             console.log("Tentative de changement de dossier vers:", dir);
             await invoke("set_character_backup_directory", { path: dir });
             toast({
-                title: "Succès",
-                description: "Dossier de sauvegarde mis à jour. Redémarrage requis.",
+                title: "SuccÃ¨s",
+                description: "Dossier de sauvegarde mis Ã  jour. RedÃ©marrage requis.",
                 variant: "default",
             });
             refreshBackups();
         } catch (e: unknown) {
-            console.error("Erreur complète lors du changement de dossier:", e);
+            console.error("Erreur complÃ¨te lors du changement de dossier:", e);
             let errorMessage = "Erreur lors du changement de dossier";
             if (e instanceof Error) {
                 errorMessage = e.message;
@@ -287,31 +291,49 @@ function LocalCharactersPresets() {
         return Object.keys(gamePaths.versions).sort();
     }, [gamePaths]);
 
+    useEffect(() => {
+        if (gameVersionsList.length === 0) {
+            setSelectedBackupVersion("");
+            return;
+        }
+
+        setSelectedBackupVersion((prev) => {
+            if (prev && gameVersionsList.includes(prev)) return prev;
+            const live = gameVersionsList.find((version) => version.toUpperCase() === "LIVE");
+            return live ?? gameVersionsList[0];
+        });
+    }, [gameVersionsList]);
+
+    const localTabTriggerClass =
+        "group flex h-auto min-h-[34px] items-center justify-between gap-1.5 rounded-md border border-transparent px-2 py-1.5 text-left transition-all duration-200 hover:border-primary/35 hover:bg-primary/10 data-[state=active]:border-primary/45 data-[state=active]:bg-[linear-gradient(140deg,hsl(var(--primary)/0.14),hsl(var(--background)/0.34))] data-[state=active]:text-foreground data-[state=active]:shadow-[0_0_0_1px_hsl(var(--primary)/0.28),0_6px_16px_hsl(var(--primary)/0.14)] data-[state=active]:animate-[tab-activate_220ms_ease-out]";
+
 
     if (!gameCheckDone) {
         return (
             <div className="flex h-full w-full flex-col items-center justify-center gap-4">
-                <div className="p-4 rounded-full bg-muted animate-pulse">
-                    <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
+                <div className="rounded-full bg-muted p-4 animate-pulse">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
-                <p className="text-muted-foreground">Recherche des installations de Star Citizen...</p>
+                <p className="text-sm text-muted-foreground">Recherche des installations de Star Citizen...</p>
             </div>
         );
     }
 
     if (!gamePaths) {
         return (
-            <div className="flex flex-col items-center justify-center w-full h-full gap-4">
-                <div className="p-4 rounded-full bg-muted">
-                    <Globe2 className="h-12 w-12 text-muted-foreground" />
-                </div>
-                <div className="text-center space-y-2">
-                    <h2 className="text-2xl font-bold">Aucune version détectée</h2>
-                    <p className="text-muted-foreground max-w-md">
-                        Lancez Star Citizen au moins une fois, puis rechargez cette page avec
-                        <kbd className="mx-2 px-2 py-1 text-xs bg-muted rounded border">CTRL + R</kbd>
-                    </p>
-                </div>
+            <div className="flex h-full w-full items-center justify-center p-4">
+                <section className="w-full max-w-xl rounded-xl border border-border/60 bg-[hsl(var(--background)/0.28)] p-7 text-center shadow-[0_16px_34px_rgba(0,0,0,0.22)] backdrop-blur-xl">
+                    <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full border border-border/55 bg-background/45">
+                        <Globe2 className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                    <div className="space-y-1.5">
+                        <h2 className="text-xl font-bold tracking-tight">Aucune version detectee</h2>
+                        <p className="mx-auto max-w-md text-sm text-muted-foreground">
+                            Lancez Star Citizen au moins une fois, puis rechargez cette page avec
+                            <kbd className="mx-2 rounded border border-border/55 bg-background/60 px-2 py-1 text-xs">CTRL + R</kbd>
+                        </p>
+                    </div>
+                </section>
             </div>
         );
     }
@@ -319,11 +341,11 @@ function LocalCharactersPresets() {
     if (isLoading) {
         return (
             <div className="flex h-full w-full flex-col items-center justify-center gap-4">
-                <div className="p-4 rounded-full bg-muted animate-pulse">
-                    <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
+                <div className="rounded-full bg-muted p-4 animate-pulse">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
-                <p className="text-muted-foreground">
-                    Récupération des données{Array.from({ length: loadingDot }).map((_, i) => <span key={i}>.</span>)}
+                <p className="text-sm text-muted-foreground">
+                    Recuperation des donnees{Array.from({ length: loadingDot }).map((_, i) => <span key={i}>.</span>)}
                 </p>
             </div>
         );
@@ -334,136 +356,234 @@ function LocalCharactersPresets() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
-            className="flex flex-col w-full h-full p-4 overflow-hidden"
+            className="flex h-full w-full flex-col overflow-hidden px-1 pb-1 pt-0"
         >
-            <div className="flex flex-col gap-6 h-full">
+            <div className="flex h-full flex-col gap-3.5 overflow-auto pr-1">
                 {/* Header */}
-                <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-pink-500/10">
-                        <Users className="h-6 w-6 text-pink-500" />
+                <section className="relative px-1 pt-1.5">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex items-start gap-3">
+                            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-pink-500/30 bg-pink-500/10">
+                                <Users className="h-4 w-4 text-pink-500" />
+                            </div>
+                            <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <h1 className="text-[1.28rem] font-semibold leading-none tracking-tight">Persos locaux</h1>
+                                    <Badge variant="outline" className="h-5 rounded-md border-border/40 bg-background/20 px-1.5 text-[10px]">
+                                        {localCharacters.length} perso{localCharacters.length > 1 ? "s" : ""}
+                                    </Badge>
+                                    <Badge variant="outline" className="h-5 rounded-md border-border/40 bg-background/20 px-1.5 text-[10px]">
+                                        {backups.length} sauvegarde{backups.length > 1 ? "s" : ""}
+                                    </Badge>
+                                </div>
+                                <p className="mt-1 text-sm text-muted-foreground/90">Gerez vos presets locaux et vos sauvegardes</p>
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <h1 className="text-2xl font-bold tracking-tight">Gestionnaire de Personnages</h1>
-                        <p className="text-sm text-muted-foreground">Gérez vos presets et sauvegardes</p>
-                    </div>
-                </div>
+                    <div className="mt-3 h-px w-full bg-gradient-to-r from-pink-500/25 via-border/40 to-transparent" />
+                </section>
 
-                <Tabs defaultValue="presets" className="flex-1 flex flex-col overflow-hidden">
-                    <TabsList className="mb-4 w-fit">
-                        <TabsTrigger value="presets" className="gap-2">
-                            <Users className="h-4 w-4" />
-                            Presets locaux
-                        </TabsTrigger>
-                        <TabsTrigger value="backups" className="gap-2">
-                            <Save className="h-4 w-4" />
-                            Sauvegardes
-                        </TabsTrigger>
-                    </TabsList>
-                    
-                    <TabsContent value="presets" className="flex flex-col gap-4 overflow-auto">
-                        <Card className="bg-gradient-to-r from-pink-500/5 to-pink-500/10 border-pink-500/20">
-                            <CardContent className="py-4">
-                                <p className="text-sm text-muted-foreground leading-relaxed">
-                                    👤 Gérez vos configurations de personnages sauvegardées localement.
-                                    Importez, exportez et organisez vos presets entre les différentes versions du jeu.
-                                </p>
-                            </CardContent>
-                        </Card>
+                <Tabs defaultValue="presets" className="flex flex-col">
+                    <section className="relative flex flex-col overflow-hidden rounded-2xl border border-border/45 bg-[hsl(var(--background)/0.16)] shadow-[0_10px_26px_rgba(0,0,0,0.10)] backdrop-blur-xl">
+                        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_90%_at_100%_0%,hsl(var(--primary)/0.12),transparent_62%)]" />
 
-                        <Card className="overflow-hidden bg-background/40 border-border/50">
-                            <CardContent className="p-0">
-                                <DataTable
-                                    columns={columns(toast, refreshLocalCharacters, availableVersions)}
-                                    data={localCharacters}
-                                />
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-                    
-                    <TabsContent value="backups" className="flex flex-col gap-4 overflow-auto">
-                        <Card className="bg-gradient-to-r from-amber-500/5 to-amber-500/10 border-amber-500/20">
-                            <CardContent className="py-4">
-                                <p className="text-sm text-muted-foreground leading-relaxed">
-                                    💾 Gérez les sauvegardes de vos personnages. Créez des sauvegardes et restaurez-les vers différentes versions du jeu.
+                        <div className="relative border-b border-border/35 px-2.5 py-2">
+                            <TabsList className="inline-grid h-auto w-fit grid-cols-2 gap-1 rounded-xl border border-border/55 bg-[hsl(var(--background)/0.24)] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)]">
+                                <TabsTrigger value="presets" className={localTabTriggerClass}>
+                                    <span className="flex items-center gap-1.5">
+                                        <Users className="h-3.5 w-3.5 text-pink-500" />
+                                        <span className="text-[10px] font-semibold tracking-[0.04em] sm:text-[10px]">PRESETS</span>
+                                    </span>
+                                    <span className="rounded-full border border-border/60 px-1.5 py-0.5 text-[9px] font-semibold leading-none text-foreground/85">
+                                        {localCharacters.length}
+                                    </span>
+                                </TabsTrigger>
+                                <TabsTrigger value="backups" className={localTabTriggerClass}>
+                                    <span className="flex items-center gap-1.5">
+                                        <Save className="h-3.5 w-3.5 text-primary" />
+                                        <span className="text-[10px] font-semibold tracking-[0.04em] sm:text-[10px]">SAUVEGARDES</span>
+                                    </span>
+                                    <span className="rounded-full border border-border/60 px-1.5 py-0.5 text-[9px] font-semibold leading-none text-foreground/85">
+                                        {backups.length}
+                                    </span>
+                                </TabsTrigger>
+                            </TabsList>
+                        </div>
+
+                        <TabsContent value="presets" className="relative mt-0 px-2.5 pb-2.5 pt-2">
+                            <div className="mb-2 rounded-xl border border-border/35 bg-[hsl(var(--background)/0.22)] px-3 py-2">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <p className="text-[11px] text-muted-foreground">
+                                        Gerez vos presets locaux et passez facilement d'une version du jeu a l'autre.
+                                    </p>
+                                    <Badge variant="outline" className="h-5 rounded-md border-border/45 bg-background/20 px-2 text-[10px]">
+                                        {availableVersions.length} version{availableVersions.length > 1 ? "s" : ""}
+                                    </Badge>
+                                </div>
+                            </div>
+
+                            <DataTable
+                                columns={columns(toast, refreshLocalCharacters, availableVersions)}
+                                data={localCharacters}
+                            />
+                        </TabsContent>
+
+                        <TabsContent value="backups" className="relative mt-0 px-2.5 pb-2.5 pt-2">
+                            <div className="mb-2 space-y-2 rounded-xl border border-border/35 bg-[hsl(var(--background)/0.22)] px-3 py-2.5">
+                                <p className="text-[11px] text-muted-foreground">
+                                    Gerez les sauvegardes de vos persos et restaurez-les vers les versions du jeu que vous utilisez.
                                 </p>
-                                <p className="text-xs text-yellow-500/90 mt-2">
-                                    ⚠️ Le changement d'emplacement de sauvegarde nécessite un redémarrage de l'application.
+                                <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                                    Le changement d'emplacement de sauvegarde necessite un redemarrage de l'application.
                                 </p>
-                            </CardContent>
-                        </Card>
-                        
-                        <div className="flex justify-between items-center">
-                            <div className="flex gap-2">
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
+
+                                <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
+                                    <div className="flex flex-wrap gap-2">
                                         <Button
                                             variant="default"
                                             size="sm"
-                                            className="gap-2"
+                                            onClick={() => setCreateBackupModalOpen(true)}
+                                            disabled={gameVersionsList.length === 0}
+                                            className="h-8 gap-2 rounded-lg px-3"
                                         >
                                             <Plus className="h-4 w-4" />
-                                            Créer une sauvegarde
+                                            Creer une sauvegarde
                                         </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="start">
-                                        {gameVersionsList.map((version) => (
-                                            <DropdownMenuItem
-                                                key={version}
-                                                onClick={() => handleCreateBackup(version)}
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={handleChangeFolder}
+                                            className="h-8 gap-2 rounded-lg border-border/50 bg-background/20 px-3"
+                                        >
+                                            <Folder className="h-4 w-4" />
+                                            Changer de dossier
+                                        </Button>
+                                        {backupDir && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={handleOpenBackupFolder}
+                                                className="h-8 gap-2 rounded-lg px-3"
                                             >
-                                                Sauvegarder {version}
-                                            </DropdownMenuItem>
-                                        ))}
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={handleChangeFolder}
-                                    className="gap-2"
-                                >
-                                    <Folder className="h-4 w-4" />
-                                    Changer de dossier
-                                </Button>
-                                {backupDir && (
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={handleOpenBackupFolder}
-                                        className="gap-2"
-                                    >
-                                        <Folder className="h-4 w-4" />
-                                        Ouvrir
-                                    </Button>
-                                )}
+                                                <Folder className="h-4 w-4" />
+                                                Ouvrir
+                                            </Button>
+                                        )}
+                                    </div>
+                                    {backupDir && (
+                                        <p className="max-w-[380px] truncate text-[11px] text-muted-foreground">
+                                            {backupDir}
+                                        </p>
+                                    )}
+                                </div>
                             </div>
-                            {backupDir && (
-                                <p className="text-xs text-muted-foreground truncate max-w-[300px]">
-                                    📁 {backupDir}
-                                </p>
+
+                            {isLoadingBackups ? (
+                                <div className="flex h-28 flex-col items-center justify-center gap-2 rounded-xl border border-border/30 bg-[hsl(var(--background)/0.10)]">
+                                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                                    <p className="text-sm text-muted-foreground">Chargement des sauvegardes...</p>
+                                </div>
+                            ) : (
+                                <BackupDataTable
+                                    columns={backupColumns(toast, refreshBackups, gameVersionsList, refreshLocalCharacters)}
+                                    data={backups}
+                                />
+                            )}
+                        </TabsContent>
+                    </section>
+                </Tabs>
+
+                <Dialog
+                    open={createBackupModalOpen}
+                    onOpenChange={(nextOpen) => {
+                        setCreateBackupModalOpen(nextOpen);
+                    }}
+                >
+                    <DialogContent className="max-w-[560px] overflow-hidden border-primary/35 p-0">
+                        <div className="relative border-b border-border/45 bg-[linear-gradient(135deg,hsl(var(--primary)/0.16),hsl(var(--background)/0.16))] px-5 py-4">
+                            <DialogHeader className="relative space-y-2 pr-10 text-left">
+                                <div className="flex items-start gap-3">
+                                    <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-lg border border-primary/45 bg-primary/12 text-primary">
+                                        <Save className="h-4 w-4" />
+                                    </div>
+                                    <div className="min-w-0 space-y-1">
+                                        <DialogTitle className="text-xl font-semibold tracking-tight">
+                                            CrÃ©er une sauvegarde
+                                        </DialogTitle>
+                                        <DialogDescription className="text-sm text-muted-foreground/92">
+                                            Choisissez la version Ã  sauvegarder.
+                                        </DialogDescription>
+                                    </div>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                                    <span className="rounded-full border border-border/50 bg-background/25 px-2 py-0.5 text-muted-foreground/90">
+                                        {gameVersionsList.length} version{gameVersionsList.length > 1 ? "s" : ""} disponible{gameVersionsList.length > 1 ? "s" : ""}
+                                    </span>
+                                    <span className="rounded-full border border-primary/45 bg-primary/12 px-2 py-0.5 font-semibold uppercase tracking-[0.06em] text-primary">
+                                        Sauvegarde
+                                    </span>
+                                </div>
+                            </DialogHeader>
+                        </div>
+
+                        <div className="space-y-2 px-5 py-4">
+                            {gameVersionsList.length > 0 ? (
+                                gameVersionsList.map((version) => {
+                                    const isSelected = selectedBackupVersion === version;
+
+                                    return (
+                                        <button
+                                            key={version}
+                                            type="button"
+                                            onClick={() => setSelectedBackupVersion(version)}
+                                            className={cn(
+                                                "flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors",
+                                                "border-border/45 bg-[hsl(var(--background)/0.22)] hover:border-primary/35 hover:bg-[hsl(var(--primary)/0.08)]",
+                                                isSelected && "border-primary/45 bg-[hsl(var(--primary)/0.12)] shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.22)]",
+                                            )}
+                                        >
+                                            <span className="font-medium text-foreground/95">{version}</span>
+                                            <span
+                                                className={cn(
+                                                    "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em]",
+                                                    isSelected
+                                                        ? "border-primary/45 bg-primary/12 text-primary"
+                                                        : "border-border/45 bg-background/30 text-muted-foreground",
+                                                )}
+                                            >
+                                                {isSelected && <Check className="h-3 w-3" />}
+                                                {isSelected ? "Selectionnee" : "Choisir"}
+                                            </span>
+                                        </button>
+                                    );
+                                })
+                            ) : (
+                                <div className="rounded-xl border border-border/40 bg-[hsl(var(--background)/0.2)] px-3 py-3 text-sm text-muted-foreground">
+                                    Aucune version installÃ©e dÃ©tectÃ©e.
+                                </div>
                             )}
                         </div>
-                        
-                        <Card className="overflow-hidden bg-background/40 border-border/50">
-                            <CardContent className="p-0">
-                                {isLoadingBackups ? (
-                                    <div className="flex flex-col items-center justify-center h-32 gap-3">
-                                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                                        <p className="text-sm text-muted-foreground">Chargement des sauvegardes...</p>
-                                    </div>
-                                ) : (
-                                    <BackupDataTable
-                                        columns={backupColumns(toast, refreshBackups, gameVersionsList, refreshLocalCharacters)}
-                                        data={backups}
-                                    />
-                                )}
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-                </Tabs>
+
+                        <DialogFooter className="border-t border-border/45 bg-[hsl(var(--background)/0.18)] px-5 py-4">
+                            <Button variant="secondary" onClick={() => setCreateBackupModalOpen(false)} className="h-9 rounded-lg px-4">
+                                Annuler
+                            </Button>
+                            <Button
+                                onClick={() => {
+                                    if (!selectedBackupVersion) return;
+                                    setCreateBackupModalOpen(false);
+                                    handleCreateBackup(selectedBackupVersion);
+                                }}
+                                disabled={!selectedBackupVersion}
+                                className="h-9 rounded-lg px-4"
+                            >
+                                CrÃ©er
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
         </m.div>
     );
 }
-
 export default LocalCharactersPresets;

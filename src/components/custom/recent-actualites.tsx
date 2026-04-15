@@ -201,16 +201,16 @@ export default function RecentActualites({ max = 3 }: { max?: number }) {
 
     if (items === null) {
         return (
-            <div className="space-y-2">
-                <Skeleton className="h-20 w-full rounded-lg" />
-                <Skeleton className="h-20 w-full rounded-lg" />
-                <Skeleton className="h-20 w-full rounded-lg" />
+            <div className="space-y-1.5">
+                <Skeleton className="h-14 w-full rounded-lg" />
+                <Skeleton className="h-14 w-full rounded-lg" />
+                <Skeleton className="h-14 w-full rounded-lg" />
             </div>
         );
     }
 
     return (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
             {items.slice(0, max).map((item, idx) => {
                 let itemXml = undefined;
                 const title = typeof item.title === 'string' ? item.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '';
@@ -240,7 +240,7 @@ export default function RecentActualites({ max = 3 }: { max?: number }) {
                         }
                     },
                     className: `
-                        block relative rounded-lg border transition-all duration-200 overflow-hidden cursor-pointer no-underline group
+                        block relative overflow-hidden rounded-lg border transition-all duration-200 cursor-pointer no-underline group
                         ${idx === 0
                             ? 'bg-primary/10 border-primary/30 hover:border-primary/50 hover:bg-primary/15'
                             : 'bg-muted/30 border-border/50 hover:border-border hover:bg-muted/50'
@@ -248,7 +248,7 @@ export default function RecentActualites({ max = 3 }: { max?: number }) {
                     `
                 } : {
                     className: `
-                        relative rounded-lg border transition-all duration-200 overflow-hidden group
+                        relative overflow-hidden rounded-lg border transition-all duration-200 group
                         ${idx === 0
                             ? 'bg-primary/10 border-primary/30 hover:border-primary/50 hover:bg-primary/15'
                             : 'bg-muted/30 border-border/50 hover:border-border hover:bg-muted/50'
@@ -260,49 +260,49 @@ export default function RecentActualites({ max = 3 }: { max?: number }) {
                     <CardWrapper key={titleText || idx} {...wrapperProps}>
                         <div className="flex items-stretch">
                             {imageUrl && (
-                                <div className="flex-shrink-0 w-24 overflow-hidden">
+                                <div className="w-20 flex-shrink-0 overflow-hidden">
                                     <img
                                         src={imageUrl}
                                         alt={titleText}
                                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                                        style={{ minHeight: '80px' }}
+                                        style={{ minHeight: '64px' }}
                                         onError={(e) => {
                                             (e.target as HTMLImageElement).style.display = 'none';
                                         }}
                                     />
                                 </div>
                             )}
-                            <div className="flex-1 p-3 min-w-0">
-                                <div className="flex items-center gap-2 mb-1.5">
+                            <div className="min-w-0 flex-1 p-2.5">
+                                <div className="mb-1 flex items-center gap-1.5">
                                     <Badge
                                         variant={idx === 0 ? "default" : "secondary"}
-                                        className="text-[10px] px-1.5 py-0 h-5"
+                                        className="h-4 px-1.5 py-0 text-[9px]"
                                     >
                                         {category}
                                     </Badge>
                                     {idx === 0 && (
-                                        <span className="flex items-center gap-1 text-[10px] text-primary font-medium">
-                                            <Sparkles className="h-3 w-3" />
+                                        <span className="flex items-center gap-1 text-[9px] text-primary font-medium">
+                                            <Sparkles className="h-2.5 w-2.5" />
                                             Nouveau
                                         </span>
                                     )}
-                                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground ml-auto shrink-0">
-                                        <Clock className="h-3 w-3" />
+                                    <div className="ml-auto flex shrink-0 items-center gap-1 text-[9px] text-muted-foreground">
+                                        <Clock className="h-2.5 w-2.5" />
                                         {formatDate(item.updated)}
                                     </div>
                                 </div>
-                                <h3 className="text-sm font-medium line-clamp-1 mb-1 group-hover:text-primary">
+                                <h3 className="mb-0.5 line-clamp-1 text-[13px] font-medium leading-tight group-hover:text-primary">
                                     {titleText}
                                 </h3>
                                 {preview && (
-                                    <p className="text-xs text-muted-foreground line-clamp-1">
+                                    <p className="line-clamp-1 text-[11px] text-muted-foreground">
                                         {preview}
                                     </p>
                                 )}
                             </div>
                             {url && (
-                                <div className="flex items-center pr-3">
-                                    <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                                <div className="flex items-center pr-2.5">
+                                    <ExternalLink className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
                                 </div>
                             )}
                         </div>

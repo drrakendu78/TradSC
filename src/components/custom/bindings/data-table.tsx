@@ -1,3 +1,5 @@
+"use client";
+
 import {
     ColumnDef,
     flexRender,
@@ -23,6 +25,8 @@ export function DataTable<TData, TValue>({
     columns,
     data,
 }: DataTableProps<TData, TValue>) {
+    const hasData = data.length > 0;
+
     const table = useReactTable({
         data,
         columns,
@@ -30,17 +34,21 @@ export function DataTable<TData, TValue>({
     });
 
     return (
-        <div className="rounded-md border border-border/50 bg-background/40 shadow-sm hover:shadow-md transition-all duration-200 max-h-[calc(100vh-100px)] overflow-hidden">
-            <div className="overflow-y-auto max-h-[calc(100vh-100px)]">
+        <div className="relative overflow-hidden rounded-2xl border border-border/45 bg-[hsl(var(--background)/0.16)] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-primary/8 to-transparent" />
+            <div className={`relative max-h-[58vh] overflow-y-auto ${hasData ? "" : "min-h-[220px]"}`}>
                 <Table className="!bg-transparent">
-                    <TableHeader className="sticky top-0 z-10 bg-background/60 backdrop-blur-md border-b border-border/50">
+                    <TableHeader className="sticky top-0 z-10 border-b border-border/45 bg-[hsl(var(--background)/0.60)] backdrop-blur-xl">
                         {table.getHeaderGroups().map((headerGroup) => (
-                            <TableRow key={headerGroup.id} className="hover:bg-transparent border-0">
+                            <TableRow key={headerGroup.id} className="border-0 hover:bg-transparent">
                                 {headerGroup.headers.map((header) => (
-                                    <TableHead key={header.id} className="font-semibold text-foreground/90">
+                                    <TableHead key={header.id} className="h-9 text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground/75">
                                         {header.isPlaceholder
                                             ? null
-                                            : flexRender(header.column.columnDef.header, header.getContext())}
+                                            : flexRender(
+                                                header.column.columnDef.header,
+                                                header.getContext(),
+                                            )}
                                     </TableHead>
                                 ))}
                             </TableRow>
@@ -52,21 +60,24 @@ export function DataTable<TData, TValue>({
                                 <TableRow
                                     key={row.id}
                                     data-state={row.getIsSelected() && "selected"}
-                                    className="transition-all duration-200 hover:bg-muted/50 border-b border-border/30 last:border-0 bg-transparent"
+                                    className="border-b border-border/25 bg-transparent transition-colors odd:bg-[hsl(var(--background)/0.02)] hover:bg-[hsl(var(--primary)/0.08)] last:border-0"
                                 >
                                     {row.getVisibleCells().map((cell) => (
-                                        <TableCell key={cell.id} className="py-4">
-                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                        <TableCell key={cell.id} className="py-2.5 text-sm">
+                                            {flexRender(
+                                                cell.column.columnDef.cell,
+                                                cell.getContext(),
+                                            )}
                                         </TableCell>
                                     ))}
                                 </TableRow>
                             ))
                         ) : (
                             <TableRow className="hover:bg-transparent">
-                                <TableCell colSpan={columns.length} className="h-32 text-center">
-                                    <div className="flex flex-col items-center gap-2">
-                                        <div className="text-muted-foreground text-lg">Aucun binding trouvé</div>
-                                        <div className="text-muted-foreground/60 text-sm">Importez un fichier XML pour commencer</div>
+                                <TableCell colSpan={columns.length} className="h-28 text-center">
+                                    <div className="flex flex-col items-center gap-1">
+                                        <div className="text-base text-muted-foreground">Aucun binding trouve</div>
+                                        <div className="text-xs text-muted-foreground/70">Importez un fichier XML pour commencer</div>
                                     </div>
                                 </TableCell>
                             </TableRow>
@@ -77,4 +88,3 @@ export function DataTable<TData, TValue>({
         </div>
     );
 }
-

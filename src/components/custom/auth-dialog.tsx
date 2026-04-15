@@ -14,7 +14,29 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import CloudBackupContent from './cloud-backup-content';
-import { MessageCircle, User as UserIcon, Save, LogIn, Camera, RotateCcw } from 'lucide-react';
+import { User as UserIcon, Save, LogIn, Camera, RotateCcw, LogOut, ShieldAlert, CheckCircle2 } from 'lucide-react';
+
+function DiscordLogo({ className }: { className?: string }) {
+    return (
+        <svg viewBox="0 0 127.14 96.36" fill="currentColor" className={className} aria-hidden="true">
+            <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21a105.73,105.73,0,0,0,32.17,16.15,77.7,77.7,0,0,0,6.89-11.11,68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z" />
+        </svg>
+    );
+}
+
+function DiscordAuthButton({ label, loading, disabled, onClick }: { label: string; loading: boolean; disabled: boolean; onClick: () => void }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            disabled={disabled}
+            className="flex h-11 w-full items-center justify-center gap-2.5 rounded-xl bg-[#5865F2] px-4 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_4px_12px_rgba(88,101,242,0.25)] transition-colors duration-200 hover:bg-[#4752C4] disabled:cursor-not-allowed disabled:opacity-70"
+        >
+            <DiscordLogo className="h-5 w-5" />
+            {loading ? 'Connexion en cours...' : label}
+        </button>
+    );
+}
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
@@ -364,14 +386,29 @@ export default function AuthDialog({ open, onOpenChange, defaultTab }: AuthDialo
         }
     };
 
+    const cloudTabTriggerClass =
+        "group flex h-auto min-h-[52px] items-center justify-between gap-2 rounded-lg border border-transparent px-2.5 py-2.5 text-left transition-all duration-200 hover:border-primary/35 hover:bg-primary/10 data-[state=active]:-translate-y-[1px] data-[state=active]:border-primary/45 data-[state=active]:bg-[linear-gradient(140deg,hsl(var(--primary)/0.16),hsl(var(--background)/0.36))] data-[state=active]:text-foreground data-[state=active]:shadow-[0_0_0_1px_hsl(var(--primary)/0.30),0_10px_24px_hsl(var(--primary)/0.16)] data-[state=active]:animate-[tab-activate_260ms_ease-out]";
+    const authInputClass =
+        "h-11 rounded-lg border-border/55 bg-background/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] placeholder:text-muted-foreground/75 focus-visible:border-primary/50 focus-visible:ring-primary/30";
+    const authPrimaryButtonClass =
+        "h-11 w-full rounded-lg border border-primary/45 bg-[linear-gradient(140deg,hsl(var(--primary)/0.30),hsl(var(--primary)/0.18))] text-foreground shadow-[0_8px_18px_hsl(var(--primary)/0.18)] transition-all duration-200 hover:border-primary/60 hover:bg-[linear-gradient(140deg,hsl(var(--primary)/0.38),hsl(var(--primary)/0.22))]";
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                    <DialogTitle>
+            <DialogContent
+                overlayClassName={user ? "bg-black/18 backdrop-blur-sm" : "bg-black/26 backdrop-blur-md"}
+                className={user
+                    ? "max-w-4xl max-h-[90vh] overflow-y-auto border border-border/45 bg-[hsl(var(--background)/0.46)] shadow-[0_18px_46px_rgba(0,0,0,0.32)] backdrop-blur-2xl backdrop-saturate-150"
+                    : "max-w-2xl max-h-[90vh] overflow-y-auto border border-border/45 bg-[hsl(var(--background)/0.46)] shadow-[0_18px_46px_rgba(0,0,0,0.32)] backdrop-blur-2xl backdrop-saturate-150"}
+            >
+                <DialogHeader className={user ? "space-y-1 pb-1" : ""}>
+                    {user && (
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/80">Parametres systeme</p>
+                    )}
+                    <DialogTitle className={user ? "text-[28px] font-semibold tracking-tight leading-none" : ""}>
                         {user ? 'Sauvegarde Cloud' : 'Authentification'}
                     </DialogTitle>
-                    <DialogDescription>
+                    <DialogDescription className={user ? "text-sm text-muted-foreground" : ""}>
                         {user
                             ? 'Gérez vos sauvegardes cloud'
                             : 'Connectez-vous ou créez un compte pour sauvegarder vos données'}
@@ -379,100 +416,143 @@ export default function AuthDialog({ open, onOpenChange, defaultTab }: AuthDialo
                 </DialogHeader>
 
                 {user ? (
-                    <Tabs value={activeTab} onValueChange={(v) => dispatch({ type: 'SET_ACTIVE_TAB', value: v })} className="w-full">
-                        <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="backup" className="gap-2">
-                                <Save className="h-4 w-4" />
-                                Mes sauvegardes
+                    <Tabs value={activeTab} onValueChange={(v) => dispatch({ type: 'SET_ACTIVE_TAB', value: v })} className="w-full space-y-3">
+                        <TabsList className="grid h-auto w-full grid-cols-2 gap-1.5 rounded-2xl border border-border/55 bg-[hsl(var(--background)/0.26)] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)]">
+                            <TabsTrigger value="backup" className={cloudTabTriggerClass}>
+                                <span className="flex items-center gap-2">
+                                    <Save className="h-4 w-4 text-primary" />
+                                    <span className="text-xs font-semibold uppercase tracking-[0.08em] sm:text-[11px]">Sauvegardes</span>
+                                </span>
+                                <span className="rounded-full border border-primary/40 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                                    Cloud
+                                </span>
                             </TabsTrigger>
-                            <TabsTrigger value="account" className="gap-2">
-                                <UserIcon className="h-4 w-4" />
-                                Mon compte
+                            <TabsTrigger value="account" className={cloudTabTriggerClass}>
+                                <span className="flex items-center gap-2">
+                                    <UserIcon className="h-4 w-4 text-primary" />
+                                    <span className="text-xs font-semibold uppercase tracking-[0.08em] sm:text-[11px]">Compte</span>
+                                </span>
+                                <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                                    Profil
+                                </span>
                             </TabsTrigger>
                         </TabsList>
-                        <TabsContent value="backup" className="mt-6">
+                        <TabsContent value="backup" className="mt-0">
                             <CloudBackupContent user={user} />
                         </TabsContent>
-                        <TabsContent value="account" className="mt-6 space-y-4">
-                            <div className="flex flex-col items-center gap-2">
-                                <div className="relative group">
-                                    {avatarUrl ? (
-                                        <img
-                                            src={avatarUrl}
-                                            alt="Avatar"
-                                            className="h-20 w-20 rounded-full object-cover ring-2 ring-primary/30"
-                                        />
-                                    ) : (
-                                        <div className="h-20 w-20 rounded-full bg-primary/20 flex items-center justify-center ring-2 ring-primary/30">
-                                            <UserIcon className="h-8 w-8 text-primary" />
-                                        </div>
-                                    )}
-                                    <button
-                                        onClick={async () => {
-                                            const file = await openFileDialog({
-                                                title: 'Choisir une photo de profil',
-                                                filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp'] }],
-                                            });
-                                            if (file) {
-                                                try {
-                                                    await setCustomAvatar(file);
-                                                    toast({ title: 'Photo mise à jour' });
-                                                } catch {
-                                                    toast({ title: 'Erreur', description: 'Impossible de changer la photo', variant: 'destructive' });
-                                                }
-                                            }
-                                        }}
-                                        className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
-                                        title="Changer la photo"
-                                    >
-                                        <Camera className="h-6 w-6 text-white" />
-                                    </button>
+                        <TabsContent value="account" className="mt-0 space-y-4 rounded-2xl border border-border/55 bg-[hsl(var(--background)/0.34)] p-4 shadow-[0_14px_30px_rgba(0,0,0,0.22)] backdrop-blur-xl">
+                            <section className="rounded-xl border border-border/45 bg-[hsl(var(--background)/0.24)] p-4">
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/80">Profil utilisateur</p>
+                                        <h4 className="text-base font-semibold tracking-tight">Mon compte</h4>
+                                        <p className="text-sm text-muted-foreground">Gere votre photo, vos infos et votre session.</p>
+                                    </div>
+                                    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/45 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-300">
+                                        <CheckCircle2 className="h-3.5 w-3.5" />
+                                        Connecte
+                                    </span>
                                 </div>
-                                {isCustom && (
-                                    <button
-                                        onClick={async () => {
-                                            await resetAvatar();
-                                            toast({ title: 'Photo réinitialisée' });
-                                        }}
-                                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                                    >
-                                        <RotateCcw className="h-3 w-3" />
-                                        Revenir à Discord
-                                    </button>
-                                )}
-                            </div>
-                            {user.user_metadata?.full_name || user.user_metadata?.name ? (
-                                <div className="space-y-2">
-                                    <Label>Nom</Label>
-                                    <Input
-                                        value={user.user_metadata?.full_name || user.user_metadata?.name || 'Non défini'}
-                                        disabled
-                                    />
-                                </div>
-                            ) : null}
-                            <div className="space-y-2">
-                                <Label>Email</Label>
-                                <Input value={user.email || ''} disabled />
-                            </div>
-                            {user.user_metadata?.preferred_username && (
-                                <div className="space-y-2">
-                                    <Label>Nom d'utilisateur Discord</Label>
-                                    <Input value={user.user_metadata.preferred_username} disabled />
-                                </div>
-                            )}
-                            <Button
-                                onClick={handleSignOut}
-                                variant="destructive"
-                                disabled={loading}
-                                className="w-full"
-                            >
-                                {loading ? 'Déconnexion...' : 'Se déconnecter'}
-                            </Button>
 
-                            {/* Section suppression de compte */}
-                            <div className="pt-6 border-t border-destructive/20">
+                                <div className="mt-4 grid gap-4 lg:grid-cols-[220px_1fr]">
+                                    <div className="lg:self-start rounded-2xl border border-border/40 bg-[hsl(var(--background)/0.24)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+                                        <div className="flex flex-col items-center gap-3">
+                                            <div className="relative group">
+                                                <div className="pointer-events-none absolute -inset-1 rounded-full bg-primary/20 blur-md opacity-80" />
+                                                {avatarUrl ? (
+                                                    <img
+                                                        src={avatarUrl}
+                                                        alt="Avatar"
+                                                        className="relative h-24 w-24 rounded-full object-cover ring-2 ring-primary/35 shadow-[0_10px_24px_rgba(0,0,0,0.28)]"
+                                                    />
+                                                ) : (
+                                                    <div className="relative h-24 w-24 rounded-full bg-primary/20 flex items-center justify-center ring-2 ring-primary/35 shadow-[0_10px_24px_rgba(0,0,0,0.28)]">
+                                                        <UserIcon className="h-9 w-9 text-primary" />
+                                                    </div>
+                                                )}
+                                                <button
+                                                    onClick={async () => {
+                                                        const file = await openFileDialog({
+                                                            title: 'Choisir une photo de profil',
+                                                            filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp'] }],
+                                                        });
+                                                        if (file) {
+                                                            try {
+                                                                await setCustomAvatar(file);
+                                                                toast({ title: 'Photo mise à jour' });
+                                                            } catch {
+                                                                toast({ title: 'Erreur', description: 'Impossible de changer la photo', variant: 'destructive' });
+                                                            }
+                                                        }
+                                                    }}
+                                                    className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
+                                                    title="Changer la photo"
+                                                >
+                                                    <Camera className="h-6 w-6 text-white" />
+                                                </button>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground">Photo de profil</p>
+
+                                            {isCustom && (
+                                                <button
+                                                    onClick={async () => {
+                                                        await resetAvatar();
+                                                        toast({ title: 'Photo réinitialisée' });
+                                                    }}
+                                                    className="inline-flex items-center gap-1 rounded-lg border border-border/50 bg-background/55 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                                                >
+                                                    <RotateCcw className="h-3 w-3" />
+                                                    Revenir a Discord
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        {user.user_metadata?.full_name || user.user_metadata?.name ? (
+                                            <div className="space-y-2 rounded-xl border border-border/40 bg-[hsl(var(--background)/0.24)] p-3">
+                                                <Label>Nom</Label>
+                                                <Input
+                                                    value={user.user_metadata?.full_name || user.user_metadata?.name || 'Non defini'}
+                                                    disabled
+                                                    className="bg-background/65"
+                                                />
+                                            </div>
+                                        ) : null}
+
+                                        <div className="space-y-2 rounded-xl border border-border/40 bg-[hsl(var(--background)/0.24)] p-3">
+                                            <Label>Email</Label>
+                                            <Input value={user.email || ''} disabled className="bg-background/65" />
+                                        </div>
+
+                                        {user.user_metadata?.preferred_username && (
+                                            <div className="space-y-2 rounded-xl border border-border/40 bg-[hsl(var(--background)/0.24)] p-3">
+                                                <Label>Nom d'utilisateur Discord</Label>
+                                                <Input value={user.user_metadata.preferred_username} disabled className="bg-background/65" />
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="mt-3">
+                                    <Button
+                                        onClick={handleSignOut}
+                                        variant="outline"
+                                        disabled={loading}
+                                        className="w-full border-border/60 bg-background/55"
+                                    >
+                                        <LogOut className="mr-2 h-4 w-4" />
+                                        {loading ? 'Deconnexion...' : 'Se deconnecter'}
+                                    </Button>
+                                </div>
+                            </section>
+
+                            <section className="rounded-xl border border-destructive/35 bg-[hsl(var(--destructive)/0.08)] p-4">
                                 <div className="space-y-3">
-                                    <h4 className="text-sm font-medium text-destructive">Zone de danger</h4>
+                                    <h4 className="flex items-center gap-2 text-sm font-medium text-destructive">
+                                        <ShieldAlert className="h-4 w-4" />
+                                        Zone de danger
+                                    </h4>
                                     {!showDeleteConfirm ? (
                                         <Button
                                             onClick={() => dispatch({ type: 'SET_SHOW_DELETE_CONFIRM', value: true })}
@@ -484,10 +564,10 @@ export default function AuthDialog({ open, onOpenChange, defaultTab }: AuthDialo
                                     ) : (
                                         <div className="space-y-3 p-4 rounded-lg bg-destructive/10 border border-destructive/30">
                                             <p className="text-sm text-destructive font-medium">
-                                                Cette action est irréversible !
+                                                Cette action est irreversible !
                                             </p>
                                             <p className="text-xs text-muted-foreground">
-                                                Toutes vos données et sauvegardes seront définitivement supprimées.
+                                                Toutes vos donnees et sauvegardes seront definitivement supprimees.
                                             </p>
                                             <div className="flex gap-2">
                                                 <Button
@@ -510,7 +590,7 @@ export default function AuthDialog({ open, onOpenChange, defaultTab }: AuthDialo
                                         </div>
                                     )}
                                 </div>
-                            </div>
+                            </section>
                         </TabsContent>
                     </Tabs>
                 ) : (
@@ -537,6 +617,7 @@ export default function AuthDialog({ open, onOpenChange, defaultTab }: AuthDialo
                                         onChange={(e) => dispatch({ type: 'SET_EMAIL', value: e.target.value })}
                                         required
                                         disabled={loading || discordLoading}
+                                        className={authInputClass}
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -549,9 +630,10 @@ export default function AuthDialog({ open, onOpenChange, defaultTab }: AuthDialo
                                         onChange={(e) => dispatch({ type: 'SET_PASSWORD', value: e.target.value })}
                                         required
                                         disabled={loading || discordLoading}
+                                        className={authInputClass}
                                     />
                                 </div>
-                                <Button type="submit" className="w-full" disabled={loading || discordLoading}>
+                                <Button type="submit" className={authPrimaryButtonClass} disabled={loading || discordLoading}>
                                     {loading ? 'Connexion...' : 'Se connecter'}
                                 </Button>
                             </form>
@@ -567,16 +649,12 @@ export default function AuthDialog({ open, onOpenChange, defaultTab }: AuthDialo
                                 </div>
                             </div>
 
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="w-full"
-                                onClick={handleDiscordSignIn}
+                            <DiscordAuthButton
+                                label="Se connecter avec Discord"
+                                loading={discordLoading}
                                 disabled={loading || discordLoading}
-                            >
-                                <MessageCircle className="mr-2 h-4 w-4" />
-                                {discordLoading ? 'Connexion en cours...' : 'Se connecter avec Discord'}
-                            </Button>
+                                onClick={handleDiscordSignIn}
+                            />
                         </TabsContent>
                         <TabsContent value="signup" className="mt-4 space-y-4">
                             <form onSubmit={handleSignUp} className="space-y-4">
@@ -590,6 +668,7 @@ export default function AuthDialog({ open, onOpenChange, defaultTab }: AuthDialo
                                         onChange={(e) => dispatch({ type: 'SET_EMAIL', value: e.target.value })}
                                         required
                                         disabled={loading || discordLoading}
+                                        className={authInputClass}
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -603,9 +682,10 @@ export default function AuthDialog({ open, onOpenChange, defaultTab }: AuthDialo
                                         required
                                         minLength={6}
                                         disabled={loading || discordLoading}
+                                        className={authInputClass}
                                     />
                                 </div>
-                                <Button type="submit" className="w-full" disabled={loading || discordLoading}>
+                                <Button type="submit" className={authPrimaryButtonClass} disabled={loading || discordLoading}>
                                     {loading ? 'Inscription...' : 'S\'inscrire'}
                                 </Button>
                             </form>
@@ -621,16 +701,12 @@ export default function AuthDialog({ open, onOpenChange, defaultTab }: AuthDialo
                                 </div>
                             </div>
 
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="w-full"
-                                onClick={handleDiscordSignIn}
+                            <DiscordAuthButton
+                                label="S'inscrire avec Discord"
+                                loading={discordLoading}
                                 disabled={loading || discordLoading}
-                            >
-                                <MessageCircle className="mr-2 h-4 w-4" />
-                                {discordLoading ? 'Connexion en cours...' : 'S\'inscrire avec Discord'}
-                            </Button>
+                                onClick={handleDiscordSignIn}
+                            />
                         </TabsContent>
                     </Tabs>
                 )}

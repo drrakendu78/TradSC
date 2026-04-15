@@ -18,7 +18,7 @@ export function DragRegion({ children, className = '', style, ...props }: DragRe
     const handleMouseDown = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       const isInteractive = ['BUTTON', 'A', 'INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName) ||
-                          target.closest('button, a, input, select, textarea, [role="button"]');
+                          target.closest('button, a, input, select, textarea, [role="button"], [role="slider"], [data-no-drag]');
 
       // Check if target or parent is scrollable
       const isInScrollable = (element: HTMLElement | null): boolean => {

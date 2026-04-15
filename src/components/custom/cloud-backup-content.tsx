@@ -1,6 +1,5 @@
 import { useEffect, useReducer } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     Dialog,
     DialogContent,
@@ -22,7 +21,7 @@ import { supabase, MAX_BACKUPS } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import { invoke } from '@tauri-apps/api/core';
 import { GamePaths, isGamePaths } from '@/types/translation';
-import { Download, Upload, Trash2, Loader2 } from 'lucide-react';
+import { Database, Clock3, Download, HardDrive, Loader2, ShieldCheck, Trash2, Upload } from 'lucide-react';
 
 interface BackupItem {
     name: string;
@@ -30,7 +29,7 @@ interface BackupItem {
     created_at: string;
     updated_at: string;
     last_accessed_at: string;
-    version?: string; // Version extraite du nom de fichier
+    version?: string;
     metadata: {
         size: number;
         mimetype: string;
@@ -52,6 +51,7 @@ type BackupState = {
     selectedVersion: string;
     restoreTargetVersion: string;
 };
+
 type BackupAction =
     | { type: 'SET_BACKUPS'; backups: BackupItem[] }
     | { type: 'SET_LOADING'; value: boolean }
@@ -65,21 +65,45 @@ type BackupAction =
 
 function backupReducer(state: BackupState, action: BackupAction): BackupState {
     switch (action.type) {
-        case 'SET_BACKUPS': return { ...state, backups: action.backups, loading: false };
-        case 'SET_LOADING': return { ...state, loading: action.value };
-        case 'SET_SAVING': return { ...state, saving: action.value };
-        case 'SET_RESTORING': return { ...state, restoring: action.value };
-        case 'SET_CONFIRM_RESTORE': return { ...state, confirmRestore: action.value };
-        case 'SET_CONFIRM_DELETE': return { ...state, confirmDelete: action.value };
-        case 'SET_GAME_PATHS': return { ...state, gamePaths: action.paths, selectedVersion: action.defaultVersion };
-        case 'SET_SELECTED_VERSION': return { ...state, selectedVersion: action.value };
-        case 'SET_RESTORE_TARGET': return { ...state, restoreTargetVersion: action.value };
+        case 'SET_BACKUPS':
+            return { ...state, backups: action.backups, loading: false };
+        case 'SET_LOADING':
+            return { ...state, loading: action.value };
+        case 'SET_SAVING':
+            return { ...state, saving: action.value };
+        case 'SET_RESTORING':
+            return { ...state, restoring: action.value };
+        case 'SET_CONFIRM_RESTORE':
+            return { ...state, confirmRestore: action.value };
+        case 'SET_CONFIRM_DELETE':
+            return { ...state, confirmDelete: action.value };
+        case 'SET_GAME_PATHS':
+            return { ...state, gamePaths: action.paths, selectedVersion: action.defaultVersion };
+        case 'SET_SELECTED_VERSION':
+            return { ...state, selectedVersion: action.value };
+        case 'SET_RESTORE_TARGET':
+            return { ...state, restoreTargetVersion: action.value };
+        default:
+            return state;
     }
 }
 
 export default function CloudBackupContent({ user }: CloudBackupContentProps) {
     const { toast } = useToast();
-    const [{ backups, loading, saving, restoring, confirmRestore, confirmDelete, gamePaths, selectedVersion, restoreTargetVersion }, dispatch] = useReducer(backupReducer, {
+    const [
+        {
+            backups,
+            loading,
+            saving,
+            restoring,
+            confirmRestore,
+            confirmDelete,
+            gamePaths,
+            selectedVersion,
+            restoreTargetVersion,
+        },
+        dispatch,
+    ] = useReducer(backupReducer, {
         backups: [],
         loading: false,
         saving: false,
@@ -113,9 +137,11 @@ export default function CloudBackupContent({ user }: CloudBackupContentProps) {
     const loadBackups = async () => {
         dispatch({ type: 'SET_LOADING', value: true });
         try {
-            const { data: { session } } = await supabase.auth.getSession();
+            const {
+                data: { session },
+            } = await supabase.auth.getSession();
             if (!session) {
-                throw new Error('Session non trouvée');
+                throw new Error('Session non trouvee');
             }
 
             const result = await invoke<string>('list_user_backups', {
@@ -124,17 +150,11 @@ export default function CloudBackupContent({ user }: CloudBackupContentProps) {
             });
 
             const parsed = JSON.parse(result);
-            // Filtrer pour n'inclure que les vrais fichiers de backup (format: backup_VERSION_timestamp.zip)
-            // Exclut les dossiers comme "preferences/" qui sont utilisés pour d'autres fonctionnalités
             const backupPattern = /^backup_(.+)_(\d{8}_\d{6})\.zip$/;
 
             const items: BackupItem[] = (parsed || [])
-                .filter((item: any) => {
-                    // Ne garder que les fichiers qui correspondent au pattern de backup
-                    return item.name && backupPattern.test(item.name);
-                })
+                .filter((item: any) => item.name && backupPattern.test(item.name))
                 .map((item: any) => {
-                    // Extraire la version du nom de fichier
                     const match = item.name.match(backupPattern);
                     const version = match ? match[1] : 'LIVE';
 
@@ -144,16 +164,12 @@ export default function CloudBackupContent({ user }: CloudBackupContentProps) {
                         created_at: item.created_at,
                         updated_at: item.updated_at,
                         last_accessed_at: item.last_accessed_at,
-                        version: version,
+                        version,
                         metadata: item.metadata || { size: 0, mimetype: 'application/zip' },
                     };
                 });
 
-            // Trier par date de création (plus récent en premier)
-            items.sort((a, b) => 
-                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-            );
-
+            items.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
             dispatch({ type: 'SET_BACKUPS', backups: items });
         } catch (error: any) {
             toast({
@@ -168,44 +184,41 @@ export default function CloudBackupContent({ user }: CloudBackupContentProps) {
     const handleSave = async () => {
         dispatch({ type: 'SET_SAVING', value: true });
         try {
-            const { data: { session } } = await supabase.auth.getSession();
+            const {
+                data: { session },
+            } = await supabase.auth.getSession();
             if (!session) {
-                throw new Error('Session non trouvée');
+                throw new Error('Session non trouvee');
             }
 
-            // Créer le backup local
             toast({
-                title: 'Création de la sauvegarde...',
+                title: 'Creation de la sauvegarde...',
                 description: 'Compression du dossier user/ en cours',
             });
 
             const zipPath = await invoke<string>('create_user_backup', { version: selectedVersion });
 
-            // Vérifier le nombre de sauvegardes existantes
             if (backups.length >= MAX_BACKUPS) {
-                // Supprimer la plus ancienne
                 const oldest = backups[backups.length - 1];
                 try {
-                    // S'assurer que le fileName contient le préfixe user_id/ si nécessaire
                     let fileName = oldest.name;
                     if (!fileName.startsWith(`${user.id}/`)) {
                         fileName = `${user.id}/${oldest.name}`;
                     }
-                    
+
                     await invoke('delete_backup_from_supabase', {
-                        fileName: fileName,
+                        fileName,
                         userId: user.id,
                         accessToken: session.access_token,
                     });
                 } catch (error) {
-                    console.error('Erreur lors de la suppression de l\'ancienne sauvegarde:', error);
+                    console.error('Erreur lors de la suppression de l ancienne sauvegarde:', error);
                 }
             }
 
-            // Upload vers Supabase
             toast({
                 title: 'Upload en cours...',
-                description: 'Téléversement vers le cloud',
+                description: 'Televersement vers le cloud',
             });
 
             await invoke('upload_backup_to_supabase', {
@@ -216,11 +229,10 @@ export default function CloudBackupContent({ user }: CloudBackupContentProps) {
             });
 
             toast({
-                title: 'Sauvegarde réussie',
-                description: 'Votre dossier user/ a été sauvegardé dans le cloud',
+                title: 'Sauvegarde reussie',
+                description: 'Votre dossier user/ a ete sauvegarde dans le cloud',
             });
 
-            // Recharger la liste
             await loadBackups();
         } catch (error: any) {
             toast({
@@ -244,26 +256,27 @@ export default function CloudBackupContent({ user }: CloudBackupContentProps) {
         const backup = confirmRestore;
         dispatch({ type: 'SET_CONFIRM_RESTORE', value: null });
         dispatch({ type: 'SET_RESTORING', value: backup.id });
+
         try {
-            const { data: { session } } = await supabase.auth.getSession();
+            const {
+                data: { session },
+            } = await supabase.auth.getSession();
             if (!session) {
-                throw new Error('Session non trouvée');
+                throw new Error('Session non trouvee');
             }
 
             toast({
-                title: 'Téléchargement...',
-                description: 'Récupération de la sauvegarde depuis le cloud',
+                title: 'Telechargement...',
+                description: 'Recuperation de la sauvegarde depuis le cloud',
             });
 
-            // Télécharger le backup
-            // S'assurer que le fileName contient le préfixe user_id/ si nécessaire
             let fileName = backup.name;
             if (!fileName.startsWith(`${user.id}/`)) {
                 fileName = `${user.id}/${backup.name}`;
             }
-            
+
             const localPath = await invoke<string>('download_backup_from_supabase', {
-                fileName: fileName,
+                fileName,
                 userId: user.id,
                 accessToken: session.access_token,
             });
@@ -273,12 +286,11 @@ export default function CloudBackupContent({ user }: CloudBackupContentProps) {
                 description: 'Extraction et restauration du dossier user/',
             });
 
-            // Restaurer le backup - utiliser la version cible sélectionnée par l'utilisateur
             await invoke('restore_backup', { zipPath: localPath, version: restoreTargetVersion });
 
             toast({
-                title: 'Restauration réussie',
-                description: 'Votre dossier user/ a été restauré avec succès',
+                title: 'Restauration reussie',
+                description: 'Votre dossier user/ a ete restaure avec succes',
             });
         } catch (error: any) {
             console.error('Erreur de restauration:', error);
@@ -304,29 +316,29 @@ export default function CloudBackupContent({ user }: CloudBackupContentProps) {
         dispatch({ type: 'SET_CONFIRM_DELETE', value: null });
 
         try {
-            const { data: { session } } = await supabase.auth.getSession();
+            const {
+                data: { session },
+            } = await supabase.auth.getSession();
             if (!session) {
-                throw new Error('Session non trouvée');
+                throw new Error('Session non trouvee');
             }
 
-            // S'assurer que le fileName contient le préfixe user_id/ si nécessaire
             let fileName = backup.name;
             if (!fileName.startsWith(`${user.id}/`)) {
                 fileName = `${user.id}/${backup.name}`;
             }
 
             await invoke('delete_backup_from_supabase', {
-                fileName: fileName,
+                fileName,
                 userId: user.id,
                 accessToken: session.access_token,
             });
 
             toast({
-                title: 'Sauvegarde supprimée',
-                description: 'La sauvegarde a été supprimée avec succès',
+                title: 'Sauvegarde supprimee',
+                description: 'La sauvegarde a ete supprimee avec succes',
             });
 
-            // Recharger la liste
             await loadBackups();
         } catch (error: any) {
             toast({
@@ -355,27 +367,45 @@ export default function CloudBackupContent({ user }: CloudBackupContentProps) {
     };
 
     const availableVersions = gamePaths ? Object.keys(gamePaths.versions).sort() : [];
+    const panelClass =
+        'rounded-2xl border border-border/55 bg-[hsl(var(--background)/0.34)] p-4 shadow-[0_14px_30px_rgba(0,0,0,0.22)] backdrop-blur-xl';
+    const rowClass =
+        'group rounded-xl border border-border/45 bg-[hsl(var(--background)/0.24)] px-3 py-3 transition-all duration-200 hover:border-primary/40 hover:bg-[hsl(var(--background)/0.32)]';
 
     return (
-        <div className="space-y-4">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h3 className="text-lg font-semibold">Mes sauvegardes</h3>
-                    <p className="text-sm text-muted-foreground">
-                        {backups.length}/{MAX_BACKUPS} sauvegardes
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                        Sauvegarde cloud de votre dossier user/ contenant vos préférences, paramètres, bindings, personnages personnalisés, etc.
-                    </p>
-                </div>
-                <div className="flex items-center gap-2">
-                    {availableVersions.length > 0 && (
+        <div className="space-y-3">
+            <section className="relative overflow-hidden rounded-2xl border border-border/55 bg-[hsl(var(--background)/0.30)] p-4 shadow-[0_14px_30px_rgba(0,0,0,0.22)] backdrop-blur-xl">
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_90%_at_100%_0%,hsl(var(--primary)/0.16),transparent_60%),radial-gradient(100%_80%_at_0%_100%,hsl(var(--primary)/0.08),transparent_60%)]" />
+                <div className="relative flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+                    <div className="space-y-2">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/80">Sauvegarde cloud</p>
+                        <h3 className="text-lg font-semibold tracking-tight">Mes sauvegardes user/</h3>
+                        <p className="max-w-[720px] text-sm text-muted-foreground">
+                            Sauvegarde cloud de votre dossier user/ contenant vos preferences, parametres, bindings et personnages personnalises.
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                            <span className="inline-flex items-center gap-1 rounded-full border border-border/55 bg-background/45 px-2.5 py-1 text-[11px] font-medium">
+                                <Database className="h-3.5 w-3.5 text-primary" />
+                                {backups.length}/{MAX_BACKUPS} sauvegardes
+                            </span>
+                            <span className="inline-flex items-center gap-1 rounded-full border border-border/55 bg-background/45 px-2.5 py-1 text-[11px] font-medium">
+                                <HardDrive className="h-3.5 w-3.5 text-emerald-400" />
+                                Limite {MAX_BACKUPS}
+                            </span>
+                            <span className="inline-flex items-center gap-1 rounded-full border border-border/55 bg-background/45 px-2.5 py-1 text-[11px] font-medium">
+                                <ShieldCheck className="h-3.5 w-3.5 text-indigo-300" />
+                                Restauration multi-version
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-end">
                         <div className="flex flex-col gap-1">
-                            <Label htmlFor="version-select" className="text-xs text-muted-foreground">
-                                Version
+                            <Label htmlFor="version-select" className="text-[11px] font-medium text-muted-foreground">
+                                Version cible (backup)
                             </Label>
                             <Select value={selectedVersion} onValueChange={(v) => dispatch({ type: 'SET_SELECTED_VERSION', value: v })}>
-                                <SelectTrigger id="version-select" className="w-32">
+                                <SelectTrigger id="version-select" className="w-full min-w-[160px] sm:w-[180px]">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -387,96 +417,106 @@ export default function CloudBackupContent({ user }: CloudBackupContentProps) {
                                 </SelectContent>
                             </Select>
                         </div>
-                    )}
-                    <Button
-                        onClick={handleSave}
-                        disabled={saving || loading || availableVersions.length === 0}
-                        className="flex items-center gap-2"
-                    >
-                        {saving ? (
-                            <>
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                Sauvegarde...
-                            </>
-                        ) : (
-                            <>
-                                <Upload className="h-4 w-4" />
-                                Sauvegarder maintenant
-                            </>
-                        )}
-                    </Button>
+                        <Button
+                            onClick={handleSave}
+                            disabled={saving || loading || availableVersions.length === 0}
+                            className="h-10 min-w-[180px] gap-2"
+                        >
+                            {saving ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Sauvegarde...
+                                </>
+                            ) : (
+                                <>
+                                    <Upload className="h-4 w-4" />
+                                    Sauvegarder maintenant
+                                </>
+                            )}
+                        </Button>
+                    </div>
                 </div>
-            </div>
+            </section>
 
             {loading ? (
-                <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                </div>
+                <section className={`${panelClass} flex items-center justify-center py-10`}>
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </section>
             ) : backups.length === 0 ? (
-                <Card>
-                    <CardContent className="py-8 text-center text-muted-foreground">
-                        <p>Aucune sauvegarde pour le moment</p>
-                        <p className="text-sm mt-2">Cliquez sur "Sauvegarder maintenant" pour créer votre première sauvegarde</p>
-                    </CardContent>
-                </Card>
+                <section className={`${panelClass} py-8 text-center`}>
+                    <p className="text-sm font-medium">Aucune sauvegarde pour le moment</p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                        Cliquez sur "Sauvegarder maintenant" pour creer votre premiere sauvegarde.
+                    </p>
+                </section>
             ) : (
                 <div className="space-y-2">
                     {backups.map((backup) => (
-                        <Card key={backup.id}>
-                            <CardHeader>
-                                <div className="flex items-start justify-between">
-                                    <div className="flex-1">
-                                        <CardTitle className="text-base">
-                                            Sauvegarde du {formatDate(backup.created_at)}
-                                        </CardTitle>
-                                        <CardDescription>
-                                            {formatSize(backup.metadata.size)} • Créée le {formatDate(backup.created_at)}
-                                            {backup.version && ` • Version: ${backup.version}`}
-                                        </CardDescription>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => handleRestore(backup)}
-                                            disabled={restoring === backup.id}
-                                            className="flex items-center gap-2"
-                                        >
-                                            {restoring === backup.id ? (
-                                                <>
-                                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                                    Restauration...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Download className="h-3 w-3" />
-                                                    Restaurer
-                                                </>
-                                            )}
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => handleDelete(backup)}
-                                            className="flex items-center gap-2 text-destructive hover:text-destructive"
-                                        >
-                                            <Trash2 className="h-3 w-3" />
-                                        </Button>
+                        <article key={backup.id} className={rowClass}>
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-semibold tracking-tight">Sauvegarde du {formatDate(backup.created_at)}</p>
+                                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                        <span className="inline-flex items-center gap-1 rounded-full border border-border/55 bg-background/45 px-2 py-0.5">
+                                            <HardDrive className="h-3 w-3" />
+                                            {formatSize(backup.metadata.size)}
+                                        </span>
+                                        <span className="inline-flex items-center gap-1 rounded-full border border-border/55 bg-background/45 px-2 py-0.5">
+                                            <Clock3 className="h-3 w-3" />
+                                            {formatDate(backup.created_at)}
+                                        </span>
+                                        {backup.version && (
+                                            <span className="inline-flex items-center rounded-full border border-primary/35 bg-primary/10 px-2 py-0.5 text-primary">
+                                                Version {backup.version}
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
-                            </CardHeader>
-                        </Card>
+
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleRestore(backup)}
+                                        disabled={restoring === backup.id}
+                                        className="h-8 gap-2 border-border/60 bg-background/60"
+                                    >
+                                        {restoring === backup.id ? (
+                                            <>
+                                                <Loader2 className="h-3 w-3 animate-spin" />
+                                                Restauration...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Download className="h-3 w-3" />
+                                                Restaurer
+                                            </>
+                                        )}
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleDelete(backup)}
+                                        className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                    >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                </div>
+                            </div>
+                        </article>
                     ))}
                 </div>
             )}
 
-            {/* Dialog de confirmation pour la restauration */}
             <Dialog open={confirmRestore !== null} onOpenChange={(open) => !open && dispatch({ type: 'SET_CONFIRM_RESTORE', value: null })}>
-                <DialogContent>
+                <DialogContent
+                    overlayClassName="bg-transparent"
+                    className="border border-border/45 bg-[hsl(var(--background)/0.46)] shadow-[0_18px_46px_rgba(0,0,0,0.32)] backdrop-blur-2xl backdrop-saturate-150"
+                >
                     <DialogHeader>
                         <DialogTitle>Confirmer la restauration</DialogTitle>
                         <DialogDescription>
-                            Êtes-vous sûr de vouloir restaurer cette sauvegarde ? Cela remplacera votre dossier user/ actuel.
+                            Etes-vous sur de vouloir restaurer cette sauvegarde ? Cela remplacera votre dossier user/ actuel.
                         </DialogDescription>
                     </DialogHeader>
                     {confirmRestore && (
@@ -495,9 +535,7 @@ export default function CloudBackupContent({ user }: CloudBackupContentProps) {
                                         ))}
                                     </SelectContent>
                                 </Select>
-                                <p className="text-xs text-muted-foreground">
-                                    Sauvegarde d'origine : {confirmRestore.version || 'LIVE'}
-                                </p>
+                                <p className="text-xs text-muted-foreground">Sauvegarde d origine : {confirmRestore.version || 'LIVE'}</p>
                             </div>
                         </div>
                     )}
@@ -512,14 +550,14 @@ export default function CloudBackupContent({ user }: CloudBackupContentProps) {
                 </DialogContent>
             </Dialog>
 
-            {/* Dialog de confirmation pour la suppression */}
             <Dialog open={confirmDelete !== null} onOpenChange={(open) => !open && dispatch({ type: 'SET_CONFIRM_DELETE', value: null })}>
-                <DialogContent>
+                <DialogContent
+                    overlayClassName="bg-transparent"
+                    className="border border-border/45 bg-[hsl(var(--background)/0.46)] shadow-[0_18px_46px_rgba(0,0,0,0.32)] backdrop-blur-2xl backdrop-saturate-150"
+                >
                     <DialogHeader>
                         <DialogTitle>Confirmer la suppression</DialogTitle>
-                        <DialogDescription>
-                            Êtes-vous sûr de vouloir supprimer cette sauvegarde ? Cette action est irréversible.
-                        </DialogDescription>
+                        <DialogDescription>Etes-vous sur de vouloir supprimer cette sauvegarde ? Cette action est irreversible.</DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => dispatch({ type: 'SET_CONFIRM_DELETE', value: null })}>
@@ -534,4 +572,3 @@ export default function CloudBackupContent({ user }: CloudBackupContentProps) {
         </div>
     );
 }
-

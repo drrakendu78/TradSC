@@ -3,7 +3,7 @@ import { useToast } from "@/hooks/use-toast";
 import logger from "@/utils/logger";
 import { toFriendlyFsError } from "@/utils/fs-permissions";
 import openExternal from "@/utils/external";
-import { Download, Heart, ExternalLink } from "lucide-react";
+import { Download, Heart, ExternalLink, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useStatsStore } from "@/stores/stats-store";
 
@@ -17,7 +17,11 @@ export function CharacterCard(
 
     const openExternalLink = async (id: string) => {
         logger.log("Opening external link for character ID:", id);
-        await openExternal(`https://www.star-citizen-characters.com/character/${id}`);
+        try {
+            await openExternal(`https://www.star-citizen-characters.com/character/${id}`);
+        } catch {
+            window.open(`https://www.star-citizen-characters.com/character/${id}`, "_blank", "noopener,noreferrer");
+        }
     };
 
     const handleDownload = async () => {
@@ -27,8 +31,8 @@ export function CharacterCard(
             if (res) {
                 recordCharacterDownload();
                 toast({
-                    title: "Preset téléchargé",
-                    description: "Le preset a été ajouté dans vos versions.",
+                    title: "Preset telecharge",
+                    description: "Le preset a ete ajoute dans vos versions.",
                     variant: "success",
                     duration: 3000,
                 });
@@ -46,61 +50,64 @@ export function CharacterCard(
     };
 
     return (
-        <div className="group relative h-full rounded-xl overflow-hidden cursor-pointer">
-            {/* Image de fond */}
+        <div className="group relative h-full overflow-hidden rounded-2xl border border-border/40 bg-[hsl(var(--background)/0.18)] shadow-[0_10px_22px_rgba(0,0,0,0.14)] transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-[0_18px_30px_rgba(0,0,0,0.22)]">
             <div className="absolute inset-0">
                 <img
                     src={url}
                     alt={name}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.06]"
                 />
-                {/* Gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.28)_0%,rgba(0,0,0,0.55)_50%,rgba(0,0,0,0.88)_100%)] dark:bg-[linear-gradient(180deg,rgba(0,0,0,0.18)_0%,rgba(0,0,0,0.44)_48%,rgba(0,0,0,0.82)_100%)]" />
+                <div className="absolute inset-0 bg-[radial-gradient(100%_70%_at_50%_0%,rgba(255,255,255,0.08)_0%,transparent_58%)]" />
             </div>
 
-            {/* Stats en haut */}
-            <div className="absolute top-3 left-3 right-3 flex justify-between items-start z-10">
+            <div className="absolute left-2.5 right-2.5 top-2.5 z-10 flex items-start justify-between gap-2">
                 <button
                     onClick={(e) => { e.stopPropagation(); openExternalLink(characterid); }}
-                    className="p-2 rounded-full bg-white/10 backdrop-blur-md text-white opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-white/20"
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/30 bg-black/45 text-white backdrop-blur-md transition-all duration-300 hover:border-white/50 hover:bg-black/60 hover:text-white"
                     title="Voir sur SC Characters"
                 >
-                    <ExternalLink className="h-4 w-4" />
+                    <ExternalLink className="h-3.5 w-3.5" />
                 </button>
-                <div className="flex gap-2">
-                    <span className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md text-white text-xs font-medium">
-                        <Download className="h-3.5 w-3.5" />
+
+                <div className="flex items-center gap-1.5">
+                    <span className="inline-flex items-center gap-1 rounded-full border border-white/30 bg-black/45 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur-md">
+                        <Download className="h-3 w-3" />
                         {downloads}
                     </span>
-                    <span className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md text-white text-xs font-medium">
-                        <Heart className="h-3.5 w-3.5" />
+                    <span className="inline-flex items-center gap-1 rounded-full border border-white/30 bg-black/45 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur-md">
+                        <Heart className="h-3 w-3" />
                         {likes}
                     </span>
                 </div>
             </div>
 
-            {/* Contenu en bas */}
-            <div className="absolute bottom-0 left-0 right-0 p-4 z-10">
-                <h3 className="font-bold text-white text-lg truncate mb-1" title={name}>
-                    {name}
-                </h3>
-                <p className="text-white/70 text-sm truncate mb-3">
-                    par {owner}
-                </p>
-                
-                {/* Bouton télécharger */}
-                <button
-                    onClick={(e) => { e.stopPropagation(); handleDownload(); }}
-                    disabled={isDownloading}
-                    className="w-full py-2.5 px-4 rounded-lg bg-white/20 backdrop-blur-md text-white font-medium text-sm
-                             hover:bg-white/30 active:scale-[0.98] transition-all duration-200
-                             disabled:opacity-50 disabled:cursor-not-allowed
-                             flex items-center justify-center gap-2"
-                >
-                    <Download className={`h-4 w-4 ${isDownloading ? 'animate-bounce' : ''}`} />
-                    {isDownloading ? 'Téléchargement...' : 'Télécharger'}
-                </button>
+            <div className="absolute inset-x-2 bottom-2 z-10 rounded-xl border border-white/20 bg-black/50 px-2.5 py-2 backdrop-blur-md">
+                <div className="flex items-end justify-between gap-2">
+                    <div className="min-w-0">
+                        <h3 className="truncate text-[13px] font-semibold leading-tight tracking-tight text-white" title={name}>
+                            {name}
+                        </h3>
+                        <p className="mt-0.5 truncate text-[10px] leading-tight text-white/80">
+                            par {owner}
+                        </p>
+                    </div>
+
+                    <button
+                        onClick={(e) => { e.stopPropagation(); handleDownload(); }}
+                        disabled={isDownloading}
+                        title={isDownloading ? "Telechargement..." : "Telecharger"}
+                        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/35 bg-white/20 text-white transition-colors hover:border-white/55 hover:bg-white/35 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        {isDownloading ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                            <Download className="h-3 w-3" />
+                        )}
+                    </button>
+                </div>
             </div>
         </div>
     );
 }
+

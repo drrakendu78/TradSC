@@ -55,9 +55,8 @@ fn open_overlay_targets(app_handle: &AppHandle) -> Vec<(String, String)> {
         .collect()
 }
 
-const CONTROL_WIDTH: i32 = 36;
+const CONTROL_WIDTH: i32 = 20;
 const CONTROL_HEIGHT: i32 = 20;
-const CONTROL_RIGHT_OFFSET: i32 = 72;
 const OVERLAY_HUB_LABEL: &str = "overlayhub_main";
 const OVERLAY_HUB_WIDTH: f64 = 46.0;
 const OVERLAY_HUB_HEIGHT: f64 = 34.0;
@@ -113,9 +112,17 @@ fn control_geometry(
         return (tauri::PhysicalPosition::new(x, y), w, h);
     }
 
-    // Fallback (iframe / anciennes valeurs): slot visuel du bouton Game
-    let mut x = base.x + size.width as i32 - CONTROL_WIDTH - CONTROL_RIGHT_OFFSET;
-    let mut y = base.y + 2;
+    // Fallback (hub lock, pas d'anchor): aligne sur le bouton game actuel (pill 20x20 CSS).
+    // Layout drag bar : pr-1 + close(20) + gap-0.5 + hide(20) + gap-0.5 + game(20) depuis la droite.
+    let scale = target.scale_factor().unwrap_or(1.0);
+    let button_css = 20.0_f64;
+    let right_offset_css = 4.0 + 20.0 + 2.0 + 20.0 + 2.0 + button_css; // = 68
+    let top_css = 2.0_f64;
+
+    let w = (button_css * scale).round().max(20.0) as i32;
+    let h = (button_css * scale).round().max(20.0) as i32;
+    let mut x = base.x + size.width as i32 - (right_offset_css * scale).round() as i32;
+    let mut y = base.y + (top_css * scale).round() as i32;
 
     if x < 0 {
         x = 0;
@@ -124,11 +131,7 @@ fn control_geometry(
         y = 0;
     }
 
-    (
-        tauri::PhysicalPosition::new(x, y),
-        CONTROL_WIDTH,
-        CONTROL_HEIGHT,
-    )
+    (tauri::PhysicalPosition::new(x, y), w, h)
 }
 
 fn overlay_hub_geometry(app_handle: &AppHandle, hub_width: f64) -> (f64, f64) {

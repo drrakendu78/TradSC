@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>StarTrad FR - Mise a jour</title>
+  <title>StarTrad FR - Mise à jour</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
       font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-      background: #0c0c0f;
-      color: #e4e4e7;
+      background: #0b111c;
+      color: #e2e8f0;
       height: 100vh;
       display: flex;
       flex-direction: column;
@@ -18,98 +18,158 @@
       justify-content: center;
       user-select: none;
       overflow: hidden;
-      border-radius: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      position: relative;
     }
 
-    /* Zone de drag pour deplacer la fenetre */
+    /* Halo radial derriere le logo */
+    body::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 50%;
+      transform: translateX(-50%);
+      width: 280px;
+      height: 180px;
+      background: radial-gradient(ellipse at 50% 0%, rgba(38,189,248,0.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    /* Zone de drag */
     body::before {
       content: '';
       position: fixed;
       top: 0; left: 0; right: 0;
       height: 32px;
       -webkit-app-region: drag;
+      z-index: 10;
     }
 
     .container {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 20px;
-      padding: 0 32px;
+      gap: 14px;
+      padding: 0 36px;
       width: 100%;
+      position: relative;
+      z-index: 1;
+    }
+
+    .logo-wrap {
+      animation: logo-in 0.6s cubic-bezier(0.34,1.56,0.64,1) both;
     }
 
     .logo {
-      height: 64px;
-      width: auto;
+      width: 68px;
+      height: 68px;
       object-fit: contain;
-      animation: pulse 2s ease-in-out infinite;
+      border-radius: 18px;
+      display: block;
     }
 
-    @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.85; transform: scale(0.97); }
+    @keyframes logo-in {
+      0%   { opacity: 0; transform: scale(0.75) translateY(6px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .text-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      animation: fade-up 0.4s ease-out 0.25s both;
     }
 
     .title {
-      font-size: 15px;
-      font-weight: 600;
-      color: #fafafa;
-      letter-spacing: -0.01em;
+      font-size: 14px;
+      font-weight: 650;
+      color: #f1f5f9;
+      letter-spacing: 0.01em;
+    }
+
+    .subtitle {
+      font-size: 11px;
+      color: rgba(148, 163, 184, 0.75);
+      letter-spacing: 0.02em;
+    }
+
+    @keyframes fade-up {
+      0%   { opacity: 0; transform: translateY(6px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    .progress-section {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      animation: fade-up 0.4s ease-out 0.4s both;
     }
 
     .progress-wrap {
       width: 100%;
-      height: 6px;
-      background: rgba(255, 255, 255, 0.08);
-      border-radius: 3px;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.07);
+      border-radius: 99px;
       overflow: hidden;
     }
 
     .progress-bar {
       height: 100%;
       width: 0%;
-      background: linear-gradient(90deg, #6463b6, #8b8adf);
-      border-radius: 3px;
-      transition: width 0.3s ease;
+      background: linear-gradient(90deg, rgba(38,189,248,0.8), rgba(99,102,241,0.9));
+      border-radius: 99px;
+      transition: width 0.35s ease;
+      box-shadow: 0 0 8px rgba(38,189,248,0.4);
     }
 
-    /* Animation indeterminee quand pas de pourcentage */
     .progress-bar.indeterminate {
-      width: 40%;
-      animation: slide 1.4s ease-in-out infinite;
+      width: 35%;
+      animation: slide 1.5s cubic-bezier(0.4,0,0.6,1) infinite;
     }
 
     @keyframes slide {
-      0% { transform: translateX(-100%); }
-      100% { transform: translateX(350%); }
+      0%   { transform: translateX(-120%); }
+      100% { transform: translateX(360%); }
     }
 
     .status {
-      font-size: 12px;
-      color: #a1a1aa;
+      font-size: 11px;
+      color: rgba(148, 163, 184, 0.7);
       text-align: center;
-      min-height: 16px;
+      min-height: 14px;
+      line-height: 1.4;
     }
 
     .error {
-      color: #f87171;
-      font-size: 12px;
+      color: #fca5a5;
+      font-size: 11px;
       text-align: center;
       display: none;
+      padding: 6px 10px;
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      border-radius: 8px;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <img class="logo" src="logo.png" alt="StarTrad FR" />
-    <div class="title">Mise a jour de StarTrad FR...</div>
-    <div class="progress-wrap">
-      <div class="progress-bar indeterminate" id="progressBar"></div>
+    <div class="logo-wrap">
+      <img class="logo" src="logo.png" alt="StarTrad FR" />
     </div>
-    <div class="status" id="statusText">Preparation de la mise a jour...</div>
-    <div class="error" id="errorText"></div>
+    <div class="text-block">
+      <div class="title" id="titleEl">Mise à jour de StarTrad FR</div>
+      <div class="subtitle">Merci de patienter...</div>
+    </div>
+    <div class="progress-section">
+      <div class="progress-wrap">
+        <div class="progress-bar indeterminate" id="progressBar"></div>
+      </div>
+      <div class="status" id="statusText">Préparation...</div>
+      <div class="error" id="errorText"></div>
+    </div>
   </div>
 
   <script>
@@ -117,9 +177,9 @@
     const { listen } = window.__TAURI__.event;
 
     const progressBar = document.getElementById('progressBar');
-    const statusText = document.getElementById('statusText');
-    const errorText = document.getElementById('errorText');
-    const titleEl = document.querySelector('.title');
+    const statusText  = document.getElementById('statusText');
+    const errorText   = document.getElementById('errorText');
+    const titleEl     = document.getElementById('titleEl');
 
     listen('update-progress', (event) => {
       const { phase, percent, detail } = event.payload;
@@ -128,9 +188,10 @@
       if (phase === 'downloading' && percent > 0) {
         progressBar.classList.remove('indeterminate');
         progressBar.style.width = percent + '%';
+        titleEl.textContent = 'Téléchargement...';
       } else if (phase === 'verifying') {
         progressBar.classList.add('indeterminate');
-        titleEl.textContent = 'Verification...';
+        titleEl.textContent = 'Vérification...';
       } else if (phase === 'installing') {
         progressBar.classList.add('indeterminate');
         titleEl.textContent = 'Installation...';
@@ -140,27 +201,27 @@
         titleEl.textContent = 'C\'est presque fini !';
       } else if (phase === 'waiting') {
         progressBar.classList.add('indeterminate');
+        titleEl.textContent = 'Mise à jour de StarTrad FR';
       }
     });
 
     async function run() {
       try {
         await invoke('get_update_args');
-      } catch (e) {
+      } catch {
         statusText.textContent = '';
         errorText.style.display = 'block';
-        errorText.textContent = 'Aucun argument de mise a jour. Fermeture...';
+        errorText.textContent = 'Aucun argument de mise à jour. Fermeture...';
         setTimeout(() => window.close(), 2000);
         return;
       }
-
       try {
         await invoke('start_update');
       } catch (e) {
         progressBar.classList.remove('indeterminate');
         progressBar.style.width = '0%';
-        progressBar.style.background = '#f87171';
-        titleEl.textContent = 'Echec de la mise a jour';
+        progressBar.style.background = 'rgba(239,68,68,0.7)';
+        titleEl.textContent = 'Échec de la mise à jour';
         statusText.textContent = '';
         errorText.style.display = 'block';
         errorText.textContent = String(e);

@@ -1,6 +1,5 @@
 import { m } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { ExternalLink, RefreshCw, Loader2, Package, PictureInPicture2 } from "lucide-react";
 import openExternal from "@/utils/external";
 import { invoke } from "@tauri-apps/api/core";
@@ -144,7 +143,7 @@ export default function Cargo() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
-            className="flex w-full h-full flex-col relative p-4 overflow-hidden"
+            className="flex w-full h-full flex-col relative overflow-hidden"
             style={{
                 maxHeight: "100%",
                 height: "100%",
@@ -154,41 +153,35 @@ export default function Cargo() {
                 overflow: "hidden",
             }}
         >
-            <div className="absolute top-4 left-4 right-4 z-10 flex items-center justify-between">
-                <div className="flex items-center gap-3 bg-background/80 backdrop-blur-sm rounded-lg px-4 py-2 border border-border/50 shadow-sm">
-                    <Package className="h-5 w-5 text-amber-500" />
-                    <span className="font-medium text-sm">Grilles Cargo</span>
+            <div className="absolute top-2 left-2 right-2 z-10 flex items-center justify-between">
+                <div className="flex items-center gap-2 bg-background/80 backdrop-blur-md rounded-full px-3 py-1.5 border border-border/60 shadow-sm">
+                    <Package className="h-4 w-4 text-amber-500" />
+                    <span className="font-medium text-[12px]">Grilles Cargo</span>
                 </div>
-                <div className="flex gap-2">
-                    <Button
-                        variant="secondary"
-                        size="sm"
+                <div className="flex gap-1.5">
+                    <button
                         onClick={handleRefresh}
-                        className="h-8 px-3 bg-background/80 backdrop-blur-sm border border-border/50 shadow-sm"
+                        className="flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-background/80 text-foreground/80 backdrop-blur-md shadow-sm transition-all hover:border-primary/50 hover:bg-primary/15 hover:text-primary"
                         title="Rafraichir"
                     >
-                        <RefreshCw className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        variant="secondary"
-                        size="sm"
+                        <RefreshCw className="h-3.5 w-3.5" />
+                    </button>
+                    <button
                         onClick={handleOpenOverlay}
-                        className="h-8 px-3 bg-background/80 backdrop-blur-sm border border-border/50 shadow-sm gap-2"
+                        className="flex h-8 items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-3 text-[11.5px] text-foreground/80 backdrop-blur-md shadow-sm transition-all hover:border-primary/50 hover:bg-primary/15 hover:text-primary"
                         title="Detacher en overlay"
                     >
-                        <PictureInPicture2 className="h-4 w-4" />
-                        <span className="hidden sm:inline text-xs">Overlay</span>
-                    </Button>
-                    <Button
-                        variant="secondary"
-                        size="sm"
+                        <PictureInPicture2 className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Overlay</span>
+                    </button>
+                    <button
                         onClick={handleOpenExternal}
-                        className="h-8 px-3 bg-background/80 backdrop-blur-sm border border-border/50 shadow-sm gap-2"
+                        className="flex h-8 items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-3 text-[11.5px] text-foreground/80 backdrop-blur-md shadow-sm transition-all hover:border-primary/50 hover:bg-primary/15 hover:text-primary"
                         title="Ouvrir dans le navigateur"
                     >
-                        <ExternalLink className="h-4 w-4" />
-                        <span className="hidden sm:inline text-xs">Navigateur</span>
-                    </Button>
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Navigateur</span>
+                    </button>
                 </div>
             </div>
 
@@ -208,14 +201,20 @@ export default function Cargo() {
                             Impossible de charger les grilles cargo. Le site bloque peut-etre les iframes.
                         </p>
                         <div className="flex gap-2">
-                            <Button variant="outline" size="sm" onClick={handleRefresh}>
-                                <RefreshCw className="h-4 w-4 mr-2" />
+                            <button
+                                onClick={handleRefresh}
+                                className="flex h-8 items-center gap-1.5 rounded-full border border-border/30 bg-background/20 px-3 text-[11.5px] text-muted-foreground backdrop-blur-sm transition-all hover:border-primary/35 hover:bg-primary/10 hover:text-primary"
+                            >
+                                <RefreshCw className="h-3.5 w-3.5" />
                                 Reessayer
-                            </Button>
-                            <Button variant="default" size="sm" onClick={handleOpenExternal}>
-                                <ExternalLink className="h-4 w-4 mr-2" />
+                            </button>
+                            <button
+                                onClick={handleOpenExternal}
+                                className="flex h-8 items-center gap-1.5 rounded-full border border-primary/40 bg-primary/15 px-3 text-[11.5px] text-primary backdrop-blur-sm transition-all hover:border-primary/60 hover:bg-primary/25"
+                            >
+                                <ExternalLink className="h-3.5 w-3.5" />
                                 Ouvrir dans le navigateur
-                            </Button>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -224,17 +223,23 @@ export default function Cargo() {
             {isDetachedToOverlay ? (
                 <div
                     className="absolute top-14 left-0 right-0 bottom-0 flex items-center justify-center p-6"
-                    style={{ height: "calc(100% - 3.5rem)" }}
+                    style={{ height: "calc(100% - 2.75rem)" }}
                 >
                     <div className="max-w-md w-full rounded-lg border border-border bg-card/60 backdrop-blur-sm p-5 text-center space-y-3">
                         <p className="text-sm text-muted-foreground">Cargo est detache en overlay pour eviter le rendu en double.</p>
                         <div className="flex items-center justify-center gap-2">
-                            <Button variant="outline" size="sm" onClick={handleRefresh}>
+                            <button
+                                onClick={handleRefresh}
+                                className="flex h-8 items-center gap-1.5 rounded-full border border-border/30 bg-background/20 px-3 text-[11.5px] text-muted-foreground backdrop-blur-sm transition-all hover:border-primary/35 hover:bg-primary/10 hover:text-primary"
+                            >
                                 Recharger dans l'app
-                            </Button>
-                            <Button variant="default" size="sm" onClick={handleOpenOverlay}>
+                            </button>
+                            <button
+                                onClick={handleOpenOverlay}
+                                className="flex h-8 items-center gap-1.5 rounded-full border border-primary/40 bg-primary/15 px-3 text-[11.5px] text-primary backdrop-blur-sm transition-all hover:border-primary/60 hover:bg-primary/25"
+                            >
                                 Re-focus overlay
-                            </Button>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -249,12 +254,12 @@ export default function Cargo() {
                     onError={handleError}
                     style={{
                         position: "absolute",
-                        top: "3.5rem",
+                        top: "2.75rem",
                         left: 0,
                         right: 0,
                         bottom: 0,
                         width: "100%",
-                        height: "calc(100% - 3.5rem)",
+                        height: "calc(100% - 2.75rem)",
                         maxHeight: "100%",
                         maxWidth: "100%",
                         overflow: "hidden",

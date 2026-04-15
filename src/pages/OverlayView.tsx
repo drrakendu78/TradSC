@@ -50,11 +50,11 @@ const OverlayView = () => {
     };
 
     return (
-        <div className="w-screen h-screen bg-transparent relative overflow-hidden">
+        <div className="w-screen h-screen bg-slate-950/15 relative overflow-hidden rounded-xl ring-1 ring-white/10">
             <div
                 onMouseDown={() => getCurrentWindow().startDragging()}
-                className="absolute top-0 left-0 right-0 h-6 cursor-move flex items-center justify-end gap-0.5 pr-1"
-                style={{ zIndex: 9999, background: "linear-gradient(to bottom, rgba(0,0,0,0.5), transparent)" }}
+                className="absolute top-0 left-0 right-0 h-6 cursor-move flex items-center justify-end gap-0.5 pr-1 rounded-t-xl"
+                style={{ zIndex: 9999, background: "linear-gradient(to bottom, rgba(0,0,0,0.55), transparent)" }}
             >
                 <GripVertical size={10} className="text-white/70 pointer-events-none ml-1" />
                 <input
@@ -70,7 +70,7 @@ const OverlayView = () => {
                 <button
                     onMouseDown={(e) => e.stopPropagation()}
                     onClick={handleGameMode}
-                    className="w-5 h-5 min-w-5 min-h-5 flex-none rounded-sm border border-sky-300/30 bg-[linear-gradient(180deg,rgba(28,52,72,0.96),rgba(18,34,49,0.96))] shadow-[inset_0_1px_0_rgba(148,197,255,0.18),0_1px_4px_rgba(0,0,0,0.45)] flex items-center justify-center leading-none text-[0px] transition-none"
+                    className="h-5 w-5 min-w-5 min-h-5 flex-none rounded-full border border-sky-300/50 bg-sky-500/15 text-sky-100 backdrop-blur-md shadow-sm transition-all hover:border-sky-200/70 hover:bg-sky-500/25 flex items-center justify-center"
                     title="Mode edit actif - clic pour mode jeu"
                 >
                     <svg
@@ -80,7 +80,7 @@ const OverlayView = () => {
                         strokeWidth="2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        className="h-2.5 w-2.5 text-slate-100"
+                        className="h-2.5 w-2.5"
                         aria-hidden="true"
                     >
                         <rect x="5" y="11" width="14" height="10" rx="2" />
@@ -90,18 +90,18 @@ const OverlayView = () => {
                 <button
                     onMouseDown={(e) => e.stopPropagation()}
                     onClick={() => setHidden(!hidden)}
-                    className="w-5 h-5 rounded-sm border border-amber-300/30 bg-[linear-gradient(180deg,rgba(72,54,25,0.95),rgba(45,35,16,0.95))] shadow-[inset_0_1px_0_rgba(252,211,77,0.16),0_1px_4px_rgba(0,0,0,0.45)] hover:bg-[linear-gradient(180deg,rgba(82,61,29,0.95),rgba(54,42,20,0.95))] active:scale-[0.98] flex items-center justify-center transition-all"
+                    className="h-5 w-5 rounded-full border border-amber-300/50 bg-amber-500/15 text-amber-100 backdrop-blur-md shadow-sm transition-all hover:border-amber-200/70 hover:bg-amber-500/25 flex items-center justify-center"
                     title={hidden ? "Afficher" : "Masquer"}
                 >
-                    {hidden ? <Eye size={10} className="text-amber-100" /> : <EyeOff size={10} className="text-amber-100" />}
+                    {hidden ? <Eye size={10} /> : <EyeOff size={10} />}
                 </button>
                 <button
                     onMouseDown={(e) => e.stopPropagation()}
                     onClick={handleClose}
-                    className="w-5 h-5 rounded-sm hover:bg-red-600/70 flex items-center justify-center transition-all"
+                    className="h-5 w-5 rounded-full border border-red-400/40 bg-red-500/10 text-red-100/80 backdrop-blur-md shadow-sm transition-all hover:border-red-300/70 hover:bg-red-500/30 hover:text-white flex items-center justify-center"
                     title="Fermer"
                 >
-                    <X size={10} className="text-white/70" />
+                    <X size={10} />
                 </button>
             </div>
 

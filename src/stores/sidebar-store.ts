@@ -22,7 +22,15 @@ export const useSidebarStore = create<SidebarStore>()(
             setCollapsed: (collapsed) => set({ isCollapsed: collapsed }),
         }),
         {
-            name: "sidebar-storage", // Clé localStorage
+            name: "sidebar-storage",
+            version: 2,
+            migrate: (_persisted, _version) => ({
+                isLocked: true,
+                isCollapsed: false,
+                toggleLock: () => {},
+                setLocked: () => {},
+                setCollapsed: () => {},
+            }),
         }
     )
 );

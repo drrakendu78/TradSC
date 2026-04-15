@@ -6,7 +6,7 @@ import { CacheInfos, columns, Folder } from "@/components/custom/clear-cache/col
 import { DataTable } from "@/components/custom/clear-cache/data-table";
 import ActionsMenu from "@/components/custom/clear-cache/actions";
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Trash2, Loader2, HardDrive } from "lucide-react";
 
 export default function ClearCache() {
@@ -49,87 +49,95 @@ export default function ClearCache() {
         const value = parseFloat(match[1]);
         const unit = match[2].toLowerCase();
         const multipliers: Record<string, number> = {
-            'b': 1,
-            'ko': 1024, 'kb': 1024,
-            'mo': 1024 * 1024, 'mb': 1024 * 1024,
-            'go': 1024 * 1024 * 1024, 'gb': 1024 * 1024 * 1024,
+            b: 1,
+            ko: 1024, kb: 1024,
+            mo: 1024 * 1024, mb: 1024 * 1024,
+            go: 1024 * 1024 * 1024, gb: 1024 * 1024 * 1024,
         };
         return value * (multipliers[unit] || 1);
     };
-    
+
     const totalSize = cacheInfos?.reduce((acc, folder) => acc + parseWeight(folder.weight), 0) || 0;
-    
+
     const formatSize = (bytes: number) => {
-        if (bytes === 0) return '0 B';
+        if (bytes === 0) return "0 B";
         const k = 1024;
-        const sizes = ['B', 'Ko', 'Mo', 'Go'];
+        const sizes = ["B", "Ko", "Mo", "Go"];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
     };
+
+    const folderCount = cacheInfos?.length ?? 0;
 
     return cacheInfos ? (
         <m.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
-            className="flex flex-col w-full h-full p-4 overflow-hidden"
+            className="flex h-full w-full flex-col overflow-hidden px-1 pb-1 pt-0"
         >
-            <div className="flex flex-col gap-6 h-full overflow-y-auto pr-2">
+            <div className="flex h-full flex-col gap-3.5 overflow-y-auto pr-2">
                 {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-red-500/10">
-                            <Trash2 className="h-6 w-6 text-red-500" />
+                <section className="relative px-1 pt-1.5">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex items-start gap-3">
+                            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-500/30 bg-red-500/10">
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                            </div>
+                            <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <h1 className="text-[1.28rem] font-semibold leading-none tracking-tight">Gestionnaire du Cache</h1>
+                                    <Badge variant="outline" className="h-5 rounded-md border-border/40 bg-background/20 px-1.5 text-[10px]">
+                                        {folderCount} dossier{folderCount > 1 ? "s" : ""}
+                                    </Badge>
+                                </div>
+                                <p className="mt-1 text-sm text-muted-foreground/90">Liberez de l'espace et optimisez les performances</p>
+                            </div>
                         </div>
-                        <div>
-                            <h1 className="text-2xl font-bold tracking-tight">Gestionnaire du Cache</h1>
-                            <p className="text-sm text-muted-foreground">Libérez de l'espace et optimisez les performances</p>
-                        </div>
+                        <ActionsMenu setCacheInfos={setCacheInfos} />
                     </div>
-                    <ActionsMenu setCacheInfos={setCacheInfos} />
-                </div>
+                    <div className="mt-3 h-px w-full bg-gradient-to-r from-red-500/25 via-border/40 to-transparent" />
+                </section>
 
-                {/* Stats Card */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Card className="bg-gradient-to-br from-orange-500/10 to-red-500/10 border-orange-500/20">
-                        <CardContent className="py-4 flex items-center gap-4">
-                            <div className="p-3 rounded-full bg-orange-500/20">
-                                <HardDrive className="h-6 w-6 text-orange-500" />
+                {/* Inline stats */}
+                <section className="grid grid-cols-1 gap-2.5 lg:grid-cols-[280px_minmax(0,1fr)]">
+                    <div className="rounded-xl border border-border/30 bg-[hsl(var(--background)/0.12)] px-3 py-2.5">
+                        <div className="flex items-center gap-2.5">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-orange-500/30 bg-orange-500/10">
+                                <HardDrive className="h-4.5 w-4.5 text-orange-500" />
                             </div>
                             <div>
-                                <p className="text-sm text-muted-foreground">Espace utilisé</p>
-                                <p className="text-2xl font-bold text-orange-500">{formatSize(totalSize)}</p>
+                                <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Espace utilise</p>
+                                <p className="text-xl font-semibold tracking-tight text-foreground">{formatSize(totalSize)}</p>
                             </div>
-                        </CardContent>
-                    </Card>
-                    <Card className="bg-muted/30 border-muted">
-                        <CardContent className="py-4">
-                            <p className="text-sm text-muted-foreground leading-relaxed">
-                                💡 Nettoyer régulièrement le cache peut améliorer les performances et résoudre certains bugs graphiques (shaders corrompus).
-                            </p>
-                        </CardContent>
-                    </Card>
-                </div>
+                        </div>
+                    </div>
+                    <div className="rounded-xl border border-border/25 bg-[hsl(var(--background)/0.08)] px-3 py-2.5">
+                        <p className="text-xs leading-relaxed text-muted-foreground">
+                            Nettoyer regulierement le cache peut ameliorer les performances et corriger certains bugs graphiques
+                            (shaders corrompus).
+                        </p>
+                    </div>
+                </section>
 
                 {/* Table */}
-                <Card className="overflow-hidden bg-background/40 border-border/50">
-                    <CardContent className="p-0">
-                        <DataTable
-                            columns={columns(toast, updateCacheInfos)}
-                            data={cacheInfos}
-                        />
-                    </CardContent>
-                </Card>
+                <DataTable
+                    columns={columns(toast, updateCacheInfos)}
+                    data={cacheInfos}
+                />
             </div>
         </m.div>
     ) : (
-        <div className="flex h-full w-full flex-col gap-4 items-center justify-center">
-            <div className="p-4 rounded-full bg-muted animate-pulse">
-                <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
-            </div>
-            <p className="text-muted-foreground">
-                Analyse du cache en cours{Array.from({ length: loadingDot }).map((_, i) => <span key={i}>.</span>)}
-            </p>
+        <div className="flex h-full w-full items-center justify-center p-4">
+            <section className="w-full max-w-md rounded-xl border border-border/40 bg-[hsl(var(--background)/0.14)] p-6 text-center">
+                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-border/50 bg-background/30">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                    Analyse du cache en cours
+                    {Array.from({ length: loadingDot }).map((_, i) => <span key={i}>.</span>)}
+                </p>
+            </section>
         </div>
     );
 }

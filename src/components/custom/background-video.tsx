@@ -361,10 +361,11 @@ export function BackgroundVideo() {
     
     // Un seul élément vidéo qui change juste sa visibilité et son positionnement
     // Ne pas rendre la vidéo si désactivée dans les paramètres
-    const shouldShowVideo = isHomePage && isVideoEnabledRef.current;
+    const shouldShowVideo = false;
 
     return (
         <>
+        {shouldShowVideo && (
         <div
             className={`fixed top-0 h-[70vh] z-0 pointer-events-none overflow-hidden transition-all duration-500 ${!shouldShowVideo ? 'opacity-0 pointer-events-none' : ''}`}
             style={{
@@ -410,6 +411,7 @@ export function BackgroundVideo() {
                 <source src="/video-montage-sc.mp4" type="video/mp4" />
             </video>
         </div>
+        )}
         
         {/* Iframe YouTube caché pour la playlist audio - toujours dans le DOM */}
         <div
@@ -428,4 +430,3 @@ export function BackgroundVideo() {
     </>
     );
 }
-

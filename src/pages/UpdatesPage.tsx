@@ -1,12 +1,21 @@
 import { m } from 'framer-motion';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useUpdater } from '@/hooks/useUpdater';
-import { Download, Github, Store, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Download, Github, Store, AlertTriangle, RefreshCw, CheckCircle2, ShieldCheck, Package, Sparkles, Info } from 'lucide-react';
 import openExternal from '@/utils/external';
 import { formatVersion, getAppVersionSync } from '@/utils/version';
 import { detectDistribution } from '@/utils/buildInfo';
+
+type DistInfo = {
+    name: string;
+    icon: JSX.Element;
+    badge: string;
+    badgeVariant: 'default' | 'secondary' | 'outline' | 'destructive';
+    description: string;
+    updateInfo: string;
+};
 
 export default function UpdatesPage() {
     const {
@@ -31,43 +40,43 @@ export default function UpdatesPage() {
         openExternal('ms-windows-store://pdp/?productid=9P29DL68WBZ');
     };
 
-    const getDistributionInfo = () => {
+    const getDistributionInfo = (): DistInfo => {
         switch (distribution) {
             case 'microsoft-store':
                 return {
                     name: 'Microsoft Store',
-                    icon: <Store className="h-5 w-5 text-blue-600" />,
+                    icon: <Store className="h-5 w-5 text-blue-500" />,
                     badge: 'Signé',
-                    badgeVariant: 'default' as const,
+                    badgeVariant: 'default',
                     description: 'Version officielle du Microsoft Store',
-                    updateInfo: 'Les mises à jour sont gérées automatiquement par le Microsoft Store.'
+                    updateInfo: 'Les mises à jour sont gérées automatiquement par le Microsoft Store.',
                 };
             case 'github':
                 return {
                     name: 'GitHub Release',
-                    icon: <Github className="h-5 w-5 text-orange-600" />,
-                    badge: 'Non-signé',
-                    badgeVariant: 'secondary' as const,
+                    icon: <Github className="h-5 w-5 text-orange-500" />,
+                    badge: 'Open-source',
+                    badgeVariant: 'secondary',
                     description: 'Version open-source depuis GitHub',
-                    updateInfo: 'Mises à jour manuelles ou automatiques disponibles.'
+                    updateInfo: 'Mises à jour manuelles ou automatiques disponibles.',
                 };
             case 'portable':
                 return {
                     name: 'Version Portable',
-                    icon: <Download className="h-5 w-5 text-green-600" />,
+                    icon: <Package className="h-5 w-5 text-green-500" />,
                     badge: 'Portable',
-                    badgeVariant: 'outline' as const,
+                    badgeVariant: 'outline',
                     description: 'Version sans installation',
-                    updateInfo: 'Téléchargez une nouvelle version pour mettre à jour.'
+                    updateInfo: 'Téléchargez une nouvelle version pour mettre à jour.',
                 };
             default:
                 return {
                     name: 'Version Inconnue',
-                    icon: <AlertTriangle className="h-5 w-5 text-yellow-600" />,
+                    icon: <AlertTriangle className="h-5 w-5 text-destructive" />,
                     badge: 'Inconnue',
-                    badgeVariant: 'destructive' as const,
+                    badgeVariant: 'destructive',
                     description: 'Distribution non reconnue',
-                    updateInfo: 'Source d\'installation non identifiée.'
+                    updateInfo: "Source d'installation non identifiée.",
                 };
         }
     };
@@ -79,191 +88,247 @@ export default function UpdatesPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
-            className="flex flex-col w-full h-full p-4 overflow-hidden"
+            className="flex h-full w-full flex-col overflow-hidden px-1 pb-1 pt-0"
         >
-            <div className="flex flex-col gap-6 h-full overflow-y-auto pr-2">
+            <div className="flex h-full flex-col gap-3.5 overflow-y-auto pr-2">
                 {/* Header */}
-                <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-blue-500/10">
-                        <Download className="h-6 w-6 text-blue-500" />
-                    </div>
-                    <div>
-                        <h1 className="text-2xl font-bold tracking-tight">Mises à jour</h1>
-                        <p className="text-sm text-muted-foreground">Gérez les mises à jour de StarTrad FR</p>
-                    </div>
-                </div>
-
-            {/* Info Distribution */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        {distInfo.icon}
-                        Version Actuelle - {distInfo.name}
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="font-medium">StarTrad FR {currentVersion}</p>
-                            <p className="text-sm text-muted-foreground">
-                                {distInfo.description}
-                            </p>
+                <section className="relative px-1 pt-1.5">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex items-start gap-3">
+                            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-primary/30 bg-primary/10">
+                                <Download className="h-4 w-4 text-primary" />
+                            </div>
+                            <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <h1 className="text-[1.28rem] font-semibold leading-none tracking-tight">Mises à jour</h1>
+                                    <Badge variant="outline" className="h-5 rounded-md border-border/40 bg-background/20 px-1.5 text-[10px] font-mono">
+                                        {currentVersion}
+                                    </Badge>
+                                </div>
+                                <p className="mt-1 text-sm text-muted-foreground/90">Gérez les mises à jour de StarTrad FR</p>
+                            </div>
                         </div>
-                        <Badge variant={distInfo.badgeVariant}>{distInfo.badge}</Badge>
-                    </div>
-
-                    <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-md">
-                        <p className="text-sm text-blue-800 dark:text-blue-200">
-                            💡 {distInfo.updateInfo}
-                        </p>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <Button
-                            onClick={() => checkForUpdates(false)}
-                            disabled={isChecking || isInstalling}
-                            className="flex items-center gap-2"
-                        >
-                            {isChecking ? (
-                                <RefreshCw className="h-4 w-4 animate-spin" />
-                            ) : (
-                                <Download className="h-4 w-4" />
-                            )}
-                            {isChecking ? 'Vérification...' : 'Vérifier les mises à jour'}
-                        </Button>
-
-                        {distribution === 'microsoft-store' ? (
-                            <Button
-                                variant="outline"
-                                onClick={handleOpenStore}
-                                className="flex items-center gap-2"
-                            >
-                                <Store className="h-4 w-4" />
-                                Ouvrir le Store
-                            </Button>
-                        ) : updateAvailable ? (
-                            <Button
-                                variant="default"
-                                onClick={installUpdate}
-                                disabled={isInstalling}
-                                className="flex items-center gap-2"
-                            >
-                                {isInstalling ? (
-                                    <RefreshCw className="h-4 w-4 animate-spin" />
-                                ) : (
-                                    <Download className="h-4 w-4" />
-                                )}
-                                {isInstalling
-                                    ? 'Lancement...'
-                                    : `Installer v${updateInfo?.version}`}
-                            </Button>
-                        ) : (
-                            <Button
-                                variant="outline"
-                                onClick={openGitHubReleases}
-                                className="flex items-center gap-2"
-                            >
-                                <Github className="h-4 w-4" />
-                                Voir sur GitHub
-                            </Button>
+                        {updateAvailable && (
+                            <Badge className="h-6 gap-1 rounded-md bg-primary/15 px-2 text-[10px] font-medium text-primary hover:bg-primary/15">
+                                <Sparkles className="h-3 w-3" />
+                                v{updateInfo?.version} disponible
+                            </Badge>
                         )}
                     </div>
+                    <div className="mt-3 h-px w-full bg-gradient-to-r from-primary/25 via-border/40 to-transparent" />
+                </section>
 
-                    {/* État de la mise à jour */}
-                    {updateAvailable && (
-                        <div className="p-3 bg-green-100 dark:bg-green-900 rounded-md">
-                            <p className="text-sm text-green-800 dark:text-green-200">
-                                🎉 Mise à jour disponible: v{updateInfo?.version}
-                            </p>
-                        </div>
-                    )}
+                {/* Grid principale */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Carte Version actuelle */}
+                    <Card className="rounded-xl border border-border/30 bg-[hsl(var(--background)/0.10)] shadow-none backdrop-blur-md">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-lg">
+                                {distInfo.icon}
+                                Version actuelle
+                            </CardTitle>
+                            <CardDescription>
+                                {distInfo.description}
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="flex items-center justify-between rounded-lg border border-border/30 bg-background/20 p-3">
+                                <div className="space-y-1">
+                                    <p className="text-sm font-medium">StarTrad FR {currentVersion}</p>
+                                    <p className="text-xs text-muted-foreground">{distInfo.name}</p>
+                                </div>
+                                <Badge variant={distInfo.badgeVariant}>{distInfo.badge}</Badge>
+                            </div>
 
-                    {error && (
-                        <div className="p-3 bg-red-100 dark:bg-red-900 rounded-md">
-                            <p className="text-sm text-red-800 dark:text-red-200">
-                                Erreur: {error}
-                            </p>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+                            <div className="flex items-start gap-2.5 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                                <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                                <p className="text-xs leading-relaxed text-foreground/85">{distInfo.updateInfo}</p>
+                            </div>
+                        </CardContent>
+                    </Card>
 
-            {/* Microsoft Store - Info spécifique */}
-            {distribution === 'microsoft-store' && (
-                <Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
-                            <Store className="h-5 w-5" />
-                            Microsoft Store - Gestion Automatique
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="text-blue-700 dark:text-blue-300">
-                        <div className="space-y-2">
-                            <p className="text-sm">
-                                ✅ <strong>Mises à jour automatiques</strong> gérées par Microsoft
-                            </p>
-                            <p className="text-sm">
-                                ✅ <strong>Signature numérique</strong> validée par Microsoft
-                            </p>
-                            <p className="text-sm">
-                                ✅ <strong>Aucun avertissement</strong> SmartScreen
-                            </p>
-                            <p className="text-sm">
-                                ℹ️ Les mises à jour se font automatiquement en arrière-plan
-                            </p>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
+                    {/* Carte Actions mise à jour */}
+                    <Card className="rounded-xl border border-border/30 bg-[hsl(var(--background)/0.10)] shadow-none backdrop-blur-md">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-lg">
+                                <RefreshCw className="h-5 w-5 text-primary" />
+                                Actions
+                            </CardTitle>
+                            <CardDescription>
+                                Vérifiez et installez les mises à jour
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            <Button
+                                onClick={() => checkForUpdates(false)}
+                                disabled={isChecking || isInstalling}
+                                className="w-full gap-2"
+                            >
+                                {isChecking ? (
+                                    <RefreshCw className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <RefreshCw className="h-4 w-4" />
+                                )}
+                                {isChecking ? 'Vérification...' : 'Vérifier les mises à jour'}
+                            </Button>
 
-            {/* GitHub/Portable - Info spécifique */}
-            {(distribution === 'github' || distribution === 'portable') && (
-                <Card className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-orange-800 dark:text-orange-200">
-                            <AlertTriangle className="h-5 w-5" />
-                            Version Open-Source
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="text-orange-700 dark:text-orange-300">
-                        <div className="space-y-2">
-                            <p className="text-sm">
-                                ⚠️ <strong>Application non-signée</strong> - Avertissements SmartScreen possibles
-                            </p>
-                            <p className="text-sm">
-                                🔍 <strong>Code source ouvert</strong> - Entièrement auditable
-                            </p>
-                            <p className="text-sm">
-                                🛡️ <strong>Signature ed25519</strong> - Vérification d'intégrité automatique
-                            </p>
-                            {distribution === 'portable' && (
-                                <p className="text-sm">
-                                    📦 <strong>Version portable</strong> - Pas d'installation requise
-                                </p>
+                            {distribution === 'microsoft-store' ? (
+                                <Button
+                                    variant="outline"
+                                    onClick={handleOpenStore}
+                                    className="w-full gap-2"
+                                >
+                                    <Store className="h-4 w-4" />
+                                    Ouvrir le Microsoft Store
+                                </Button>
+                            ) : updateAvailable ? (
+                                <Button
+                                    onClick={installUpdate}
+                                    disabled={isInstalling}
+                                    variant="default"
+                                    className="w-full gap-2"
+                                >
+                                    {isInstalling ? (
+                                        <RefreshCw className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Download className="h-4 w-4" />
+                                    )}
+                                    {isInstalling ? 'Lancement...' : `Installer v${updateInfo?.version}`}
+                                </Button>
+                            ) : (
+                                <Button
+                                    variant="outline"
+                                    onClick={openGitHubReleases}
+                                    className="w-full gap-2"
+                                >
+                                    <Github className="h-4 w-4" />
+                                    Voir sur GitHub
+                                </Button>
                             )}
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
 
-            {/* Debug Info (Développement uniquement) */}
-            {import.meta.env.DEV && (
-                <Card className="border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
-                            🐛 Debug Info (DEV)
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="text-yellow-700 dark:text-yellow-300">
-                        <div className="space-y-1 text-xs">
-                            <p>Distribution détectée: <strong>{distribution}</strong></p>
-                            <p>TAURI_ENV_MS_STORE: <strong>{process.env.TAURI_ENV_MS_STORE || 'undefined'}</strong></p>
-                            <p>TAURI_ENV_PORTABLE: <strong>{process.env.TAURI_ENV_PORTABLE || 'undefined'}</strong></p>
-                            <p>TAURI_ENV_DISTRIBUTION: <strong>{process.env.TAURI_ENV_DISTRIBUTION || 'undefined'}</strong></p>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
+                            {updateAvailable && (
+                                <div className="flex items-start gap-2.5 rounded-lg border border-primary/30 bg-primary/10 p-3">
+                                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-sm font-medium text-foreground">
+                                            Mise à jour disponible : v{updateInfo?.version}
+                                        </p>
+                                        <p className="mt-0.5 text-xs text-muted-foreground">
+                                            Installez-la pour profiter des dernières nouveautés.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {error && (
+                                <div className="flex items-start gap-2.5 rounded-lg border border-destructive/30 bg-destructive/10 p-3">
+                                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-sm font-medium text-destructive">Erreur</p>
+                                        <p className="mt-0.5 break-all text-xs text-muted-foreground">{error}</p>
+                                    </div>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Carte infos distribution */}
+                {distribution === 'microsoft-store' && (
+                    <Card className="rounded-xl border border-border/30 bg-[hsl(var(--background)/0.10)] shadow-none backdrop-blur-md">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-lg">
+                                <ShieldCheck className="h-5 w-5 text-blue-500" />
+                                Gestion automatique Microsoft Store
+                            </CardTitle>
+                            <CardDescription>
+                                Les mises à jour sont gérées de manière transparente
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                {[
+                                    'Mises à jour automatiques gérées par Microsoft',
+                                    'Signature numérique validée par Microsoft',
+                                    'Aucun avertissement SmartScreen',
+                                    'Installation silencieuse en arrière-plan',
+                                ].map((item) => (
+                                    <div key={item} className="flex items-start gap-2.5 rounded-lg border border-border/30 bg-background/20 p-3">
+                                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
+                                        <span className="text-xs leading-relaxed text-foreground/85">{item}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {(distribution === 'github' || distribution === 'portable') && (
+                    <Card className="rounded-xl border border-border/30 bg-[hsl(var(--background)/0.10)] shadow-none backdrop-blur-md">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-lg">
+                                <AlertTriangle className="h-5 w-5 text-orange-500" />
+                                Version open-source
+                            </CardTitle>
+                            <CardDescription>
+                                Particularités et garanties de sécurité
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                <div className="flex items-start gap-2.5 rounded-lg border border-border/30 bg-background/20 p-3">
+                                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-orange-500" />
+                                    <span className="text-xs leading-relaxed text-foreground/85">
+                                        Application non-signée — avertissements SmartScreen possibles
+                                    </span>
+                                </div>
+                                <div className="flex items-start gap-2.5 rounded-lg border border-border/30 bg-background/20 p-3">
+                                    <Github className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                                    <span className="text-xs leading-relaxed text-foreground/85">
+                                        Code source ouvert — entièrement auditable
+                                    </span>
+                                </div>
+                                <div className="flex items-start gap-2.5 rounded-lg border border-border/30 bg-background/20 p-3">
+                                    <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                                    <span className="text-xs leading-relaxed text-foreground/85">
+                                        Signature ed25519 — vérification d'intégrité automatique
+                                    </span>
+                                </div>
+                                {distribution === 'portable' && (
+                                    <div className="flex items-start gap-2.5 rounded-lg border border-border/30 bg-background/20 p-3">
+                                        <Package className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                                        <span className="text-xs leading-relaxed text-foreground/85">
+                                            Version portable — pas d'installation requise
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* Debug dev only */}
+                {import.meta.env.DEV && (
+                    <Card className="rounded-xl border border-border/30 bg-[hsl(var(--background)/0.10)] shadow-none backdrop-blur-md">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-lg">
+                                <Badge variant="outline" className="h-5 rounded-md border-border/40 bg-background/20 px-1.5 text-[10px]">DEV</Badge>
+                                Debug info
+                            </CardTitle>
+                            <CardDescription>
+                                Variables d'environnement Tauri
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-1.5 rounded-lg border border-border/30 bg-background/20 p-3 font-mono text-xs text-muted-foreground">
+                                <p>distribution: <span className="text-foreground/90">{distribution}</span></p>
+                                <p>TAURI_ENV_MS_STORE: <span className="text-foreground/90">{process.env.TAURI_ENV_MS_STORE || 'undefined'}</span></p>
+                                <p>TAURI_ENV_PORTABLE: <span className="text-foreground/90">{process.env.TAURI_ENV_PORTABLE || 'undefined'}</span></p>
+                                <p>TAURI_ENV_DISTRIBUTION: <span className="text-foreground/90">{process.env.TAURI_ENV_DISTRIBUTION || 'undefined'}</span></p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
             </div>
         </m.div>
     );

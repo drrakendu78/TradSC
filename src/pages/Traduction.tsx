@@ -10,10 +10,10 @@ import {
     isLocalizationConfig,
     Link,
 } from "@/types/translation";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import logger from "@/utils/logger";
-import { Loader2, XCircle, CheckCircle, AlertCircle, HelpCircle, Globe2, Languages, Settings2, WifiOff } from "lucide-react";
+import { Loader2, XCircle, CheckCircle, AlertCircle, HelpCircle, Globe2, Languages, Settings2, WifiOff, FolderOpen, Clock } from "lucide-react";
 import { useStatsStore } from "@/stores/stats-store";
 import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
@@ -1125,38 +1125,39 @@ export default function Traduction() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: 0.1 + index * 0.1 }}
             >
-                <Card className="bg-background/40 border border-border/50 shadow-sm hover:shadow-md transition-all duration-200">
-                    <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <CardTitle className="text-lg flex items-center gap-2">
+                <Card className="group relative overflow-hidden rounded-2xl border border-border/35 bg-[hsl(var(--background)/0.14)] shadow-[0_6px_16px_rgba(0,0,0,0.10)] transition-all duration-200 hover:border-primary/25 hover:bg-[hsl(var(--background)/0.18)]">
+                    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_95%_at_100%_0%,hsl(var(--primary)/0.10),transparent_58%)] opacity-45" />
+                    <CardHeader className="relative space-y-2 pb-1.5 pt-3">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1 space-y-1.5">
+                                <CardTitle className="flex items-center gap-2 text-base tracking-tight">
                                     <Globe2 className="h-5 w-5 text-primary" />
                                     {key}
                                 </CardTitle>
                                 {translationsSelected[key as keyof TranslationsChoosen]?.link &&
                                  lastUpdatedDates[translationsSelected[key as keyof TranslationsChoosen]!.link!] && (
-                                    <span className="text-xs text-muted-foreground">
+                                    <span className="inline-flex h-6 items-center rounded-md border border-border/60 bg-background/30 px-2 text-[11px] text-muted-foreground">
                                         Dernière MAJ : {formatRelativeDate(lastUpdatedDates[translationsSelected[key as keyof TranslationsChoosen]!.link!])}
                                     </span>
                                 )}
                             </div>
                             {loadingButtonId === `update-${key}` ? (
-                                <Badge variant="default" className="gap-1 bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/30">
+                                <Badge variant="default" className="h-6 gap-1 rounded-md border border-blue-500/30 bg-blue-500/20 text-[11px] text-blue-600 dark:text-blue-400">
                                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                     Mise à jour...
                                 </Badge>
                             ) : value.up_to_date ? (
-                                <Badge variant="default" className="gap-1 bg-green-500/20 text-green-600 dark:text-green-400 border-green-500/30">
+                                <Badge variant="default" className="h-6 gap-1 rounded-md border border-green-500/30 bg-green-500/20 text-[11px] text-green-600 dark:text-green-400">
                                     <CheckCircle className="h-3.5 w-3.5" />
                                     À jour
                                 </Badge>
                             ) : value.translated ? (
-                                <Badge variant="default" className="gap-1 bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border-yellow-500/30">
+                                <Badge variant="default" className="h-6 gap-1 rounded-md border border-yellow-500/30 bg-yellow-500/20 text-[11px] text-yellow-600 dark:text-yellow-400">
                                     <AlertCircle className="h-3.5 w-3.5" />
                                     Mise à jour dispo
                                 </Badge>
                             ) : (
-                                <Badge variant="outline" className="gap-1">
+                                <Badge variant="outline" className="h-6 gap-1 rounded-md border-border/60 bg-background/30 text-[11px]">
                                     <XCircle className="h-3.5 w-3.5" />
                                     Non installé
                                 </Badge>
@@ -1164,16 +1165,25 @@ export default function Traduction() {
                             {cachedVersions[key.toUpperCase()] && Object.keys(cachedVersions[key.toUpperCase()]).length > 0 && (
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <Badge variant="secondary" className="gap-1 bg-blue-500/10 text-blue-500 border-blue-500/20">
+                                        <Badge variant="secondary" className="h-6 gap-1 rounded-md border border-blue-500/20 bg-blue-500/10 px-2 text-[11px] text-blue-500">
                                             <WifiOff className="h-3 w-3" />
                                             {Object.keys(cachedVersions[key.toUpperCase()]).length} en cache
                                         </Badge>
                                     </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p className="text-sm font-medium">Disponible hors-ligne</p>
-                                        <div className="text-xs text-muted-foreground space-y-1 mt-1">
+                                    <TooltipContent className="max-w-[220px] p-3">
+                                        <div className="flex items-center gap-1.5 mb-2">
+                                            <WifiOff className="h-3 w-3 text-blue-400 shrink-0" />
+                                            <span className="text-[12px] font-semibold text-zinc-100">Disponible hors-ligne</span>
+                                        </div>
+                                        <div className="space-y-1.5">
                                             {Object.entries(cachedVersions[key.toUpperCase()]).map(([source, info]) => (
-                                                <p key={source}>• {source}: {formatRelativeDate(info.cached_at)}</p>
+                                                <div key={source} className="flex items-center justify-between gap-3">
+                                                    <span className="text-[11px] text-zinc-200/90 truncate">{source}</span>
+                                                    <span className="flex items-center gap-1 shrink-0 text-[10px] text-zinc-400">
+                                                        <Clock className="h-2.5 w-2.5" />
+                                                        {formatRelativeDate(info.cached_at)}
+                                                    </span>
+                                                </div>
                                             ))}
                                         </div>
                                     </TooltipContent>
@@ -1182,8 +1192,8 @@ export default function Traduction() {
                         </div>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <p className="text-xs text-muted-foreground truncate cursor-help mt-1">
-                                    📁 {value.path}
+                                <p className="mt-1 flex items-center gap-1.5 truncate text-[11px] text-muted-foreground/90 cursor-help">
+                                    <FolderOpen className="h-3.5 w-3.5 shrink-0" /> {value.path}
                                 </p>
                             </TooltipTrigger>
                             <TooltipContent>
@@ -1192,15 +1202,15 @@ export default function Traduction() {
                         </Tooltip>
                     </CardHeader>
                     
-                    <CardContent className="space-y-4">
+                    <CardContent className="relative space-y-3 border-t border-border/30 pt-3">
                         {/* Sélection de traduction */}
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium flex items-center gap-2">
-                                <Languages className="h-4 w-4" />
+                        <div className="space-y-1.5">
+                            <label className="flex items-center gap-2 text-[13px] font-medium">
+                                <Languages className="h-4 w-4 text-primary/90" />
                                 Source de traduction
                                 {/* Indicateur mode hors-ligne */}
                                 {(!translations || !translations.fr?.links?.length) && cachedVersions[key.toUpperCase()] && (
-                                    <Badge variant="outline" className="gap-1 text-xs bg-orange-500/10 text-orange-600 border-orange-500/20">
+                                    <Badge variant="outline" className="h-5 gap-1 border-orange-500/20 bg-orange-500/10 text-[10px] text-orange-600">
                                         <WifiOff className="h-3 w-3" />
                                         Mode hors-ligne
                                     </Badge>
@@ -1213,7 +1223,7 @@ export default function Traduction() {
                                     onValueChange={(val) => handleTranslationSelect(key, val)}
                                     disabled={loadingButtonId !== null}
                                 >
-                                    <SelectTrigger className="w-full">
+                                    <SelectTrigger className="h-10 w-full rounded-lg border-border/60 bg-background/40">
                                         <SelectValue placeholder="Choisir une traduction" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -1308,7 +1318,7 @@ export default function Traduction() {
                                     }}
                                     disabled={loadingButtonId !== null}
                                 >
-                                    <SelectTrigger className="w-full">
+                                    <SelectTrigger className="h-10 w-full rounded-lg border-border/60 bg-background/40">
                                         <SelectValue placeholder="Choisir depuis le cache" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -1334,17 +1344,17 @@ export default function Traduction() {
                                     );
                                 })()
                             ) : (
-                                <p className="text-sm text-muted-foreground italic">
+                                <p className="text-xs text-muted-foreground italic">
                                     Aucune traduction disponible (connectez-vous ou activez le cache)
                                 </p>
                             )}
                         </div>
 
                         {/* Toggle paramètres FR/EN */}
-                        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/30">
+                        <div className="flex items-center justify-between rounded-lg bg-[hsl(var(--background)/0.20)] px-2.5 py-2">
                             <div className="flex items-center gap-2">
                                 <Settings2 className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-sm">Langue des paramètres</span>
+                                <span className="text-[13px] font-medium">Langue des paramètres</span>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
                                         <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
@@ -1374,10 +1384,10 @@ export default function Traduction() {
                         </div>
 
                         {/* Boutons d'action */}
-                        <div className="flex flex-wrap gap-2 pt-2">
+                        <div className="flex flex-wrap gap-2 pt-1">
                             {!value.translated && (
                                 <Button
-                                    className="flex-1"
+                                    className="h-9 rounded-lg px-4"
                                     disabled={loadingButtonId === `install-${key}`}
                                     onClick={() => handleInstallTranslation(value.path, key)}
                                 >
@@ -1394,7 +1404,7 @@ export default function Traduction() {
                             {value.translated && !value.up_to_date && translationsSelected[key as keyof TranslationsChoosen]?.link && (
                                 <Button
                                     variant="secondary"
-                                    className="flex-1"
+                                    className="h-9 rounded-lg border border-border/50 bg-[hsl(var(--background)/0.26)] px-4"
                                     disabled={loadingButtonId === `update-${key}`}
                                     onClick={() =>
                                         handleUpdateTranslation(
@@ -1418,6 +1428,7 @@ export default function Traduction() {
                                 <Button
                                     variant="destructive"
                                     size="sm"
+                                    className="h-9 rounded-lg px-4"
                                     disabled={loadingButtonId === `uninstall-${key}`}
                                     onClick={async () => {
                                         dispatch({ type: 'SET_LOADING_BUTTON', id: `uninstall-${key}` });
@@ -1453,40 +1464,62 @@ export default function Traduction() {
         handleTranslationSelect
     ]);
 
+    const versionEntries = paths ? Object.entries(paths.versions) : [];
+    const totalVersions = versionEntries.length;
+
     return (
         <m.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
-            className="flex flex-col w-full h-full p-4 overflow-hidden"
+            className="flex h-full w-full flex-col overflow-hidden px-1 pb-1 pt-0"
         >
-            {paths && Object.entries(paths?.versions)[0] ? (
-                <div className="flex flex-col gap-6 h-full overflow-y-auto pr-2">
+            {paths && totalVersions > 0 ? (
+                <div className="flex h-full flex-col gap-3.5 overflow-y-auto pr-2">
                     {/* Header */}
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-primary/10">
-                            <Languages className="h-6 w-6 text-primary" />
+                    <section className="relative px-1 pt-1.5">
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex items-start gap-3">
+                                <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-primary/30 bg-primary/10">
+                                    <Languages className="h-4 w-4 text-primary" />
+                                </div>
+                                <div className="min-w-0">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <h1 className="text-[1.28rem] font-semibold leading-none tracking-tight">Traduction Française</h1>
+                                        <Badge variant="outline" className="h-5 rounded-md border-border/40 bg-background/20 px-1.5 text-[10px]">
+                                            {totalVersions} version{totalVersions > 1 ? "s" : ""}
+                                        </Badge>
+                                    </div>
+                                    <p className="mt-1 text-sm text-muted-foreground/90">Installez et gérez la traduction de Star Citizen</p>
+                                </div>
+                            </div>
+                            {translations?.fr?.links?.length ? (
+                                <Badge variant="outline" className="h-6 rounded-md border-emerald-500/25 bg-emerald-500/10 px-2 text-[11px] text-emerald-500">
+                                    Serveurs actifs
+                                </Badge>
+                            ) : (
+                                <Badge variant="outline" className="h-6 gap-1 rounded-md border-orange-500/25 bg-orange-500/10 px-2 text-[11px] text-orange-500">
+                                    <WifiOff className="h-3 w-3" />
+                                    Hors-ligne
+                                </Badge>
+                            )}
                         </div>
-                        <div>
-                            <h1 className="text-2xl font-bold tracking-tight">Traduction Française</h1>
-                            <p className="text-sm text-muted-foreground">Installez et gérez la traduction de Star Citizen</p>
-                        </div>
-                    </div>
-
+                        <div className="mt-3 h-px w-full bg-gradient-to-r from-primary/25 via-border/40 to-transparent" />
+                    </section>
                     {/* Info box */}
-                    <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
-                        <CardContent className="py-4 space-y-3">
-                            <p className="text-sm font-medium">Deux traductions françaises disponibles :</p>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                <div className="p-3 rounded-lg bg-background/50 border border-border/30">
-                                    <p className="text-sm font-semibold text-primary">SCEFRA</p>
-                                    <p className="text-xs text-muted-foreground mt-1">
+                    <Card className="overflow-hidden rounded-xl border border-border/30 bg-[hsl(var(--background)/0.10)] shadow-none backdrop-blur-md">
+                        <CardContent className="space-y-2 p-2.5">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Sources disponibles</p>
+                            <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
+                                <div className="rounded-lg border border-border/30 bg-background/20 p-2.5">
+                                    <p className="text-sm font-semibold tracking-tight text-primary">SCEFRA</p>
+                                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                                         Traduction assistée par IA et corrigée par les retours de la communauté. Mises à jour très fréquentes.
                                     </p>
                                 </div>
-                                <div className="p-3 rounded-lg bg-background/50 border border-border/30">
-                                    <p className="text-sm font-semibold text-primary">Circuspes</p>
-                                    <p className="text-xs text-muted-foreground mt-1">
+                                <div className="rounded-lg border border-border/30 bg-background/20 p-2.5">
+                                    <p className="text-sm font-semibold tracking-tight text-primary">Circuspes</p>
+                                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                                         Traduction par des équipes de traducteurs et relecteurs (communauté Hugo Lisoir). Mises à jour moins fréquentes.
                                     </p>
                                 </div>
@@ -1495,22 +1528,24 @@ export default function Traduction() {
                     </Card>
 
                     {/* Version cards */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div className={totalVersions > 1 ? "grid grid-cols-1 gap-3 lg:grid-cols-2" : "mx-auto grid w-full max-w-[860px] grid-cols-1 gap-3"}>
                         {renderCard}
                     </div>
                 </div>
             ) : (
-                <div className="flex flex-col items-center justify-center w-full h-full gap-4">
-                    <div className="p-4 rounded-full bg-muted">
-                        <Globe2 className="h-12 w-12 text-muted-foreground" />
+                <div className="flex h-full w-full items-center justify-center p-4">
+                    <section className="w-full max-w-xl rounded-2xl border border-border/60 bg-[hsl(var(--background)/0.28)] p-7 text-center shadow-[0_16px_34px_rgba(0,0,0,0.22)] backdrop-blur-xl">
+                        <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full border border-border/55 bg-background/45">
+                        <Globe2 className="h-8 w-8 text-muted-foreground" />
                     </div>
-                    <div className="text-center space-y-2">
-                        <h2 className="text-2xl font-bold">Aucune version détectée</h2>
-                        <p className="text-muted-foreground max-w-md">
+                    <div className="space-y-1.5">
+                        <h2 className="text-xl font-bold tracking-tight">Aucune version détectée</h2>
+                        <p className="mx-auto max-w-md text-sm text-muted-foreground">
                             Lancez Star Citizen au moins une fois, puis rechargez cette page avec
-                            <kbd className="mx-2 px-2 py-1 text-xs bg-muted rounded border">CTRL + R</kbd>
+                            <kbd className="mx-2 rounded border border-border/55 bg-background/60 px-2 py-1 text-xs">CTRL + R</kbd>
                         </p>
                     </div>
+                    </section>
                 </div>
             )}
         </m.div>

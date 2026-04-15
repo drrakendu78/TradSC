@@ -124,14 +124,19 @@ export default function ServerStatus() {
                     </PopoverTrigger>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="p-3">
-                    <p className="text-xs font-semibold mb-2">Statut des serveurs</p>
+                    <p className="text-xs font-semibold mb-2 text-zinc-100">Statut des serveurs</p>
                     <div className="flex flex-col gap-1.5">
                         {services.map((service) => (
                             <div key={service.name} className="flex items-center justify-between gap-4">
-                                <span className="text-xs">{service.name}</span>
+                                <span className="text-xs text-zinc-200">{service.name}</span>
                                 <div className="flex items-center gap-1.5">
                                     <div className={`h-2 w-2 rounded-full ${STATUS_COLORS[service.status] || STATUS_COLORS.unknown}`} />
-                                    <span className="text-xs text-muted-foreground">
+                                    <span className={`text-xs font-medium ${
+                                        service.status === 'operational' ? 'text-green-400' :
+                                        service.status === 'major' || service.status === 'maintenance' ? 'text-red-400' :
+                                        service.status === 'partial' || service.status === 'degraded' ? 'text-orange-400' :
+                                        'text-zinc-400'
+                                    }`}>
                                         {STATUS_LABELS[service.status] || 'Inconnu'}
                                     </span>
                                 </div>

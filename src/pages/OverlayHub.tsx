@@ -23,10 +23,10 @@ import { getOverlayHubItems } from "@/utils/overlay-hub-registry";
 import type { OverlayHubItem } from "@/types/overlay-hub";
 
 const HUB_TOP_OFFSET = 10;
-const HUB_COLLAPSED_WIDTH = 62;
-const HUB_COLLAPSED_HEIGHT = 32;
-const HUB_EXPANDED_HEIGHT = 74;
-const HUB_CLOSE_ANIMATION_MS = 180;
+const HUB_COLLAPSED_WIDTH = 90;
+const HUB_COLLAPSED_HEIGHT = 42;
+const HUB_EXPANDED_HEIGHT = 88;
+const HUB_CLOSE_ANIMATION_MS = 220;
 const ITEM_STAGGER_MS = 18;
 const GAME_UNLOCK_HOLD_MS = 1200;
 const LOCK_REARM_DELAY_MS = 350;
@@ -169,17 +169,26 @@ const OverlayHub = () => {
         }
     };
 
+    const openIntentRef = useRef(false);
     const openHub = () => {
         clearCollapseTimer();
+        openIntentRef.current = true;
         if (!expanded) {
             setExpanded(true);
+            return;
         }
-        window.requestAnimationFrame(() => {
-            setMenuVisible(true);
-        });
+        setMenuVisible(true);
     };
 
+    useEffect(() => {
+        if (expanded && !isGeometrySyncing && !menuVisible && openIntentRef.current) {
+            openIntentRef.current = false;
+            setMenuVisible(true);
+        }
+    }, [expanded, isGeometrySyncing, menuVisible]);
+
     const closeHub = () => {
+        openIntentRef.current = false;
         setMenuVisible(false);
         clearCollapseTimer();
         collapseTimerRef.current = window.setTimeout(() => {
@@ -521,7 +530,11 @@ const OverlayHub = () => {
     return (
         <div className="w-full h-full bg-transparent pointer-events-none overflow-visible flex items-start justify-center">
             <div className="pt-0 flex flex-col items-center pointer-events-none w-full">
-                <div className="relative pointer-events-auto flex items-center gap-1.5">
+                <div
+                    className="relative pointer-events-auto w-max max-w-full overflow-hidden bg-slate-950/35 backdrop-blur-md ring-1 ring-white/5 px-2 py-1"
+                    style={{ borderRadius: "9999px", isolation: "isolate" }}
+                >
+                    <div className="w-max mx-auto flex items-center gap-1.5">
                     <button
                         type="button"
                         onClick={handleHubButtonClick}
@@ -535,14 +548,14 @@ const OverlayHub = () => {
                                   ? "Replier hub overlay"
                                   : "Ouvrir hub overlay"
                         }
-                        className={`relative overflow-visible h-7 w-7 rounded-full border border-sky-200/70 bg-[linear-gradient(180deg,rgba(30,50,73,0.94),rgba(15,28,43,0.92))] text-sky-50 shadow-[inset_0_1px_0_rgba(186,230,253,0.28),0_0_12px_rgba(56,189,248,0.35),0_1px_4px_rgba(0,0,0,0.5)] transition-all flex items-center justify-center disabled:pointer-events-none ${
-                            isEditMode ? "opacity-100 hover:bg-[linear-gradient(180deg,rgba(38,61,88,0.96),rgba(22,37,55,0.95))]" : "opacity-55"
+                        className={`relative overflow-visible h-7 w-7 rounded-full border border-sky-300/50 bg-sky-500/15 text-sky-100 backdrop-blur-md shadow-sm transition-all flex items-center justify-center disabled:pointer-events-none ${
+                            isEditMode ? "opacity-100 hover:border-sky-200/70 hover:bg-sky-500/25" : "opacity-55"
                         }`}
                     >
                         <span
                             aria-hidden="true"
                             className={`pointer-events-none absolute -inset-1 rounded-full blur-[5px] transition-opacity ${
-                                isEditMode ? "bg-sky-400/45 opacity-95" : "bg-sky-300/30 opacity-80"
+                                isEditMode ? "bg-sky-400/35 opacity-90" : "bg-sky-300/20 opacity-70"
                             }`}
                         />
                         <PanelsTopLeft className="relative z-10 h-3.5 w-3.5" />
@@ -571,14 +584,10 @@ const OverlayHub = () => {
                         }}
                         onTouchEnd={clearUnlockHold}
                         onTouchCancel={clearUnlockHold}
-                        className={`relative overflow-visible h-7 w-7 rounded-full border flex items-center justify-center ${
+                        className={`relative overflow-visible h-7 w-7 rounded-full border backdrop-blur-md shadow-sm transition-all flex items-center justify-center ${
                             isEditMode
-                                ? "border-sky-200/70 bg-[linear-gradient(180deg,rgba(30,50,73,0.94),rgba(15,28,43,0.92))] text-sky-50"
-                                : "border-amber-200/75 bg-[linear-gradient(180deg,rgba(96,72,30,0.95),rgba(64,49,22,0.94))] text-amber-50"
-                        } ${
-                            isUnlockHolding
-                                ? "shadow-[inset_0_1px_0_rgba(186,230,253,0.26),0_0_12px_rgba(56,189,248,0.35),0_1px_4px_rgba(0,0,0,0.5)]"
-                                : "shadow-[inset_0_1px_0_rgba(186,230,253,0.26),0_0_12px_rgba(56,189,248,0.35),0_1px_4px_rgba(0,0,0,0.5)]"
+                                ? "border-sky-300/50 bg-sky-500/15 text-sky-100 hover:border-sky-200/70 hover:bg-sky-500/25"
+                                : "border-amber-300/50 bg-amber-500/15 text-amber-100 hover:border-amber-200/70 hover:bg-amber-500/25"
                         } ${lockButtonDisabled ? "opacity-75 cursor-default" : ""}`}
                         title={
                             lockButtonDisabled
@@ -591,7 +600,7 @@ const OverlayHub = () => {
                         <span
                             aria-hidden="true"
                             className={`pointer-events-none absolute -inset-1 rounded-full blur-[5px] transition-opacity ${
-                                isEditMode ? "bg-sky-400/45 opacity-95" : "bg-amber-300/45 opacity-95"
+                                isEditMode ? "bg-sky-400/35 opacity-90" : "bg-amber-300/35 opacity-90"
                             }`}
                         />
                         {!isEditMode && (
@@ -642,6 +651,7 @@ const OverlayHub = () => {
                             <Lock className="relative z-10 h-3.5 w-3.5" />
                         )}
                     </button>
+                    </div>
 
                     {!isEditMode && (
                         <div
@@ -664,7 +674,8 @@ const OverlayHub = () => {
                     <div
                         ref={itemsScrollerRef}
                         onWheel={handleItemsWheel}
-                        className="w-full max-w-full overflow-x-auto px-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                        className="w-full max-w-full overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden bg-slate-950/35 backdrop-blur-md ring-1 ring-white/5 px-2 py-1"
+                        style={{ borderRadius: "9999px", isolation: "isolate" }}
                     >
                         <div className="w-max mx-auto flex items-center gap-1.5">
                             {items.map((item, index) => {
@@ -674,17 +685,17 @@ const OverlayHub = () => {
                                     key={item.id}
                                     type="button"
                                     onClick={() => openOverlayItem(item)}
-                                    className={`h-7 px-2.5 rounded-full border text-slate-100 transition-all duration-200 ease-out flex items-center gap-1.5 whitespace-nowrap backdrop-blur-md ${
+                                    className={`h-7 px-2.5 rounded-full border backdrop-blur-md shadow-sm transition-all duration-200 ease-out flex items-center gap-1.5 whitespace-nowrap ${
                                         isActive
-                                            ? "border-emerald-300/60 bg-[linear-gradient(180deg,rgba(13,44,34,0.52),rgba(10,32,26,0.46))] shadow-[inset_0_1px_0_rgba(110,231,183,0.3),0_0_12px_rgba(16,185,129,0.32)]"
-                                            : "border-sky-300/35 bg-[linear-gradient(180deg,rgba(24,38,58,0.46),rgba(14,25,40,0.4))] shadow-[inset_0_1px_0_rgba(148,197,255,0.22),0_0_8px_rgba(14,165,233,0.18)] hover:border-sky-200/55 hover:bg-[linear-gradient(180deg,rgba(33,50,74,0.56),rgba(20,34,53,0.5))] hover:shadow-[inset_0_1px_0_rgba(186,230,253,0.26),0_0_12px_rgba(56,189,248,0.24)]"
+                                            ? "border-emerald-300/50 bg-emerald-500/15 text-emerald-100 hover:border-emerald-200/70 hover:bg-emerald-500/25"
+                                            : "border-sky-300/40 bg-sky-500/10 text-sky-100 hover:border-sky-200/60 hover:bg-sky-500/20"
                                     } ${
                                         menuVisible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1"
                                     }`}
                                     style={{ transitionDelay: menuVisible ? `${index * ITEM_STAGGER_MS}ms` : "0ms" }}
                                     title={isActive ? `${item.label} actif (clic = fermer)` : `Ouvrir ${item.label} en overlay`}
                                 >
-                                    <span className={`h-4 w-4 rounded-full flex items-center justify-center ${isActive ? "bg-emerald-300/20 text-emerald-100" : "bg-sky-300/18 text-sky-100"}`}>
+                                    <span className={`h-4 w-4 rounded-full flex items-center justify-center ${isActive ? "bg-emerald-400/25 text-emerald-100" : "bg-sky-400/20 text-sky-100"}`}>
                                         {renderItemIcon(item)}
                                     </span>
                                     <span className="text-[10px] font-semibold tracking-[0.03em] uppercase">{getItemLabel(item)}</span>

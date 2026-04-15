@@ -51,6 +51,7 @@ import { useToast } from '@/hooks/use-toast';
 import { isTauri } from '@/utils/tauri-helpers';
 import { invoke as tauriInvoke } from '@tauri-apps/api/core';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ProjectorShadow, type ProjectorShadowSettings } from '@/utils/ambilight/projector-shadow';
 
 interface LauncherStatus {
     installed: boolean;
@@ -89,16 +90,8 @@ const ANNOUNCEMENT_CONFIG = {
 
 // Animation variants pour les cartes
 const cardVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: (i: number) => ({
-        opacity: 1,
-        y: 0,
-        transition: {
-            delay: i * 0.1,
-            duration: 0.5,
-            ease: "easeOut"
-        }
-    })
+    hidden: { opacity: 1, y: 0 },
+    visible: { opacity: 1, y: 0 },
 };
 
 // Bouton d'action rapide
@@ -120,28 +113,100 @@ function QuickAction({ to, icon, title, description, color, index }: QuickAction
             variants={cardVariants}
         >
             <Link to={to} className="block group">
-                <Card className="bg-background/40 border-border/50 hover:border-primary/50 hover:bg-background/60 transition-all duration-300 h-full">
-                    <CardContent className="p-3 flex items-center gap-3">
-                        <div className={`p-2 rounded-lg ${color} text-white shrink-0`}>
+                <div className="relative overflow-hidden rounded-xl border border-border/30 bg-background/60 transition-all duration-200 hover:border-primary/35 hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)]">
+                    <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+                    <div className="flex items-center gap-3 p-3.5">
+                        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${color}`}>
                             {icon}
                         </div>
-                        <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-xs group-hover:text-primary transition-colors">
+                        <div className="min-w-0 flex-1">
+                            <h3 className="text-[12.5px] font-semibold leading-none transition-colors group-hover:text-primary">
                                 {title}
                             </h3>
-                            <p className="text-[10px] text-muted-foreground truncate">
+                            <p className="mt-1 truncate text-[11px] text-foreground/70 dark:text-muted-foreground/65">
                                 {description}
                             </p>
                         </div>
-                        <ArrowRight className="h-3 w-3 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
-                    </CardContent>
-                </Card>
+                        <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40 transition-all group-hover:translate-x-0.5 group-hover:text-primary" />
+                    </div>
+                </div>
             </Link>
         </m.div>
     );
 }
 
 const LAUNCHER_CACHE_KEY = 'startradfr_launcher_status';
+const AMBILIGHT_PRESET_STORAGE_KEY = 'ambilightPreset';
+type AmbilightPreset = 'soft' | 'cinema' | 'intense';
+
+interface AmbilightPresetSettings {
+    render: {
+        blur2: number;
+        edge: number;
+        spread: number;
+    };
+    innerStrength: number;
+    topOverflowMin: number;
+    bottomOverflowMin: number;
+    sideMask: {
+        edgeAlpha: number;
+        midAlpha: number;
+        innerAlpha: number;
+    };
+    shadow: ProjectorShadowSettings;
+}
+
+const HERO_AMBILIGHT_PRESETS: Record<AmbilightPreset, AmbilightPresetSettings> = {
+    soft: {
+        render: { blur2: 24, edge: 10, spread: 14 },
+        innerStrength: 2,
+        topOverflowMin: 90,
+        bottomOverflowMin: 170,
+        sideMask: { edgeAlpha: 0.2, midAlpha: 0.5, innerAlpha: 0.84 },
+        shadow: {
+            spreadFadeCurve: 35,
+            spreadFadeStart: 15,
+            directionTopEnabled: true,
+            directionRightEnabled: true,
+            directionBottomEnabled: true,
+            directionLeftEnabled: true,
+        },
+    },
+    cinema: {
+        render: { blur2: 30, edge: 12, spread: 17 },
+        innerStrength: 2,
+        topOverflowMin: 110,
+        bottomOverflowMin: 210,
+        sideMask: { edgeAlpha: 0.14, midAlpha: 0.42, innerAlpha: 0.86 },
+        shadow: {
+            spreadFadeCurve: 35,
+            spreadFadeStart: 15,
+            directionTopEnabled: true,
+            directionRightEnabled: true,
+            directionBottomEnabled: true,
+            directionLeftEnabled: true,
+        },
+    },
+    intense: {
+        render: { blur2: 40, edge: 14, spread: 22 },
+        innerStrength: 2,
+        topOverflowMin: 155,
+        bottomOverflowMin: 280,
+        sideMask: { edgeAlpha: 0.1, midAlpha: 0.32, innerAlpha: 0.9 },
+        shadow: {
+            spreadFadeCurve: 35,
+            spreadFadeStart: 15,
+            directionTopEnabled: true,
+            directionRightEnabled: true,
+            directionBottomEnabled: true,
+            directionLeftEnabled: true,
+        },
+    },
+};
+
+function isAmbilightPreset(value: string | null): value is AmbilightPreset {
+    return value === 'soft' || value === 'cinema' || value === 'intense';
+}
 
 function getCachedLauncherStatus(): LauncherStatus {
     try {
@@ -157,6 +222,21 @@ function Home() {
     const [launcherStatus, setLauncherStatus] = useState<LauncherStatus>(() => getCachedLauncherStatus());
     const [playtime, setPlaytime] = useState<PlaytimeStats | null>(null);
     const [launchingLauncher, setLaunchingLauncher] = useState(false);
+    const [isBackgroundVideoEnabled, setIsBackgroundVideoEnabled] = useState(() => {
+        const saved = localStorage.getItem('backgroundVideoEnabled');
+        return saved === null ? true : saved === 'true';
+    });
+    const [ambilightPreset, setAmbilightPreset] = useState<AmbilightPreset>(() => {
+        const saved = localStorage.getItem(AMBILIGHT_PRESET_STORAGE_KEY);
+        return isAmbilightPreset(saved) ? saved : 'soft';
+    });
+    const ambilightSettings = HERO_AMBILIGHT_PRESETS[ambilightPreset];
+    const ambilightLevels = Math.max(
+        2,
+        Math.round(ambilightSettings.render.spread / ambilightSettings.render.edge) +
+            ambilightSettings.innerStrength +
+            1
+    );
     const { toast } = useToast();
     const { savedPlaytimeHours } = useStatsStore();
 
@@ -178,6 +258,15 @@ function Home() {
     const [hasCloudPrefs, setHasCloudPrefs] = useState(false);
     const [checkingCloudPrefs, setCheckingCloudPrefs] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const heroVideoRef = useRef<HTMLVideoElement>(null);
+    const heroCardRef = useRef<HTMLDivElement>(null);
+    const heroAmbilightFilterRef = useRef<HTMLDivElement>(null);
+    const heroAmbilightClipRef = useRef<HTMLDivElement>(null);
+    const heroAmbilightProjectorsRef = useRef<HTMLDivElement>(null);
+    const heroAmbilightProjectorListRef = useRef<HTMLDivElement>(null);
+    const heroAmbilightShadowRef = useRef<HTMLCanvasElement>(null);
+    const heroAmbilightProjectorRefs = useRef<(HTMLCanvasElement | null)[]>([]);
+    const heroAmbilightRafRef = useRef<number | null>(null);
 
     // Vérifier si on est dans Tauri et si le RSI Launcher est installé
     useEffect(() => {
@@ -193,6 +282,272 @@ function Home() {
             setPlaytime(stats);
         }).catch(() => {});
     }, []);
+
+    useEffect(() => {
+        const handleVideoToggle = (event: Event) => {
+            const customEvent = event as CustomEvent<boolean>;
+            setIsBackgroundVideoEnabled(Boolean(customEvent.detail));
+        };
+
+        window.addEventListener('backgroundVideoToggle', handleVideoToggle as EventListener);
+        return () => {
+            window.removeEventListener('backgroundVideoToggle', handleVideoToggle as EventListener);
+        };
+    }, []);
+
+    useEffect(() => {
+        const handleAmbilightPreset = (event: Event) => {
+            const customEvent = event as CustomEvent<string>;
+            if (isAmbilightPreset(customEvent.detail)) {
+                setAmbilightPreset(customEvent.detail);
+            }
+        };
+
+        window.addEventListener('ambilightPresetChange', handleAmbilightPreset as EventListener);
+        return () => {
+            window.removeEventListener('ambilightPresetChange', handleAmbilightPreset as EventListener);
+        };
+    }, []);
+
+    useEffect(() => {
+        const video = heroVideoRef.current;
+        const heroCard = heroCardRef.current;
+        const filterElem = heroAmbilightFilterRef.current;
+        const clipElem = heroAmbilightClipRef.current;
+        const projectorsElem = heroAmbilightProjectorsRef.current;
+        const projectorListElem = heroAmbilightProjectorListRef.current;
+        const shadowCanvas = heroAmbilightShadowRef.current;
+        const preset = HERO_AMBILIGHT_PRESETS[ambilightPreset];
+        const projectors = heroAmbilightProjectorRefs.current
+            .slice(0, ambilightLevels)
+            .filter((canvas): canvas is HTMLCanvasElement => Boolean(canvas));
+
+        if (
+            !isBackgroundVideoEnabled ||
+            !video ||
+            !heroCard ||
+            !filterElem ||
+            !clipElem ||
+            !projectorsElem ||
+            !projectorListElem ||
+            !shadowCanvas ||
+            projectors.length !== ambilightLevels
+        ) {
+            return;
+        }
+
+        const shadow = new ProjectorShadow(shadowCanvas);
+        const projectorContexts = projectors
+            .map((canvas) => canvas.getContext('2d', { alpha: true }))
+            .filter((ctx): ctx is CanvasRenderingContext2D => Boolean(ctx));
+        if (projectorContexts.length !== projectors.length) return;
+
+        const barsClip: [number, number] = [0, 0];
+        let srcVideoWidth = Math.max(1, video.videoWidth || 1920);
+        let srcVideoHeight = Math.max(1, video.videoHeight || 1080);
+        let projectorWidth = 1;
+        let projectorHeight = 1;
+
+        const resize = () => {
+            const containerRect = filterElem.getBoundingClientRect();
+            const cardRect = heroCard.getBoundingClientRect();
+            if (!containerRect.width || !containerRect.height || !cardRect.width || !cardRect.height) return;
+
+            const pMinSize = Math.max(257, Math.min(512, srcVideoWidth, srcVideoHeight));
+            const pScale = Math.max(pMinSize / srcVideoWidth, pMinSize / srcVideoHeight);
+            projectorWidth = Math.max(1, Math.ceil(srcVideoWidth * pScale));
+            projectorHeight = Math.max(1, Math.ceil(srcVideoHeight * pScale));
+
+            for (const canvas of projectors) {
+                if (canvas.width !== projectorWidth) canvas.width = projectorWidth;
+                if (canvas.height !== projectorHeight) canvas.height = projectorHeight;
+            }
+
+            const clippedVideoScale: [number, number] = [
+                1 - barsClip[0] * 2,
+                1 - barsClip[1] * 2,
+            ];
+            const cardLeft = Math.round(cardRect.left - containerRect.left);
+            const cardTop = Math.round(cardRect.top - containerRect.top);
+            const topExpansion = Math.max(
+                preset.topOverflowMin,
+                Math.round(cardRect.height * 0.9)
+            );
+            const bottomExpansion = Math.max(
+                preset.bottomOverflowMin,
+                Math.round(cardRect.height * 1.2)
+            );
+            const ambientTop = Math.max(0, Math.round(cardTop - topExpansion));
+            const ambientBottom = Math.min(
+                Math.round(containerRect.height),
+                Math.round(cardTop + cardRect.height + bottomExpansion)
+            );
+            const ambientHeight = Math.max(1, ambientBottom - ambientTop);
+            projectorsElem.style.left = `${cardLeft}px`;
+            projectorsElem.style.top = `${ambientTop}px`;
+            projectorsElem.style.width = `${Math.round(cardRect.width)}px`;
+            projectorsElem.style.height = `${ambientHeight}px`;
+            projectorsElem.style.transform = `scale(1) scale(${clippedVideoScale[0]}, ${clippedVideoScale[1]})`;
+            projectorsElem.style.transformOrigin = 'center center';
+            filterElem.style.maskImage = '';
+            filterElem.style.webkitMaskImage = '';
+            filterElem.style.clipPath = '';
+            filterElem.style.removeProperty('-webkit-clip-path');
+
+            const projectorSize = {
+                w: Math.max(1, Math.round(projectorWidth * clippedVideoScale[0])),
+                h: Math.max(1, Math.round(projectorHeight * clippedVideoScale[1])),
+            };
+
+            const ratio =
+                projectorWidth > projectorHeight
+                    ? {
+                          x: projectorWidth / projectorSize.w,
+                          y:
+                              (projectorWidth / projectorSize.w) *
+                              (projectorSize.w / projectorSize.h),
+                      }
+                    : {
+                          x:
+                              (projectorHeight / projectorSize.h) *
+                              (projectorSize.h / projectorSize.w),
+                          y: projectorHeight / projectorSize.h,
+                      };
+
+            const minScale = {
+                x: 1 / projectorSize.w,
+                y: 1 / projectorSize.h,
+            };
+            const scaleStep = preset.render.edge / 100;
+            const scales: Array<{ x: number; y: number }> = [];
+            const lastScale = { x: 1, y: 1 };
+
+            for (let i = 0; i < ambilightLevels; i += 1) {
+                const pos = i - preset.innerStrength;
+                let scaleX = 1;
+                let scaleY = 1;
+
+                if (pos > 0) {
+                    scaleX = 1 + scaleStep * ratio.x * pos;
+                    scaleY = 1 + scaleStep * ratio.y * pos;
+                }
+
+                if (pos < 0) {
+                    scaleX = 1 - scaleStep * ratio.x * -pos;
+                    scaleY = 1 - scaleStep * ratio.y * -pos;
+                    if (scaleX < 0) scaleX = 0;
+                    if (scaleY < 0) scaleY = 0;
+                }
+
+                lastScale.x = scaleX;
+                lastScale.y = scaleY;
+
+                scales.push({
+                    x: Math.max(minScale.x, scaleX),
+                    y: Math.max(minScale.y, scaleY),
+                });
+            }
+
+            for (let i = 0; i < projectors.length; i += 1) {
+                const canvas = projectors[i];
+                canvas.style.transform = `scale(${scales[i].x}, ${scales[i].y})`;
+                canvas.style.transformOrigin = 'center center';
+                canvas.style.opacity = '';
+            }
+
+            shadow.rescale(lastScale, projectorSize, preset.shadow);
+            const blurPx = Math.max(
+                0,
+                Math.round(ambientHeight * 0.0025 * preset.render.blur2)
+            );
+            filterElem.style.filter = blurPx ? `blur(${blurPx}px)` : '';
+        };
+
+        const draw = () => {
+            if (video.readyState >= 2 && projectorWidth > 1 && projectorHeight > 1) {
+                if (
+                    video.videoWidth &&
+                    video.videoHeight &&
+                    (video.videoWidth !== srcVideoWidth || video.videoHeight !== srcVideoHeight)
+                ) {
+                    srcVideoWidth = Math.max(1, video.videoWidth);
+                    srcVideoHeight = Math.max(1, video.videoHeight);
+                    resize();
+                }
+
+                const croppedSrcX = srcVideoWidth * barsClip[0];
+                const croppedSrcY = srcVideoHeight * barsClip[1];
+                const croppedSrcWidth = srcVideoWidth * (1 - barsClip[0] * 2);
+                const croppedSrcHeight = srcVideoHeight * (1 - barsClip[1] * 2);
+
+                for (let i = 0; i < projectors.length; i += 1) {
+                    const canvas = projectors[i];
+                    const context = projectorContexts[i];
+                    context.clearRect(0, 0, canvas.width, canvas.height);
+                    context.drawImage(
+                        video,
+                        croppedSrcX,
+                        croppedSrcY,
+                        croppedSrcWidth,
+                        croppedSrcHeight,
+                        0,
+                        0,
+                        canvas.width,
+                        canvas.height
+                    );
+
+                    // Directional shaping:
+                    // - reduce left/right spread
+                    // - keep stronger energy toward the bottom
+                    context.save();
+                    context.globalCompositeOperation = 'destination-in';
+
+                    const sideMask = context.createLinearGradient(0, 0, canvas.width, 0);
+                    sideMask.addColorStop(0, `rgba(0,0,0,${preset.sideMask.edgeAlpha})`);
+                    sideMask.addColorStop(0.16, `rgba(0,0,0,${preset.sideMask.midAlpha})`);
+                    sideMask.addColorStop(0.32, `rgba(0,0,0,${preset.sideMask.innerAlpha})`);
+                    sideMask.addColorStop(0.5, 'rgba(0,0,0,1)');
+                    sideMask.addColorStop(0.68, `rgba(0,0,0,${preset.sideMask.innerAlpha})`);
+                    sideMask.addColorStop(0.84, `rgba(0,0,0,${preset.sideMask.midAlpha})`);
+                    sideMask.addColorStop(1, `rgba(0,0,0,${preset.sideMask.edgeAlpha})`);
+                    context.fillStyle = sideMask;
+                    context.fillRect(0, 0, canvas.width, canvas.height);
+
+                    context.restore();
+                }
+            }
+
+            heroAmbilightRafRef.current = requestAnimationFrame(draw);
+        };
+
+        const handleVideoReady = () => {
+            if (video.videoWidth && video.videoHeight) {
+                srcVideoWidth = Math.max(1, video.videoWidth);
+                srcVideoHeight = Math.max(1, video.videoHeight);
+            }
+            resize();
+        };
+
+        const observer = new ResizeObserver(resize);
+        observer.observe(filterElem);
+        video.addEventListener('loadedmetadata', handleVideoReady);
+        video.addEventListener('loadeddata', handleVideoReady);
+        video.addEventListener('canplay', handleVideoReady);
+
+        resize();
+        heroAmbilightRafRef.current = requestAnimationFrame(draw);
+
+        return () => {
+            if (heroAmbilightRafRef.current) {
+                cancelAnimationFrame(heroAmbilightRafRef.current);
+                heroAmbilightRafRef.current = null;
+            }
+            video.removeEventListener('loadedmetadata', handleVideoReady);
+            video.removeEventListener('loadeddata', handleVideoReady);
+            video.removeEventListener('canplay', handleVideoReady);
+            observer.disconnect();
+        };
+    }, [isBackgroundVideoEnabled, ambilightPreset, ambilightLevels]);
 
     // Vérifier si l'utilisateur est connecté
     useEffect(() => {
@@ -514,7 +869,35 @@ function Home() {
     };
 
     return (
-        <div className="flex w-full h-full flex-col gap-3 p-4 overflow-hidden relative justify-between">
+        <div className="flex w-full h-full flex-col gap-3 p-4 overflow-visible relative justify-between">
+            {isBackgroundVideoEnabled && (
+                <div className="pointer-events-none absolute inset-0 z-0 overflow-visible">
+                    <div
+                        ref={heroAmbilightFilterRef}
+                        className="absolute inset-0 overflow-visible will-change-[filter]"
+                    >
+                        <div ref={heroAmbilightClipRef} className="absolute inset-0 overflow-visible">
+                            <div ref={heroAmbilightProjectorsRef} className="absolute inset-0 overflow-visible">
+                                <div ref={heroAmbilightProjectorListRef} className="absolute inset-0 overflow-visible">
+                                    <canvas
+                                        ref={heroAmbilightShadowRef}
+                                        className="absolute inset-0 h-full w-full hidden [background:none]"
+                                    />
+                                    {Array.from({ length: ambilightLevels }).map((_, i) => (
+                                        <canvas
+                                            key={`hero-ambient-${i}`}
+                                            ref={(canvas) => {
+                                                heroAmbilightProjectorRefs.current[i] = canvas;
+                                            }}
+                                            className="absolute inset-0 h-full w-full [background:none]"
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
             
             {/* Popup d'annonce - uniquement sur la page d'accueil */}
             {ANNOUNCEMENT_CONFIG.showAnnouncement && (
@@ -533,97 +916,116 @@ function Home() {
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
-                className="-mx-4 px-4 pt-4 pb-2"
+                className="relative -mx-4 px-4 pt-2 pb-3"
             >
-                <Card className="bg-gradient-to-br from-primary/20 via-background/60 to-background/40 border-primary/30 overflow-hidden relative">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-                    <CardContent className="p-6 relative">
-                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                            <div className="space-y-2">
+                <Card ref={heroCardRef} className={`relative z-10 overflow-hidden ${isBackgroundVideoEnabled ? 'border-white/8 bg-background/68' : 'border-border/35 bg-background/80'}`}>
+                    <div className="absolute top-0 right-0 h-64 w-64 -translate-y-1/2 translate-x-1/2 rounded-full bg-primary/10 blur-3xl" />
+
+                    {isBackgroundVideoEnabled ? (
+                        <>
+                            <video
+                                ref={heroVideoRef}
+                                autoPlay
+                                loop
+                                muted
+                                playsInline
+                                preload="metadata"
+                                className="absolute inset-0 h-full w-full object-cover object-center"
+                            >
+                                <source src="/video-montage-sc.mp4" type="video/mp4" />
+                            </video>
+                            <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/78 via-black/58 to-black/68" />
+                            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/60 to-transparent" />
+                        </>
+                    ) : null}
+
+                    <CardContent className="relative z-10 p-4 md:p-4">
+                        <div className="max-w-3xl space-y-3">
+                            <div className="space-y-1.5">
                                 <div className="flex items-center gap-2">
-                                    <Rocket className="h-6 w-6 text-primary" />
-                                    <h1 className="text-2xl font-bold">Bienvenue, Citizen !</h1>
+                                    <Rocket className={`h-5 w-5 ${isBackgroundVideoEnabled ? 'text-white/90' : 'text-primary'}`} />
+                                    <h1 className={`text-xl font-bold md:text-2xl${isBackgroundVideoEnabled ? ' text-white' : ''}`}>Bienvenue, Citizen !</h1>
                                 </div>
-                                <p className="text-muted-foreground max-w-md">
-                                    Prêt à jouer en français ? Installez la traduction en un clic.
+                                <p className={`max-w-md text-sm md:text-base ${isBackgroundVideoEnabled ? 'text-white/75' : 'text-muted-foreground'}`}>
+                                    Pret a jouer en francais ? Installez la traduction en un clic.
                                 </p>
                             </div>
+
                             <div className="flex flex-wrap items-center gap-2">
                                 <Link to="/traduction">
-                                    <Button size="lg" className="gap-2 text-base px-6 shadow-lg hover:shadow-primary/25 transition-shadow">
-                                        <Globe2 className="h-5 w-5" />
-                                        Installer la traduction
-                                        <Sparkles className="h-4 w-4" />
-                                    </Button>
-                                </Link>
-                                {isInTauri && (
-                                    launcherStatus.installed ? (
-                                        <Button
-                                            size="lg"
-                                            variant="outline"
-                                            className="gap-2 text-base px-6"
-                                            onClick={handleLaunchLauncher}
-                                            disabled={launchingLauncher}
-                                        >
-                                            <Play className="h-5 w-5" />
-                                            {launchingLauncher ? 'Démarrage...' : 'Démarrer RSI Launcher'}
+                                        <Button size="default" className="h-9 gap-2 px-4 text-sm shadow-lg transition-shadow hover:shadow-primary/25">
+                                            <Globe2 className="h-4 w-4" />
+                                            Installer la traduction
+                                            <Sparkles className="h-4 w-4" />
                                         </Button>
-                                    ) : (
-                                        <Button
-                                            size="lg"
-                                            variant="outline"
-                                            className="gap-2 text-base px-6"
-                                            onClick={() => handleOpenExternal('https://install.robertsspaceindustries.com/rel/2/RSI%20Launcher-Setup-2.11.0.exe')}
-                                        >
-                                            <Download className="h-5 w-5" />
-                                            Télécharger le Launcher
-                                            <ExternalLink className="h-4 w-4" />
-                                        </Button>
+                                    </Link>
+                                    {isInTauri && (
+                                        launcherStatus.installed ? (
+                                            <Button
+                                                size="default"
+                                                variant="outline"
+                                                className="h-9 gap-2 px-4 text-sm"
+                                                onClick={handleLaunchLauncher}
+                                                disabled={launchingLauncher}
+                                            >
+                                                <Play className="h-4 w-4" />
+                                                {launchingLauncher ? 'Demarrage...' : 'Demarrer RSI Launcher'}
+                                            </Button>
+                                        ) : (
+                                            <Button
+                                                size="default"
+                                                variant="outline"
+                                                className="h-9 gap-2 px-4 text-sm"
+                                                onClick={() => handleOpenExternal('https://install.robertsspaceindustries.com/rel/2/RSI%20Launcher-Setup-2.11.0.exe')}
+                                            >
+                                                <Download className="h-4 w-4" />
+                                                Telecharger le Launcher
+                                                <ExternalLink className="h-4 w-4" />
+                                            </Button>
                                     )
                                 )}
-                                {/* Temps de jeu */}
-                                {isInTauri && ((playtime && playtime.session_count > 0) || savedPlaytimeHours > 0) && (() => {
-                                    const calculatedHours = playtime?.total_hours || 0;
-                                    const totalHours = savedPlaytimeHours + calculatedHours;
-                                    const hours = Math.floor(totalHours);
-                                    const minutes = Math.round((totalHours - hours) * 60);
-                                    const sessionCount = playtime?.session_count || 0;
-
-                                    return (
-                                        <TooltipProvider>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <div className="flex items-center gap-2 px-3 py-2 bg-background/60 border border-border/50 rounded-lg cursor-help">
-                                                        <Clock className="h-4 w-4 text-primary" />
-                                                        <div className="flex flex-col">
-                                                            <div className="flex items-baseline gap-0.5">
-                                                                <span className="text-sm font-semibold">{hours}</span>
-                                                                <span className="text-xs text-muted-foreground">h</span>
-                                                                <span className="text-sm font-semibold ml-1">{minutes}</span>
-                                                                <span className="text-xs text-muted-foreground">min</span>
-                                                            </div>
-                                                            <span className="text-[10px] text-muted-foreground">
-                                                                {sessionCount > 0 
-                                                                    ? `${sessionCount} session${sessionCount > 1 ? 's' : ''}`
-                                                                    : 'Temps de jeu'
-                                                                }
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </TooltipTrigger>
-                                                <TooltipContent side="bottom" className="max-w-xs">
-                                                    <p className="text-sm">
-                                                        Temps de jeu calculé depuis les logs Star Citizen.
-                                                    </p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                    );
-                                })()}
                             </div>
+
+                            {isInTauri && ((playtime && playtime.session_count > 0) || savedPlaytimeHours > 0) && (() => {
+                                const calculatedHours = playtime?.total_hours || 0;
+                                const totalHours = savedPlaytimeHours + calculatedHours;
+                                const hours = Math.floor(totalHours);
+                                const minutes = Math.round((totalHours - hours) * 60);
+                                const sessionCount = playtime?.session_count || 0;
+
+                                return (
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <div className="inline-flex cursor-help items-center gap-2.5 rounded-full border border-primary/35 bg-black/45 px-2.5 py-1.5 shadow-[0_0_20px_rgba(20,184,255,0.18)] backdrop-blur-sm transition-colors hover:border-primary/55">
+                                                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/20 text-primary">
+                                                        <Clock className="h-3.5 w-3.5" />
+                                                    </span>
+                                                    <div className="flex items-baseline gap-1">
+                                                        <span className="text-sm font-semibold text-white">{hours}h</span>
+                                                        <span className="text-sm font-semibold text-white/90">{minutes}min</span>
+                                                    </div>
+                                                    <span className="h-4 w-px bg-white/20" />
+                                                    <span className="text-[10px] uppercase tracking-wide text-white/75">
+                                                        {sessionCount > 0
+                                                            ? `${sessionCount} session${sessionCount > 1 ? 's' : ''}`
+                                                            : 'Temps de jeu'}
+                                                    </span>
+                                                </div>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="bottom" className="max-w-xs">
+                                                <p className="text-sm">
+                                                    Temps de jeu calcule depuis les logs Star Citizen.
+                                                </p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                );
+                            })()}
                         </div>
                     </CardContent>
                 </Card>
+
             </m.div>
 
             {/* Actions rapides */}
@@ -677,58 +1079,58 @@ function Home() {
                     >
                         <QuickAction
                             to="/cache"
-                            icon={<Brush className="h-5 w-5" />}
+                            icon={<Brush className="h-4 w-4" />}
                             title="Gestion du cache"
                             description="Libérer de l'espace disque"
-                            color="bg-orange-500"
+                            color="border-orange-500/30 bg-orange-500/10 text-orange-500"
                             index={0}
                         />
                         <QuickAction
                             to="/presets-local"
-                            icon={<Users className="h-5 w-5" />}
+                            icon={<Users className="h-4 w-4" />}
                             title="Mes personnages"
                             description="Gérer vos persos locaux"
-                            color="bg-blue-500"
+                            color="border-blue-500/30 bg-blue-500/10 text-blue-500"
                             index={1}
                         />
                         <QuickAction
                             to="/presets-remote"
-                            icon={<Download className="h-5 w-5" />}
+                            icon={<Download className="h-4 w-4" />}
                             title="Persos en ligne"
                             description="Télécharger des presets"
-                            color="bg-green-500"
+                            color="border-green-500/30 bg-green-500/10 text-green-500"
                             index={2}
                         />
                         <QuickAction
                             to="/bindings"
-                            icon={<Keyboard className="h-5 w-5" />}
+                            icon={<Keyboard className="h-4 w-4" />}
                             title="Bindings"
                             description="Raccourcis clavier"
-                            color="bg-purple-500"
+                            color="border-purple-500/30 bg-purple-500/10 text-purple-500"
                             index={3}
                         />
                         <QuickAction
                             to="/graphics-settings"
-                            icon={<Monitor className="h-5 w-5" />}
+                            icon={<Monitor className="h-4 w-4" />}
                             title="Graphismes"
                             description="Paramètres visuels"
-                            color="bg-pink-500"
+                            color="border-pink-500/30 bg-pink-500/10 text-pink-500"
                             index={4}
                         />
                         <QuickAction
                             to="/ship-maps"
-                            icon={<Map className="h-5 w-5" />}
+                            icon={<Map className="h-4 w-4" />}
                             title="Cartes vaisseaux"
                             description="Plans détaillés"
-                            color="bg-cyan-500"
+                            color="border-cyan-500/30 bg-cyan-500/10 text-cyan-500"
                             index={5}
                         />
                         <QuickAction
                             to="/updates"
-                            icon={<Download className="h-5 w-5" />}
+                            icon={<Download className="h-4 w-4" />}
                             title="Mises à jour"
                             description="Gérer les mises à jour"
-                            color="bg-blue-600"
+                            color="border-primary/30 bg-primary/10 text-primary"
                             index={6}
                         />
                     </m.div>
@@ -767,23 +1169,13 @@ function Home() {
             {/* Section infos */}
             {showContent && (
                 <m.div 
-                    className="space-y-3 relative z-10"
+                    className="relative z-10 space-y-3 rounded-2xl border border-border/35 bg-background/30 p-2.5 backdrop-blur-md md:p-3"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.2 }}
                 >
-                    <m.h2 
-                        className="text-lg font-semibold flex items-center gap-2 px-1"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 0.2 }}
-                    >
-                        <FileText className="h-4 w-4 text-primary" />
-                        Informations
-                    </m.h2>
-                    
                     <m.div 
-                        className="grid grid-cols-1 lg:grid-cols-3 gap-4"
+                        className="grid grid-cols-1 gap-3 xl:grid-cols-12"
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
@@ -791,21 +1183,33 @@ function Home() {
                     >
                         {/* Patchnotes */}
                         <m.div
+                            className="xl:col-span-4"
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.1 }}
                         >
-                            <Card className="bg-background/40">
-                                <CardHeader className="pb-3">
-                                    <CardTitle className="text-base flex items-center gap-2">
-                                        <FileText className="h-4 w-4 text-primary" />
-                                        Patchnotes StarTrad
-                                    </CardTitle>
+                            <Card className="h-full border-border/45 bg-background/38">
+                                <CardHeader className="space-y-1 border-b border-border/40 pb-2 pt-2.5">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <CardTitle className="text-sm flex items-center gap-1.5">
+                                            <FileText className="h-4 w-4 text-primary" />
+                                            Patchnotes StarTrad
+                                        </CardTitle>
+                                        <Link to="/patchnotes" className="md:hidden">
+                                            <Button variant="ghost" size="sm" className="h-6 gap-1 px-2 text-[11px]">
+                                                Voir
+                                                <ArrowRight className="h-3 w-3" />
+                                            </Button>
+                                        </Link>
+                                    </div>
+                                    <p className="text-[11px] text-muted-foreground">
+                                        Dernieres versions, correctifs et changements
+                                    </p>
                                 </CardHeader>
-                                <CardContent className="pb-4">
+                                <CardContent className="space-y-2 pb-2.5 pt-2.5">
                                     <RecentPatchNotes max={3} />
-                                    <Link to="/patchnotes">
-                                        <Button variant="ghost" size="sm" className="w-full mt-2 text-xs">
+                                    <Link to="/patchnotes" className="block md:hidden">
+                                        <Button variant="ghost" size="sm" className="w-full text-[11px]">
                                             Voir tout
                                             <ArrowRight className="h-3 w-3 ml-1" />
                                         </Button>
@@ -814,35 +1218,39 @@ function Home() {
                             </Card>
                         </m.div>
 
-                        {/* Actualités */}
+                        {/* Actualites */}
                         <m.div
-                            className="lg:col-span-2"
+                            className="xl:col-span-8"
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.15 }}
                         >
-                            <Card className="bg-background/40">
-                                <CardHeader className="pb-3">
-                                    <CardTitle className="text-base flex items-center gap-2">
-                                        <Newspaper className="h-4 w-4 text-primary" />
-                                        Actualités Star Citizen
-                                    </CardTitle>
+                            <Card className="h-full border-border/45 bg-background/38">
+                                <CardHeader className="space-y-1 border-b border-border/40 pb-2 pt-2.5">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <CardTitle className="text-sm flex items-center gap-1.5">
+                                            <Newspaper className="h-4 w-4 text-primary" />
+                                            Actualites Star Citizen
+                                        </CardTitle>
+                                        <Link to="/actualites">
+                                            <Button variant="outline" size="sm" className="h-6 gap-1 px-2 text-[11px]">
+                                                Ouvrir
+                                                <ArrowRight className="h-3 w-3" />
+                                            </Button>
+                                        </Link>
+                                    </div>
+                                    <p className="text-[11px] text-muted-foreground">
+                                        Flux RSI recent pour rester a jour rapidement
+                                    </p>
                                 </CardHeader>
-                                <CardContent className="pb-4">
+                                <CardContent className="space-y-2 pb-2.5 pt-2.5">
                                     <RecentActualites max={3} />
-                                    <Link to="/actualites">
-                                        <Button variant="ghost" size="sm" className="w-full mt-2 text-xs">
-                                            Voir tout
-                                            <ArrowRight className="h-3 w-3 ml-1" />
-                                        </Button>
-                                    </Link>
                                 </CardContent>
                             </Card>
                         </m.div>
                     </m.div>
                 </m.div>
             )}
-
             {/* Footer hint */}
             <m.p
                 className="text-center text-xs text-muted-foreground/60 pb-2 relative z-10 mt-auto"

@@ -1,7 +1,6 @@
 import { m } from "framer-motion";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { RefreshCw, Play, RotateCcw, Loader2, Map as MapIcon, X, PictureInPicture2 } from "lucide-react";
 import { IconSwords } from "@tabler/icons-react";
@@ -175,6 +174,7 @@ function getZoneBadge(color: string): string {
 
 const STORAGE_KEY = "pvp-self-timers";
 const CYCLE_START_CACHE_KEY = "pvp-cycle-start";
+const FALLBACK_CYCLE_START = 1769821187;
 
 interface SavedTimer {
     startedAt: number | null; // timestamp ms quand lancé
@@ -228,9 +228,9 @@ function loadCycleStartFromCache(): number | null {
 // === COMPOSANT ===
 
 export default function Pvp({ isOverlayEmbed = false }: PvpProps) {
-    const [cycleStart, setCycleStart] = useState<number | null>(null);
-    const [phaseInfo, setPhaseInfo] = useState<ReturnType<typeof getPhaseInfo> | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const [cycleStart, setCycleStart] = useState<number>(() => loadCycleStartFromCache() ?? FALLBACK_CYCLE_START);
+    const [phaseInfo, setPhaseInfo] = useState<ReturnType<typeof getPhaseInfo>>(() => getPhaseInfo(loadCycleStartFromCache() ?? FALLBACK_CYCLE_START));
+    const [isLoading, setIsLoading] = useState(false);
     const [hasError, setHasError] = useState(false);
     const [selfTimers, setSelfTimers] = useState<Map<string, SelfTimer>>(new Map());
     const [selectedMap, setSelectedMap] = useState<string | null>(null);
@@ -362,8 +362,6 @@ export default function Pvp({ isOverlayEmbed = false }: PvpProps) {
     }, [isOverlayEmbed]);
 
     // Fetch cfg.dat via commande Tauri (pas de CORS, pas de proxy, pas de tracking)
-    const FALLBACK_CYCLE_START = 1769821187;
-
     const fetchConfig = useCallback(async () => {
         setHasError(false);
 
@@ -529,268 +527,283 @@ export default function Pvp({ isOverlayEmbed = false }: PvpProps) {
 
     return (
         <m.div
-            initial={isOverlayEmbed ? false : { opacity: 0, x: 100 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.2, ease: [0, 0.71, 0.2, 1.01] }}
-            className={`flex w-full h-full flex-col p-4 gap-4 overflow-y-auto app-scroll-root ${isOverlayEmbed ? "bg-black/20" : ""}`}
+            initial={isOverlayEmbed ? false : { opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+            className={`flex w-full h-full flex-col gap-3.5 overflow-y-auto px-1 pb-3 pt-0 [&::-webkit-scrollbar]:hidden ${isOverlayEmbed ? "bg-black/20" : ""}`}
+            style={{ scrollbarWidth: 'none' }}
         >
+
+            {/* Header */}
             {!isOverlayEmbed && (
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-red-500/10">
-                            <IconSwords size={22} className="text-red-500" />
+                <section className="relative px-1 pt-1.5">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex items-start gap-3">
+                            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-500/30 bg-red-500/10">
+                                <IconSwords size={18} className="text-red-500" />
+                            </div>
+                            <div className="min-w-0">
+                                <h1 className="text-[1.28rem] font-semibold leading-none tracking-tight">Zones PVP</h1>
+                                <p className="mt-1 text-sm text-muted-foreground/90">Contested Zone Timers</p>
+                            </div>
                         </div>
-                        <div>
-                            <h1 className="text-xl font-bold">Zones PVP</h1>
-                            <p className="text-xs text-muted-foreground">Contested Zone Timers</p>
+                        <div className="flex items-center gap-1.5">
+                            <button
+                                onClick={handleOpenOverlay}
+                                className="group flex h-8 items-center gap-1.5 rounded-full border border-border/30 bg-background/20 px-3 text-[11.5px] text-muted-foreground backdrop-blur-sm transition-all hover:border-primary/35 hover:bg-primary/10 hover:text-primary"
+                            >
+                                <PictureInPicture2 className="h-3 w-3" />
+                                Overlay
+                            </button>
+                            <button
+                                onClick={fetchConfig}
+                                className="group flex h-8 w-8 items-center justify-center rounded-full border border-border/30 bg-background/20 text-muted-foreground backdrop-blur-sm transition-all hover:border-primary/35 hover:bg-primary/10 hover:text-primary"
+                            >
+                                <RefreshCw className="h-3 w-3 transition-transform duration-500 group-hover:rotate-180" />
+                            </button>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleOpenOverlay}
-                            className="h-8 px-2 gap-1.5"
-                            title="Detacher en overlay"
-                        >
-                            <PictureInPicture2 className="h-4 w-4" />
-                            <span className="text-xs">Overlay</span>
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={fetchConfig} className="h-8 px-2">
-                            <RefreshCw className="h-4 w-4" />
-                        </Button>
-                    </div>
-                </div>
+                    <div className="mt-3 h-px w-full bg-gradient-to-r from-primary/25 via-border/40 to-transparent" />
+                </section>
             )}
 
             {isDetachedMode ? (
-                <div className="flex-1 flex items-center justify-center p-6">
-                    <Card className="max-w-md w-full border-border/60 bg-card/70 backdrop-blur-sm">
-                        <CardContent className="p-5 text-center space-y-3">
-                            <p className="text-sm text-muted-foreground">
-                                Zone PVP est detachee en overlay pour eviter le rendu en double.
-                            </p>
-                            <div className="flex items-center justify-center gap-2">
-                                <Button variant="outline" size="sm" onClick={() => setIsDetachedToOverlay(false)}>
-                                    Recharger dans l'app
-                                </Button>
-                                <Button variant="default" size="sm" onClick={handleOpenOverlay}>
-                                    Re-focus overlay
-                                </Button>
-                            </div>
-                        </CardContent>
-                    </Card>
+                <div className="flex flex-1 items-center justify-center">
+                    <div className="flex max-w-md w-full flex-col items-center gap-3 rounded-xl border border-border/30 bg-[hsl(var(--background)/0.10)] p-6 text-center backdrop-blur-md">
+                        <PictureInPicture2 className="h-8 w-8 text-muted-foreground/40" />
+                        <p className="text-sm text-muted-foreground">Zone PVP est détachée en overlay.</p>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setIsDetachedToOverlay(false)}
+                                className="flex h-8 items-center gap-1.5 rounded-full border border-border/30 bg-background/20 px-3 text-[11.5px] text-muted-foreground backdrop-blur-sm transition-all hover:border-border/60 hover:bg-background/40"
+                            >
+                                Recharger dans l'app
+                            </button>
+                            <button
+                                onClick={handleOpenOverlay}
+                                className="flex h-8 items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 text-[11.5px] text-primary backdrop-blur-sm transition-all hover:bg-primary/20"
+                            >
+                                Re-focus overlay
+                            </button>
+                        </div>
+                    </div>
                 </div>
             ) : (
                 <>
-            {/* Timer principal - Executive Hangar */}
-            <Card className={`border-border/50 ${isOverlayEmbed ? "bg-card/85" : "bg-card/50 backdrop-blur-sm"}`}>
-                <CardContent className="p-5">
-                    {isLoading ? (
-                        <div className="flex items-center justify-center py-8">
-                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                        </div>
-                    ) : hasError ? (
-                        <div className="flex flex-col items-center gap-3 py-6">
-                            <p className="text-sm text-muted-foreground">Impossible de charger les données du timer.</p>
-                            <Button variant="outline" size="sm" onClick={fetchConfig}>
-                                <RefreshCw className="h-4 w-4 mr-2" />
-                                Réessayer
-                            </Button>
-                        </div>
-                    ) : phaseInfo ? (
-                        <div className="flex flex-col gap-4">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <h2 className="text-lg font-semibold">Executive Hangar</h2>
-                                    <Badge variant="outline" className={getPhaseBg(phaseInfo.phase)}>
-                                        {phaseInfo.phaseLabel}
+                {/* Timer principal - Executive Hangar */}
+                <Card className={`relative border-border/40 backdrop-blur-sm ${isOverlayEmbed ? "bg-card/85" : "bg-card/50"}`}>
+                    <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/35 to-transparent" />
+                    <CardContent className="p-5">
+                        {isLoading ? (
+                            <div className="flex items-center justify-center py-8 gap-3">
+                                <Loader2 className="h-5 w-5 animate-spin text-primary/60" />
+                                <span className="text-sm text-muted-foreground">Chargement...</span>
+                            </div>
+                        ) : hasError ? (
+                            <div className="flex flex-col items-center gap-3 py-6">
+                                <p className="text-sm text-muted-foreground">Impossible de charger les données du timer.</p>
+                                <button
+                                    onClick={fetchConfig}
+                                    className="flex h-8 items-center gap-1.5 rounded-full border border-border/30 bg-background/20 px-3 text-[11.5px] text-muted-foreground backdrop-blur-sm transition-all hover:border-primary/35 hover:bg-primary/10 hover:text-primary"
+                                >
+                                    <RefreshCw className="h-3 w-3" />
+                                    Réessayer
+                                </button>
+                            </div>
+                        ) : phaseInfo ? (
+                            <div className="flex flex-col gap-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2.5">
+                                        <h2 className="text-[15px] font-semibold">Executive Hangar</h2>
+                                        <Badge variant="outline" className={`text-[11px] ${getPhaseBg(phaseInfo.phase)}`}>
+                                            {phaseInfo.phaseLabel}
+                                        </Badge>
+                                    </div>
+                                    <button
+                                        onClick={fetchConfig}
+                                        className="group flex h-7 w-7 items-center justify-center rounded-full border border-border/30 bg-background/10 text-muted-foreground/50 transition-all hover:border-primary/35 hover:bg-primary/10 hover:text-primary"
+                                    >
+                                        <RefreshCw className="h-3 w-3 transition-transform duration-500 group-hover:rotate-180" />
+                                    </button>
+                                </div>
+
+                                {/* Grand timer */}
+                                <div className="flex flex-col items-center justify-center py-4 gap-1">
+                                    <span className="text-[12px] text-muted-foreground/70">
+                                        {phaseInfo.phase === "red" ? "Ouverture du Hangar dans" : phaseInfo.phase === "green" ? "Fermeture du Hangar dans" : "Prochain cycle dans"}
+                                    </span>
+                                    <span className={`text-5xl font-mono font-bold tracking-wider ${getPhaseColor(phaseInfo.phase)}`}>
+                                        {formatTime(phaseInfo.remaining)}
+                                    </span>
+                                    <span className="mt-0.5 text-[10px] text-muted-foreground/40 font-mono">
+                                        Cycle complet : {formatTime(phaseInfo.cycleRemaining)}
+                                    </span>
+                                </div>
+
+                                {/* Barre de progression */}
+                                <div className="w-full space-y-1.5">
+                                    <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-border/30">
+                                        <div
+                                            className={`h-full transition-all duration-1000 rounded-full ${
+                                                phaseInfo.phase === "red" ? "bg-red-500" :
+                                                phaseInfo.phase === "green" ? "bg-green-500" :
+                                                "bg-yellow-500"
+                                            }`}
+                                            style={{ width: `${getProgressPercent(phaseInfo.phase, phaseInfo.remaining)}%` }}
+                                        />
+                                    </div>
+                                    <div className="flex justify-between text-[10px] text-muted-foreground/50 font-mono">
+                                        <span>Rouge : 2h</span>
+                                        <span>Vert : 1h</span>
+                                        <span>Reset : 5min</span>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : null}
+                    </CardContent>
+                </Card>
+
+                {/* Self-Timers par zone */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                    {ZONES.map((zone) => (
+                        <div key={zone.name} className={`relative overflow-hidden rounded-xl border backdrop-blur-md ${isOverlayEmbed ? "bg-[hsl(var(--background)/0.60)]" : "bg-[hsl(var(--background)/0.10)]"} ${getZoneAccent(zone.color)}`}>
+                            <div className="p-4">
+                                <div className="mb-3">
+                                    <Badge variant="outline" className={`text-[11px] ${getZoneBadge(zone.color)}`}>
+                                        {zone.name}
                                     </Badge>
                                 </div>
-                                <Button variant="ghost" size="sm" onClick={fetchConfig} className="h-8 px-2">
-                                    <RefreshCw className="h-4 w-4" />
-                                </Button>
-                            </div>
 
-                            {/* Grand timer - phase en cours */}
-                            <div className="flex flex-col items-center justify-center py-4 gap-1">
-                                <span className="text-sm text-muted-foreground">
-                                    {phaseInfo.phase === "red" ? "Ouverture du Hangar dans" : phaseInfo.phase === "green" ? "Fermeture du Hangar dans" : "Prochain cycle dans"}
-                                </span>
-                                <span className={`text-5xl font-mono font-bold tracking-wider ${getPhaseColor(phaseInfo.phase)}`}>
-                                    {formatTime(phaseInfo.remaining)}
-                                </span>
-                                <span className="text-xs text-muted-foreground/50 font-mono">
-                                    Cycle complet : {formatTime(phaseInfo.cycleRemaining)}
-                                </span>
-                            </div>
+                                <div className="space-y-1">
+                                    {zone.timers.map((t) => {
+                                        const id = `${zone.name}-${t.label}`;
+                                        const timer = selfTimers.get(id);
+                                        if (!timer) return null;
 
-                            {/* Barre de progression */}
-                            <div className="w-full">
-                                <div className="relative h-2 w-full overflow-hidden rounded-full bg-secondary/50">
-                                    <div
-                                        className={`h-full transition-all duration-1000 rounded-full ${
-                                            phaseInfo.phase === "red" ? "bg-red-500" :
-                                            phaseInfo.phase === "green" ? "bg-green-500" :
-                                            "bg-yellow-500"
-                                        }`}
-                                        style={{ width: `${getProgressPercent(phaseInfo.phase, phaseInfo.remaining)}%` }}
-                                    />
-                                </div>
-                                <div className="flex justify-between mt-1.5 text-[10px] text-muted-foreground/60">
-                                    <span>Rouge: 2h</span>
-                                    <span>Vert: 1h</span>
-                                    <span>Reset: 5min</span>
-                                </div>
-                            </div>
-                        </div>
-                    ) : null}
-                </CardContent>
-            </Card>
+                                        const isComplete = timer.remaining === 0 && !timer.running;
+                                        const progress = timer.running || isComplete
+                                            ? ((timer.duration - timer.remaining) / timer.duration) * 100
+                                            : 0;
 
-            {/* Self-Timers par zone */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                {ZONES.map((zone) => (
-                    <Card key={zone.name} className={`border ${isOverlayEmbed ? "bg-card/85" : "bg-card/50 backdrop-blur-sm"} ${getZoneAccent(zone.color)}`}>
-                        <CardContent className="p-4">
-                            <div className="flex items-center gap-2 mb-3">
-                                <Badge variant="outline" className={`text-xs ${getZoneBadge(zone.color)}`}>
-                                    {zone.name}
-                                </Badge>
-                            </div>
-
-                            <div className="grid gap-1.5">
-                                {zone.timers.map((t) => {
-                                    const id = `${zone.name}-${t.label}`;
-                                    const timer = selfTimers.get(id);
-                                    if (!timer) return null;
-
-                                    const isComplete = timer.remaining === 0 && !timer.running;
-                                    const progress = timer.running || isComplete
-                                        ? ((timer.duration - timer.remaining) / timer.duration) * 100
-                                        : 0;
-
-                                    return (
-                                        <div
-                                            key={id}
-                                            className={`flex items-center gap-2 px-2.5 py-1.5 rounded-md transition-colors ${
-                                                timer.running ? "bg-white/5" : isComplete ? "bg-green-500/5" : "hover:bg-white/3"
-                                            }`}
-                                        >
-                                            {/* Boutons */}
-                                            <div className="flex gap-0.5">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-6 w-6 p-0"
-                                                    onClick={() => startTimer(id)}
-                                                    disabled={timer.running}
-                                                    title="Démarrer"
-                                                >
-                                                    <Play className="h-3 w-3" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-6 w-6 p-0"
-                                                    onClick={() => resetTimer(id)}
-                                                    title="Réinitialiser"
-                                                >
-                                                    <RotateCcw className="h-3 w-3" />
-                                                </Button>
-                                            </div>
-
-                                            {/* Label */}
-                                            <span className="text-xs text-muted-foreground flex-1 truncate">
-                                                {t.label}
-                                            </span>
-
-                                            {/* Mini barre de progression */}
-                                            {(timer.running || isComplete) && (
-                                                <div className="w-12 h-1 rounded-full bg-secondary/50 overflow-hidden">
-                                                    <div
-                                                        className={`h-full rounded-full transition-all duration-1000 ${
-                                                            isComplete ? "bg-green-500" :
-                                                            timer.remaining <= 180 ? "bg-yellow-500" :
-                                                            "bg-red-400"
-                                                        }`}
-                                                        style={{ width: `${progress}%` }}
-                                                    />
+                                        return (
+                                            <div
+                                                key={id}
+                                                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
+                                                    timer.running ? "bg-white/[0.05]" : isComplete ? "bg-green-500/[0.06]" : "hover:bg-white/[0.03]"
+                                                }`}
+                                            >
+                                                {/* Boutons play/reset */}
+                                                <div className="flex gap-0.5">
+                                                    <button
+                                                        onClick={() => startTimer(id)}
+                                                        disabled={timer.running}
+                                                        title="Démarrer"
+                                                        className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:bg-primary/10 hover:text-primary disabled:pointer-events-none disabled:opacity-30"
+                                                    >
+                                                        <Play className="h-3 w-3" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => resetTimer(id)}
+                                                        title="Réinitialiser"
+                                                        className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:bg-destructive/10 hover:text-destructive"
+                                                    >
+                                                        <RotateCcw className="h-3 w-3" />
+                                                    </button>
                                                 </div>
-                                            )}
 
-                                            {/* Temps restant */}
-                                            <span className={`text-xs font-mono w-12 text-right ${getTimerColor(timer.remaining, timer.running || isComplete)}`}>
-                                                {formatTimeShort(timer.remaining)}
-                                            </span>
-                                        </div>
-                                    );
-                                })}
+                                                {/* Label */}
+                                                <span className="flex-1 truncate text-[12px] text-muted-foreground/80">
+                                                    {t.label}
+                                                </span>
+
+                                                {/* Mini barre */}
+                                                {(timer.running || isComplete) && (
+                                                    <div className="h-1 w-12 overflow-hidden rounded-full bg-border/30">
+                                                        <div
+                                                            className={`h-full rounded-full transition-all duration-1000 ${
+                                                                isComplete ? "bg-green-500" :
+                                                                timer.remaining <= 180 ? "bg-yellow-500" :
+                                                                "bg-red-400"
+                                                            }`}
+                                                            style={{ width: `${progress}%` }}
+                                                        />
+                                                    </div>
+                                                )}
+
+                                                {/* Temps restant */}
+                                                <span className={`w-12 text-right font-mono text-[12px] tabular-nums ${getTimerColor(timer.remaining, timer.running || isComplete)}`}>
+                                                    {formatTimeShort(timer.remaining)}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
-                        </CardContent>
-                    </Card>
-                ))}
-            </div>
-
-            {/* Maps des zones */}
-            <div className="flex items-center gap-2 mt-2">
-                <MapIcon className="h-4 w-4 text-muted-foreground" />
-                <h2 className="text-sm font-semibold">Cartes des zones</h2>
-            </div>
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                {MAPS.map((map) => (
-                    <button
-                        key={map.name}
-                        onClick={() => setSelectedMap(map.url)}
-                        className={`group relative rounded-lg overflow-hidden border border-border/50 hover:border-primary/50 transition-all duration-200 ${isOverlayEmbed ? "bg-card/85" : "bg-card/50"}`}
-                    >
-                        <img
-                            src={map.url}
-                            alt={`Carte ${map.name}`}
-                            className="w-full h-auto object-cover transition-transform duration-300 group-hover:scale-105"
-                            loading="lazy"
-                        />
-                        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-2">
-                            <span className="text-xs font-medium text-white">{map.name}</span>
                         </div>
-                    </button>
-                ))}
-            </div>
-
-            {/* Lightbox */}
-            {selectedMap && (
-                <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
-                    role="button"
-                    tabIndex={0}
-                    aria-label="Fermer la carte"
-                    onClick={() => setSelectedMap(null)}
-                    onKeyDown={(e) => { if (e.key === 'Escape' || e.key === 'Enter') setSelectedMap(null); }}
-                >
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="absolute top-4 right-4 h-8 w-8 p-0 text-white hover:bg-white/20"
-                        onClick={() => setSelectedMap(null)}
-                    >
-                        <X className="h-5 w-5" />
-                    </Button>
-                    <img
-                        src={selectedMap}
-                        alt="Carte agrandie"
-                        className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
-                        onClick={(e) => e.stopPropagation()}
-                        onKeyDown={(e) => e.stopPropagation()}
-                    />
+                    ))}
                 </div>
-            )}
 
-            {/* Crédit */}
-            <p className="text-[10px] text-muted-foreground/40 text-center pb-2">
-                Données & cartes : contestedzonetimers.com
-            </p>
+                {/* Maps des zones */}
+                <div className="space-y-3">
+                    <div className="flex items-center gap-2 px-1">
+                        <MapIcon className="h-4 w-4 text-muted-foreground/60" />
+                        <h2 className="text-[13px] font-semibold">Cartes des zones</h2>
+                    </div>
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                        {MAPS.map((map) => (
+                            <button
+                                key={map.name}
+                                onClick={() => setSelectedMap(map.url)}
+                                className="group relative overflow-hidden rounded-xl border border-border/30 transition-all duration-200 hover:border-primary/40 hover:shadow-[0_8px_20px_rgba(0,0,0,0.18)]"
+                            >
+                                <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+                                <img
+                                    src={map.url}
+                                    alt={`Carte ${map.name}`}
+                                    className="h-auto w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                    loading="lazy"
+                                />
+                                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent p-2.5">
+                                    <span className="text-[12px] font-medium text-white/90">{map.name}</span>
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Lightbox */}
+                {selectedMap && (
+                    <div
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm"
+                        role="button"
+                        tabIndex={0}
+                        aria-label="Fermer la carte"
+                        onClick={() => setSelectedMap(null)}
+                        onKeyDown={(e) => { if (e.key === 'Escape' || e.key === 'Enter') setSelectedMap(null); }}
+                    >
+                        <button
+                            className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-black/40 text-white/70 backdrop-blur-sm transition-all hover:border-white/40 hover:bg-black/60 hover:text-white"
+                            onClick={() => setSelectedMap(null)}
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                        <img
+                            src={selectedMap}
+                            alt="Carte agrandie"
+                            className="max-h-[90vh] max-w-[90vw] rounded-xl object-contain shadow-[0_24px_64px_rgba(0,0,0,0.6)]"
+                            onClick={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => e.stopPropagation()}
+                        />
+                    </div>
+                )}
+
+                {/* Crédit */}
+                <p className="pb-2 text-center text-[10px] text-muted-foreground/35">
+                    Données & cartes : contestedzonetimers.com
+                </p>
                 </>
             )}
+
         </m.div>
     );
 }

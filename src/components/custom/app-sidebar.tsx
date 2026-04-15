@@ -1,10 +1,13 @@
 "use client";
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-    Menu, 
     X, 
     Settings,
-    ChevronDown
+    ChevronDown,
+    ChevronLeft,
+    ChevronRight,
+    Pin,
+    PinOff
 } from 'lucide-react';
 import { IconHome, IconBrandDiscord, IconCloud, IconBrandGithub, IconLanguage, IconUsers, IconNews, IconKeyboard, IconCalculator, IconMap2, IconSearch, IconSwords, IconPackage, IconHammer, IconBook, IconDatabase } from "@tabler/icons-react";
 import { BrushCleaning, Download, Power, PowerOff, Loader2, RotateCcw, Monitor, Route, BarChart3, Calendar, Languages, Trash2, Save, Users } from "lucide-react";
@@ -28,7 +31,14 @@ import { useStatsStore } from "@/stores/stats-store";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { invoke } from "@tauri-apps/api/core";
@@ -155,9 +165,15 @@ function SidebarUserProfile({ isCollapsed, onMenuOpenChange }: { isCollapsed: bo
     const [settingsDialogOpen, setSettingsDialogOpen] = React.useState(false);
     const [signOutDialogOpen, setSignOutDialogOpen] = React.useState(false);
     const [menuReady, setMenuReady] = React.useState(false);
-    const { isLocked, isCollapsed: storeIsCollapsed, setCollapsed, setLocked } = useSidebarStore();
-    const previousSidebarState = React.useRef<{ isLocked: boolean; isCollapsed: boolean } | null>(null);
+    const { isCollapsed: storeIsCollapsed, setCollapsed } = useSidebarStore();
+    const previousSidebarState = React.useRef<{ isCollapsed: boolean } | null>(null);
     const { toast } = useToast();
+    const profileMenuContentClass =
+        "w-[266px] overflow-hidden rounded-2xl border border-border/55 bg-[hsl(var(--background)/0.80)] p-1.5 shadow-[0_18px_42px_rgba(0,0,0,0.26)] backdrop-blur-xl backdrop-saturate-150";
+    const profileMenuItemClass =
+        "group h-10 rounded-xl px-3 text-[13px] font-medium text-foreground/90 transition-all duration-200 hover:bg-[hsl(var(--primary)/0.10)] hover:text-foreground data-[highlighted]:bg-[hsl(var(--primary)/0.12)] data-[highlighted]:text-foreground [&_svg]:h-4 [&_svg]:w-4 [&_svg]:text-primary/85";
+    const profileMenuDangerItemClass =
+        "group h-10 rounded-xl px-3 text-[13px] font-medium text-red-600 dark:text-red-300 transition-all duration-200 hover:bg-red-500/14 hover:text-red-700 dark:hover:text-red-200 data-[highlighted]:bg-red-500/14 data-[highlighted]:text-red-700 dark:data-[highlighted]:text-red-200 [&_svg]:h-4 [&_svg]:w-4 [&_svg]:text-red-500";
 
     useEffect(() => {
         checkSession();
@@ -213,8 +229,7 @@ function SidebarUserProfile({ isCollapsed, onMenuOpenChange }: { isCollapsed: bo
                         onMenuOpenChange?.(open);
                         if (open) {
                             // Sauvegarder l'état actuel avant de modifier
-                            previousSidebarState.current = { isLocked, isCollapsed: storeIsCollapsed };
-                            setLocked(true); // Verrouiller la sidebar
+                            previousSidebarState.current = { isCollapsed: storeIsCollapsed };
                             setCollapsed(false); // Agrandir la sidebar
                             setMenuReady(false);
                             setTimeout(() => setMenuReady(true), 150);
@@ -224,11 +239,8 @@ function SidebarUserProfile({ isCollapsed, onMenuOpenChange }: { isCollapsed: bo
                                 const savedState = previousSidebarState.current;
                                 previousSidebarState.current = null;
                                 setTimeout(() => {
-                                    setLocked(savedState.isLocked);
-                                    // Si la sidebar était en mode hover (non verrouillée), on la réduit
-                                    if (!savedState.isLocked) {
-                                        setCollapsed(true);
-                                    }
+                                    // Restaurer l'état d'origine pour éviter un collapse forcé
+                                    setCollapsed(savedState.isCollapsed);
                                 }, 100);
                             }
                         }
@@ -285,13 +297,13 @@ function SidebarUserProfile({ isCollapsed, onMenuOpenChange }: { isCollapsed: bo
                             align="end"
                             side="top"
                             sideOffset={8}
-                            className="w-56"
+                            className={profileMenuContentClass}
                         >
                             {user && (
                                 <DropdownMenuItem
                                     onClick={openCloudBackup}
                                     disabled={!menuReady}
-                                    className="cursor-pointer"
+                                    className={profileMenuItemClass}
                                 >
                                     <IconCloud size={18} className="mr-2 text-blue-400" />
                                     <span>Sauvegarde Cloud</span>
@@ -300,18 +312,18 @@ function SidebarUserProfile({ isCollapsed, onMenuOpenChange }: { isCollapsed: bo
                             <DropdownMenuItem
                                 onClick={() => setSettingsDialogOpen(true)}
                                 disabled={!menuReady}
-                                className="cursor-pointer"
+                                className={profileMenuItemClass}
                             >
                                 <Settings size={18} className="mr-2" />
                                 <span>Paramètres</span>
                             </DropdownMenuItem>
                             {user && (
                                 <>
-                                    <div className="h-px bg-border/50 mx-2 my-1" />
+                                    <div className="mx-2 my-1 h-px bg-gradient-to-r from-transparent via-border/70 to-transparent" />
                                     <DropdownMenuItem
                                         onClick={() => setSignOutDialogOpen(true)}
                                         disabled={!menuReady}
-                                        className="cursor-pointer text-red-400 focus:text-red-400"
+                                        className={profileMenuDangerItemClass}
                                     >
                                         <LogOut size={18} className="mr-2" />
                                         <span>Déconnexion</span>
@@ -326,7 +338,10 @@ function SidebarUserProfile({ isCollapsed, onMenuOpenChange }: { isCollapsed: bo
 
                 {/* Dialog Paramètres */}
                 <Dialog open={settingsDialogOpen} onOpenChange={setSettingsDialogOpen}>
-                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogContent
+                        overlayClassName="bg-black/18 backdrop-blur-sm"
+                        className="max-w-4xl max-h-[90vh] overflow-y-auto border border-border/45 bg-[hsl(var(--background)/0.46)] shadow-[0_18px_46px_rgba(0,0,0,0.32)] backdrop-blur-2xl backdrop-saturate-150"
+                    >
                         <DialogHeader>
                             <DialogTitle>Paramètres</DialogTitle>
                             <DialogDescription>
@@ -343,7 +358,7 @@ function SidebarUserProfile({ isCollapsed, onMenuOpenChange }: { isCollapsed: bo
                         <DialogHeader>
                             <DialogTitle>Confirmer la déconnexion</DialogTitle>
                             <DialogDescription>
-                                Êtes-vous sûr de vouloir vous déconnecter ?
+                                {'\u00CAtes-vous s\u00FBr de vouloir vous d\u00E9connecter ?'}
                             </DialogDescription>
                         </DialogHeader>
                         <DialogFooter className="gap-2 sm:gap-0">
@@ -405,18 +420,18 @@ function SidebarUserProfile({ isCollapsed, onMenuOpenChange }: { isCollapsed: bo
                 <DropdownMenuContent 
                     align={isCollapsed ? "start" : "end"} 
                     side={isCollapsed ? "right" : "top"}
-                    className="w-56"
+                    className={profileMenuContentClass}
                 >
                     <DropdownMenuItem
                         onClick={() => { setAuthDefaultTab('login'); setAuthDialogOpen(true); }}
-                        className="cursor-pointer"
+                        className={profileMenuItemClass}
                     >
                         <LogIn size={18} className="mr-2" />
                         <span>Se connecter</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem
                         onClick={() => setSettingsDialogOpen(true)}
-                        className="cursor-pointer"
+                        className={profileMenuItemClass}
                     >
                         <Settings size={18} className="mr-2" />
                         <span>Paramètres</span>
@@ -428,7 +443,10 @@ function SidebarUserProfile({ isCollapsed, onMenuOpenChange }: { isCollapsed: bo
 
             {/* Dialog Paramètres */}
             <Dialog open={settingsDialogOpen} onOpenChange={setSettingsDialogOpen}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogContent
+                    overlayClassName="bg-black/18 backdrop-blur-sm"
+                    className="max-w-4xl max-h-[90vh] overflow-y-auto border border-border/45 bg-[hsl(var(--background)/0.46)] shadow-[0_18px_46px_rgba(0,0,0,0.32)] backdrop-blur-2xl backdrop-saturate-150"
+                >
                     <DialogHeader>
                         <DialogTitle>Paramètres</DialogTitle>
                         <DialogDescription>
@@ -444,13 +462,14 @@ function SidebarUserProfile({ isCollapsed, onMenuOpenChange }: { isCollapsed: bo
 
 export function AppSidebar() {
     const [isOpen, setIsOpen] = useState(false);
+    const [isDesktopViewport, setIsDesktopViewport] = useState(() => window.innerWidth >= 768);
     const [buildInfo, setBuildInfo] = useState<BuildInfo | null>(null);
     const [isToolsExpanded, setIsToolsExpanded] = useState(true);
     const [isToolsSubExpanded, setIsToolsSubExpanded] = useState(false);
     const [isNetworksExpanded, setIsNetworksExpanded] = useState(true);
     const [isExternalServicesExpanded, setIsExternalServicesExpanded] = useState(true);
-    const [userMenuOpen, setUserMenuOpen] = useState(false);
-    const { isLocked, isCollapsed, setCollapsed } = useSidebarStore(); // État depuis le store
+    const [, setUserMenuOpen] = useState(false);
+    const { isLocked, setLocked, isCollapsed, setCollapsed } = useSidebarStore(); // Etat depuis le store
     const location = useLocation();
 
     // Custom links
@@ -479,34 +498,54 @@ export function AppSidebar() {
             .catch(() => { });
     }, []);
 
-    // Auto-open sidebar on desktop
+    // Drawer mode + mode ?pingl? desktop
     useEffect(() => {
         const handleResize = () => {
-            setIsOpen(window.innerWidth >= 768);
+            const desktop = window.innerWidth >= 768;
+            setIsDesktopViewport(desktop);
+            if (!desktop) {
+                setIsOpen(false);
+            } else if (isLocked) {
+                setIsOpen(true);
+            }
         };
         
         handleResize();
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
-    }, []);
+    }, [isLocked]);
 
-    const toggleSidebar = () => setIsOpen(prev => !prev);
-    
-    // Handlers pour le hover (seulement si non verrouillé et menu utilisateur fermé)
-    const handleMouseEnter = () => {
-        if (window.innerWidth >= 768 && !isLocked && !userMenuOpen) {
+    useEffect(() => {
+        if (isLocked && isCollapsed) {
             setCollapsed(false);
         }
+    }, [isLocked, isCollapsed, setCollapsed]);
+
+    const isSidebarVisible = isOpen || (isLocked && isDesktopViewport);
+
+    const toggleSidebar = () => {
+        if (isLocked && isDesktopViewport && isSidebarVisible) {
+            setLocked(false);
+            setIsOpen(false);
+            return;
+        }
+
+        setIsOpen(prev => {
+            const next = !prev;
+            if (next) setCollapsed(false);
+            return next;
+        });
     };
-    
-    const handleMouseLeave = () => {
-        if (window.innerWidth >= 768 && !isLocked && !userMenuOpen) {
-            setCollapsed(true);
+
+    const closeSidebar = () => {
+        setIsOpen(false);
+        if (isLocked && isDesktopViewport) {
+            setLocked(false);
         }
     };
 
     const handleItemClick = (_itemId: string, href: string, isExternal: boolean = false) => {
-        if (window.innerWidth < 768) {
+        if (!isLocked || !isDesktopViewport) {
             setIsOpen(false);
         }
         if (isExternal) {
@@ -525,67 +564,106 @@ export function AppSidebar() {
     };
 
     const filteredMenuItems = getFilteredMenuItems();
+    const showSidebarHandle = !(isLocked && isDesktopViewport);
 
     return (
         <>
-            {/* Mobile hamburger button */}
+            {/* Trigger drawer (mobile + desktop non epingle) */}
             <button
                 onClick={toggleSidebar}
-                className="fixed top-6 left-6 z-50 p-3 rounded-lg bg-background/80 backdrop-blur-sm shadow-md border border-border md:hidden hover:bg-accent transition-all duration-300 ease-out hover:scale-110 active:scale-95"
+                className={`
+                    fixed left-0 top-1/2 z-[70] flex h-14 w-8 -translate-y-1/2 items-center justify-center
+                    rounded-r-xl border border-l-0 backdrop-blur-xl transition-all duration-350 ease-out hover:w-9 active:scale-[0.98]
+                    ${isSidebarVisible
+                        ? "sidebar-toggle-open border-primary/45 bg-primary/26 hover:bg-primary/34"
+                        : "border-primary/45 bg-primary/30 hover:bg-primary/38"
+                    }
+                    ${showSidebarHandle
+                        ? "translate-x-0 scale-100 opacity-100 pointer-events-auto"
+                        : "-translate-x-2 scale-95 opacity-0 pointer-events-none"
+                    }
+                `}
+                style={{
+                    boxShadow: showSidebarHandle
+                        ? "0 0 22px hsl(var(--primary) / 0.45)"
+                        : "0 0 0 hsl(var(--primary) / 0)",
+                }}
                 aria-label="Toggle sidebar"
+                title={isSidebarVisible ? "Fermer la navigation" : "Ouvrir la navigation"}
             >
-                {isOpen ? 
-                    <X className="h-5 w-5 text-foreground" /> : 
-                    <Menu className="h-5 w-5 text-foreground" />
+                {isSidebarVisible ?
+                    <ChevronLeft className="h-4 w-4 text-foreground" /> :
+                    <ChevronRight className="h-4 w-4 text-foreground" />
                 }
             </button>
 
-            {/* Mobile overlay */}
-            {isOpen && (
-                <div
-                    className="fixed inset-0 bg-black/40 backdrop-blur-sm z-30 md:hidden transition-opacity duration-300"
-                    role="button"
-                    tabIndex={0}
-                    aria-label="Fermer la sidebar"
-                    onClick={toggleSidebar}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') toggleSidebar(); }}
-                />
-            )}
+            {/* Backdrop drawer */}
+            <div
+                className={`
+                    fixed inset-0 z-30 bg-black/45 backdrop-blur-md transition-opacity duration-300
+                    ${isOpen && !isLocked ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}
+                `}
+                role="button"
+                tabIndex={0}
+                aria-label="Fermer la sidebar"
+                onClick={closeSidebar}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') closeSidebar(); }}
+            />
 
             {/* Sidebar */}
             <div
-                onMouseEnter={handleMouseEnter}
-                onMouseLeave={handleMouseLeave}
                 className={`
-                    fixed top-0 left-0 h-full bg-background/70 backdrop-blur-xl backdrop-saturate-150 border-r border-border/50 z-40 flex flex-col
-                    ${isOpen ? "translate-x-0" : "-translate-x-full"}
-                    ${isCollapsed ? "w-20" : "w-56"}
-                    md:translate-x-0 md:static md:z-50
-                    transition-all duration-500 ease-&lsqb;cubic-bezier(0.4,0,0.2,1)&rsqb;
+                    app-sidebar-shell fixed left-4 top-4 bottom-4 z-40 flex flex-col origin-left border backdrop-blur-2xl backdrop-saturate-150 will-change-transform
+                    ${isSidebarVisible ? "translate-x-0 scale-100 opacity-100" : "-translate-x-[108%] scale-[0.98] opacity-0 pointer-events-none"}
+                    ${isCollapsed ? "w-[88px]" : "w-[320px]"}
+                    rounded-2xl shadow-[0_24px_60px_rgba(0,0,0,0.45)] transition-all duration-500
+                    ${isLocked
+                        ? 'border-border/50 bg-white/80 dark:bg-[hsl(var(--background)/0.55)]'
+                        : 'border-border/55 bg-white/96 dark:bg-[hsl(var(--background)/0.92)]'
+                    }
                 `}
                 style={{
                     backdropFilter: 'blur(8px) saturate(180%)',
                     WebkitBackdropFilter: 'blur(8px) saturate(180%)',
-                    transition: 'width 0.5s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    height: '100vh',
-                    maxHeight: '100vh',
-                    minHeight: '100vh',
-                    top: 0,
-                    bottom: 0,
-                    alignSelf: 'stretch',
+                    transition: 'width 0.5s cubic-bezier(0.4, 0, 0.2, 1), transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.35s ease-out',
                 }}
             >
                 {/* Header */}
-                <div className={`${isCollapsed ? 'h-0' : 'h-8'} transition-all duration-300 overflow-hidden`}>
+                <div className="app-sidebar-header flex h-12 shrink-0 items-center justify-between border-b border-border/35 px-3">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/85">Navigation</span>
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={() => {
+                                const next = !isLocked;
+                                setLocked(next);
+                                if (next) {
+                                    setCollapsed(false);
+                                    setIsOpen(true);
+                                }
+                            }}
+                            className="app-sidebar-icon-btn rounded-md p-1 text-muted-foreground transition-colors hover:bg-background/50 hover:text-foreground"
+                            aria-label={isLocked ? "Desepingler la navigation" : "Epingler la navigation"}
+                            title={isLocked ? "Desepingler la navigation" : "Epingler la navigation"}
+                        >
+                            {isLocked ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+                        </button>
+                        <button
+                            onClick={closeSidebar}
+                            className="app-sidebar-icon-btn rounded-md p-1 text-muted-foreground transition-colors hover:bg-background/50 hover:text-foreground"
+                            aria-label="Fermer la navigation"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Navigation */}
                 <nav 
-                    className={`flex-1 py-0.5 overflow-y-auto [&::-webkit-scrollbar]:hidden ${isCollapsed ? "px-2.5" : "px-3"}`} 
+                    className={`app-sidebar-nav flex-1 overflow-y-auto py-2 [&::-webkit-scrollbar]:hidden ${isCollapsed ? "px-2.5" : "px-3"}`}
                     style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 >
                     {/* Outils */}
-                    <div className="mb-1">
+                    <div className="mb-2">
                         {isCollapsed && (
                             <button
                                 onClick={() => setIsToolsExpanded(prev => !prev)}
@@ -702,7 +780,7 @@ export function AppSidebar() {
                             title={isCollapsed ? "Réseaux / actu SC" : undefined}
                         >
                             {isCollapsed ? (
-                                <span className="text-[9px]">•••</span>
+                                <span className="text-[9px]">⬢⬢⬢</span>
                             ) : (
                                 <>
                                     <span>Réseaux / Actu SC</span>
@@ -984,7 +1062,7 @@ export function AppSidebar() {
                                     onClick={() => setIsExternalServicesExpanded(prev => !prev)}
                                     className="text-[9px]"
                                 >
-                                    •••
+                                    ⬢⬢⬢
                                 </button>
                             ) : (
                                 <>
@@ -1143,6 +1221,12 @@ interface CacheInfo {
     cache_path: string;
 }
 
+type AmbilightPreset = 'soft' | 'cinema' | 'intense';
+
+function isAmbilightPreset(value: string | null): value is AmbilightPreset {
+    return value === 'soft' || value === 'cinema' || value === 'intense';
+}
+
 function SettingsContent() {
     const { toast } = useToast();
     const [{ loading, serviceRunning, config, autoStartupEnabled, checkingAutoStartup }, setServiceState] = useState<{ loading: boolean; serviceRunning: boolean; config: BackgroundServiceConfig; autoStartupEnabled: boolean; checkingAutoStartup: boolean }>({
@@ -1152,7 +1236,7 @@ function SettingsContent() {
         autoStartupEnabled: false,
         checkingAutoStartup: true,
     });
-    // État Discord Rich Presence (activé par défaut + migration v3.1.1)
+    // Etat Discord Rich Presence (activé par défaut + migration v3.1.1)
     const [{ discordEnabled, discordConnecting }, setDiscordState] = useState<{ discordEnabled: boolean; discordConnecting: boolean }>(() => {
         const migrationKey = 'discordRPCMigrated_v311';
         const hasMigrated = localStorage.getItem(migrationKey);
@@ -1170,10 +1254,21 @@ function SettingsContent() {
         return { discordEnabled: initDiscordEnabled, discordConnecting: false };
     });
     const [discordConnected, setDiscordConnected] = useState(false);
-    // État du cache de traductions + vidéo de fond
-    const [{ cacheInfo, loadingCache, backgroundVideoEnabled }, setCacheState] = useState<{ cacheInfo: CacheInfo | null; loadingCache: boolean; backgroundVideoEnabled: boolean }>(() => {
+    // Etat du cache de traductions + vidéo de fond + preset ambilight
+    const [{ cacheInfo, loadingCache, backgroundVideoEnabled, ambilightPreset }, setCacheState] = useState<{
+        cacheInfo: CacheInfo | null;
+        loadingCache: boolean;
+        backgroundVideoEnabled: boolean;
+        ambilightPreset: AmbilightPreset;
+    }>(() => {
         const saved = localStorage.getItem('backgroundVideoEnabled');
-        return { cacheInfo: null, loadingCache: false, backgroundVideoEnabled: saved === null ? true : saved === 'true' };
+        const savedPreset = localStorage.getItem('ambilightPreset');
+        return {
+            cacheInfo: null,
+            loadingCache: false,
+            backgroundVideoEnabled: saved === null ? true : saved === 'true',
+            ambilightPreset: isAmbilightPreset(savedPreset) ? savedPreset : 'soft',
+        };
     });
 
     // Charger la configuration au montage
@@ -1459,320 +1554,344 @@ function SettingsContent() {
         }
     };
 
+    const settingsPanelClass = "space-y-4 rounded-2xl border border-border/55 bg-[hsl(var(--background)/0.34)] p-4 sm:p-5 shadow-[0_14px_30px_rgba(0,0,0,0.22)] backdrop-blur-xl";
+    const settingsHeaderClass = "flex items-center gap-2 text-base font-semibold tracking-tight text-foreground";
+    const settingRowClass = "flex items-start justify-between gap-4 rounded-xl border border-border/40 bg-[hsl(var(--background)/0.26)] px-3 py-3";
+    const settingInfoClass = "space-y-1 pr-2";
+    const settingsHintBoxClass = "rounded-xl border border-border/45 bg-[hsl(var(--background)/0.22)] p-3 space-y-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.09)]";
+    const tabTriggerClass = "group flex h-auto min-h-[52px] items-center justify-between gap-2 rounded-lg border border-transparent px-2.5 py-2.5 text-left transition-all duration-200 hover:border-primary/35 hover:bg-primary/10 data-[state=active]:-translate-y-[1px] data-[state=active]:border-primary/45 data-[state=active]:bg-[linear-gradient(140deg,hsl(var(--primary)/0.16),hsl(var(--background)/0.36))] data-[state=active]:text-foreground data-[state=active]:shadow-[0_0_0_1px_hsl(var(--primary)/0.30),0_10px_24px_hsl(var(--primary)/0.16)] data-[state=active]:animate-[tab-activate_260ms_ease-out]";
+    const cacheFilesCount = cacheInfo?.total_files || 0;
+    const serviceStatusLabel = serviceRunning ? "Actif" : config.enabled ? "Boot" : "Off";
+    const discordStatusLabel = !discordEnabled ? "Off" : discordConnected ? "On" : "Wait";
+
     return (
-        <div className="space-y-6 py-4">
-            {/* Apparence */}
-            <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Apparence</h3>
-                <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Couleur du thème</span>
-                    <ColorPicker />
-                </div>
-                <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                        <span className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Vidéo de fond</span>
-                        <p className="text-sm text-muted-foreground">
-                            Afficher la vidéo de fond sur l'écran d'accueil
-                        </p>
+        <div className="space-y-4 py-1">
+            <section className="relative overflow-hidden rounded-2xl border border-border/50 bg-[hsl(var(--background)/0.30)] p-4 sm:p-5 shadow-[0_16px_34px_rgba(0,0,0,0.22)] backdrop-blur-xl">
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(130%_95%_at_100%_0%,hsl(var(--primary)/0.16),transparent_62%),radial-gradient(100%_80%_at_0%_100%,hsl(var(--primary)/0.08),transparent_58%)]" />
+                <div className="relative flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                    <div className="space-y-1.5">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/80">Parametres systeme</p>
+                        <h3 className="text-lg font-semibold tracking-tight">Control center StarTrad</h3>
                     </div>
-                    <Switch
-                        id="background-video"
-                        aria-label="Vidéo de fond"
-                        checked={backgroundVideoEnabled}
-                        onCheckedChange={(checked) => {
-                            setCacheState(s => ({ ...s, backgroundVideoEnabled: checked }));
-                            localStorage.setItem('backgroundVideoEnabled', String(checked));
-                            window.dispatchEvent(new CustomEvent('backgroundVideoToggle', { detail: checked }));
-                            invoke('update_tray_service', { service: 'video', enabled: checked }).catch(() => {});
-                            toast({
-                                title: checked ? 'Vidéo activée' : 'Vidéo désactivée',
-                                description: checked
-                                    ? 'La vidéo de fond sera affichée sur l\'accueil'
-                                    : 'La vidéo de fond a été masquée',
-                            });
-                        }}
-                    />
-                </div>
-            </div>
-
-            <Separator />
-
-            {/* Démarrage automatique */}
-            <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Démarrage automatique</h3>
-                <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                        <span className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Lancer au démarrage de Windows</span>
-                        <p className="text-sm text-muted-foreground">
-                            L'application se lancera minimisée dans la barre système
-                        </p>
-                    </div>
-                    <Switch
-                        id="auto-startup"
-                        aria-label="Lancer au démarrage de Windows"
-                        checked={autoStartupEnabled}
-                        onCheckedChange={handleAutoStartupToggle}
-                        disabled={loading || checkingAutoStartup}
-                    />
-                </div>
-            </div>
-
-            <Separator />
-
-            {/* Service de mise à jour automatique */}
-            <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Mises à jour automatiques</h3>
-
-                {/* Toggle du service */}
-                <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                        <span className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Service de fond</span>
-                        <p className="text-sm text-muted-foreground">
-                            Vérifie périodiquement les mises à jour de traduction
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        {serviceRunning && (
-                            <span className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
-                                <Power className="w-4 h-4" />
-                                Actif
-                            </span>
-                        )}
-                        {!serviceRunning && config.enabled && (
-                            <span className="flex items-center gap-1 text-sm text-yellow-600 dark:text-yellow-400">
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                Démarrage...
-                            </span>
-                        )}
-                        {!serviceRunning && !config.enabled && (
-                            <span className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400">
-                                <PowerOff className="w-4 h-4" />
-                                Inactif
-                            </span>
-                        )}
-                        <Switch
-                            id="background-service"
-                            aria-label="Service de fond"
-                            checked={config.enabled}
-                            onCheckedChange={handleServiceToggle}
-                            disabled={loading}
-                        />
-                    </div>
-                </div>
-
-                {/* Configuration de l'intervalle */}
-                <div className="space-y-3">
-                    <Label htmlFor="check-interval">Intervalle de vérification (minutes)</Label>
-                    <div className="flex items-center gap-3">
-                        <Input
-                            id="check-interval"
-                            type="number"
-                            min="1"
-                            max="1440"
-                            value={config.check_interval_minutes}
-                            onChange={(e) => {
-                                const value = parseInt(e.target.value);
-                                if (!isNaN(value)) {
-                                    setServiceState(s => ({ ...s, config: { ...s.config, check_interval_minutes: value } }));
-                                }
-                            }}
-                            onBlur={(e) => {
-                                const value = parseInt(e.target.value);
-                                if (!isNaN(value) && value >= 1) {
-                                    handleIntervalChange(value);
-                                }
-                            }}
-                            className="w-32"
-                            disabled={loading}
-                        />
-                        <span className="text-sm text-muted-foreground">
-                            Vérification toutes les {config.check_interval_minutes} minute(s)
-                        </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                        Minimum: 1 minute • Recommandé: 5 minutes ou plus
-                    </p>
-                </div>
-
-                {/* Informations */}
-                <div className="bg-muted/50 p-4 rounded-lg space-y-2">
-                    <h4 className="font-medium text-sm">Comment ça fonctionne ?</h4>
-                    <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-                        <li>Le service vérifie périodiquement les mises à jour de traduction sur GitHub</li>
-                        <li>Si une mise à jour est disponible, elle est automatiquement installée</li>
-                        <li>Seules les versions du jeu avec traduction installée sont mises à jour</li>
-                        <li>Le service fonctionne en arrière-plan sans ralentir votre système</li>
-                    </ul>
-                </div>
-            </div>
-
-            <Separator />
-
-            {/* Discord Rich Presence */}
-            <div className="space-y-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <IconBrandDiscord size={20} className="text-[#5865F2]" />
-                    Discord Rich Presence
-                </h3>
-
-                <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                        <span className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                            Afficher l'activité
-                        </span>
-                        <p className="text-sm text-muted-foreground">
-                            Montre que vous utilisez StarTrad FR sur votre profil Discord
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        {discordEnabled && !discordConnecting && discordConnected && (
-                            <span className="flex items-center gap-1 text-sm text-[#5865F2]">
-                                <IconBrandDiscord size={16} />
-                                Connecté
-                            </span>
-                        )}
-                        {discordEnabled && !discordConnecting && !discordConnected && (
-                            <span className="flex items-center gap-1 text-sm text-amber-500">
-                                <IconBrandDiscord size={16} />
-                                En attente
-                            </span>
-                        )}
-                        {discordConnecting && (
-                            <span className="flex items-center gap-1 text-sm text-muted-foreground">
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                            </span>
-                        )}
-                        <Switch
-                            id="discord-rpc"
-                            aria-label="Discord Rich Presence"
-                            checked={discordEnabled}
-                            onCheckedChange={handleDiscordToggle}
-                            disabled={discordConnecting}
-                        />
-                    </div>
-                </div>
-
-                <div className="bg-muted/50 p-4 rounded-lg space-y-2">
-                    <h4 className="font-medium text-sm">Comment ça fonctionne ?</h4>
-                    <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-                        <li>Affiche "StarTrad FR" sur votre profil Discord</li>
-                        <li>Se connecte automatiquement dès que Discord est ouvert</li>
-                        <li>Reconnexion automatique si Discord redémarre</li>
-                        <li><span className="text-[#5865F2]">Connecté</span> = actif sur Discord • <span className="text-amber-500">En attente</span> = Discord pas détecté</li>
-                    </ul>
-                </div>
-            </div>
-
-            <Separator />
-
-            {/* Cache de traductions / Mode hors-ligne */}
-            <div className="space-y-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <Save className="h-5 w-5 text-green-500" />
-                    Cache de traductions
-                </h3>
-
-                <div className="bg-muted/50 p-4 rounded-lg space-y-3">
-                    <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Fichiers en cache</span>
-                        <span className="text-sm font-medium">{cacheInfo?.total_files || 0}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Taille totale</span>
-                        <span className="text-sm font-medium">{formatBytes(cacheInfo?.total_size || 0)}</span>
-                    </div>
-                </div>
-
-                <div className="flex gap-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleOpenCacheFolder}
-                        className="flex-1"
-                    >
-                        Ouvrir le dossier
-                    </Button>
-                    <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={handleClearCache}
-                        disabled={loadingCache || (cacheInfo?.total_files || 0) === 0}
-                        className="flex-1"
-                    >
-                        {loadingCache ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                            <>
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Vider le cache
-                            </>
-                        )}
-                    </Button>
-                </div>
-
-                <div className="bg-muted/50 p-4 rounded-lg space-y-2">
-                    <h4 className="font-medium text-sm">Mode hors-ligne</h4>
-                    <p className="text-sm text-muted-foreground">
-                        Les traductions installées sont automatiquement mises en cache.
-                        Vous pouvez les réinstaller même sans connexion internet depuis la page Traduction.
-                    </p>
-                </div>
-            </div>
-
-            <Separator />
-
-            {/* Réinitialisation */}
-            <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Réinitialisation</h3>
-                <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                            <span className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Popup du premier lancement</span>
-                            <p className="text-sm text-muted-foreground">
-                                Réafficher la popup de bienvenue et d'information de sécurité
+                    <div className="grid gap-2 sm:grid-cols-3 xl:min-w-[430px]">
+                        <div className="rounded-xl border border-border/40 bg-background/45 px-3 py-2.5">
+                            <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Service</p>
+                            <p className="mt-1 flex items-center gap-1.5 text-sm font-medium">
+                                {serviceRunning ? <Power className="h-4 w-4 text-emerald-400" /> : <PowerOff className="h-4 w-4 text-muted-foreground" />}
+                                {serviceRunning ? "Actif" : "Inactif"}
                             </p>
                         </div>
-                        <Button
-                            id="reset-warning"
-                            aria-label="Réinitialiser la popup du premier lancement"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                                localStorage.removeItem('security-warning-seen');
-                                // Supprimer aussi toutes les annonces (clés commençant par startradfr_)
-                                const keysToRemove: string[] = [];
-                                for (let i = 0; i < localStorage.length; i++) {
-                                    const key = localStorage.key(i);
-                                    if (key && key.startsWith('startradfr_')) {
-                                        keysToRemove.push(key);
-                                    }
-                                }
-                                keysToRemove.forEach(key => localStorage.removeItem(key));
-
-                                toast({
-                                    title: 'Popups réinitialisées',
-                                    description: 'Redémarrage de l\'application...',
-                                });
-                                // Recharger l'application pour afficher immédiatement les popups
-                                setTimeout(() => {
-                                    window.location.reload();
-                                }, 500);
-                            }}
-                            className="flex items-center gap-2"
-                        >
-                            <RotateCcw className="h-4 w-4" />
-                            Réinitialiser
-                        </Button>
+                        <div className="rounded-xl border border-border/40 bg-background/45 px-3 py-2.5">
+                            <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Discord</p>
+                            <p className="mt-1 flex items-center gap-1.5 text-sm font-medium">
+                                <IconBrandDiscord size={14} className={discordEnabled ? "text-[#8f97ff]" : "text-muted-foreground"} />
+                                {discordEnabled ? "Actif" : "Off"}
+                            </p>
+                        </div>
+                        <div className="rounded-xl border border-border/40 bg-background/45 px-3 py-2.5">
+                            <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Video</p>
+                            <p className="mt-1 flex items-center gap-1.5 text-sm font-medium">
+                                <Monitor className={`h-4 w-4 ${backgroundVideoEnabled ? "text-primary" : "text-muted-foreground"}`} />
+                                {backgroundVideoEnabled ? "Visible" : "Masquee"}
+                            </p>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <Separator />
+            <Tabs defaultValue="general" className="space-y-3">
+                <TabsList className="grid h-auto w-full grid-cols-2 gap-1.5 rounded-2xl border border-border/55 bg-[hsl(var(--background)/0.26)] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] sm:grid-cols-4">
+                    <TabsTrigger value="general" className={tabTriggerClass}>
+                        <span className="flex items-center gap-2">
+                            <Monitor className="h-4 w-4 text-primary" />
+                            <span className="text-xs font-semibold uppercase tracking-[0.08em] sm:text-[11px]">General</span>
+                        </span>
+                        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${backgroundVideoEnabled ? "border-primary/45 text-primary" : "border-border/60 text-muted-foreground"}`}>
+                            {backgroundVideoEnabled ? "Video" : "Off"}
+                        </span>
+                    </TabsTrigger>
 
-            {/* Statistiques */}
-            <StatsSection />
+                    <TabsTrigger value="services" className={tabTriggerClass}>
+                        <span className="flex items-center gap-2">
+                            <Settings className="h-4 w-4 text-primary" />
+                            <span className="text-xs font-semibold uppercase tracking-[0.08em] sm:text-[11px]">Services</span>
+                        </span>
+                        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${serviceRunning ? "border-emerald-500/55 text-emerald-300" : config.enabled ? "border-amber-500/55 text-amber-300" : "border-border/60 text-muted-foreground"}`}>
+                            {serviceStatusLabel}
+                        </span>
+                    </TabsTrigger>
+
+                    <TabsTrigger value="cache" className={tabTriggerClass}>
+                        <span className="flex items-center gap-2">
+                            <Save className="h-4 w-4 text-green-400" />
+                            <span className="text-xs font-semibold uppercase tracking-[0.08em] sm:text-[11px]">Cache</span>
+                        </span>
+                        <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] font-semibold text-foreground/90">
+                            {cacheFilesCount}
+                        </span>
+                    </TabsTrigger>
+
+                    <TabsTrigger value="stats" className={tabTriggerClass}>
+                        <span className="flex items-center gap-2">
+                            <BarChart3 className="h-4 w-4 text-primary" />
+                            <span className="text-xs font-semibold uppercase tracking-[0.08em] sm:text-[11px]">Stats</span>
+                        </span>
+                        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${discordStatusLabel === "On" ? "border-[#5865F2]/55 text-[#9aa0ff]" : "border-border/60 text-muted-foreground"}`}>
+                            {discordStatusLabel}
+                        </span>
+                    </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="general" className="space-y-4">
+                    <section className={settingsPanelClass}>
+                        <h4 className={settingsHeaderClass}>
+                            <Monitor className="h-5 w-5 text-primary" />
+                            Experience visuelle
+                        </h4>
+
+                        <div className={settingRowClass}>
+                            <div className={settingInfoClass}>
+                                <span className="text-sm font-medium">Couleur du theme</span>
+                                <p className="text-sm text-muted-foreground">Adapte instantanement la DA de l'application.</p>
+                            </div>
+                            <ColorPicker />
+                        </div>
+
+                        <div className={settingRowClass}>
+                            <div className={settingInfoClass}>
+                                <span className="text-sm font-medium">Video de fond</span>
+                                <p className="text-sm text-muted-foreground">Afficher la video sur l'ecran d'accueil.</p>
+                            </div>
+                            <Switch
+                                id="background-video"
+                                aria-label="Video de fond"
+                                checked={backgroundVideoEnabled}
+                                onCheckedChange={(checked) => {
+                                    setCacheState(s => ({ ...s, backgroundVideoEnabled: checked }));
+                                    localStorage.setItem('backgroundVideoEnabled', String(checked));
+                                    window.dispatchEvent(new CustomEvent('backgroundVideoToggle', { detail: checked }));
+                                    invoke('update_tray_service', { service: 'video', enabled: checked }).catch(() => { });
+                                    toast({
+                                        title: checked ? 'Video activee' : 'Video desactivee',
+                                        description: checked
+                                            ? 'La video de fond sera affichee sur l\'accueil'
+                                            : 'La video de fond a ete masquee',
+                                    });
+                                }}
+                            />
+                        </div>
+
+                        <div className={settingRowClass}>
+                            <div className={settingInfoClass}>
+                                <span className="text-sm font-medium">Preset Ambilight</span>
+                                <p className="text-sm text-muted-foreground">Regle la diffusion lumineuse autour de la video.</p>
+                            </div>
+                            <Select
+                                value={ambilightPreset}
+                                onValueChange={(value) => {
+                                    if (!isAmbilightPreset(value)) return;
+                                    setCacheState((s) => ({ ...s, ambilightPreset: value }));
+                                    localStorage.setItem('ambilightPreset', value);
+                                    window.dispatchEvent(new CustomEvent('ambilightPresetChange', { detail: value }));
+                                    toast({
+                                        title: 'Preset Ambilight applique',
+                                        description: value === 'soft' ? 'Mode doux active' : value === 'cinema' ? 'Mode cinema active' : 'Mode intense active',
+                                    });
+                                }}
+                            >
+                                <SelectTrigger className="w-[180px]" aria-label="Preset Ambilight">
+                                    <SelectValue placeholder="Choisir un preset" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="soft">Doux</SelectItem>
+                                    <SelectItem value="cinema">Cinema</SelectItem>
+                                    <SelectItem value="intense">Intense</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className={settingRowClass}>
+                            <div className={settingInfoClass}>
+                                <span className="text-sm font-medium">Lancer au demarrage de Windows</span>
+                                <p className="text-sm text-muted-foreground">L'application se lancera minimisee dans la barre systeme.</p>
+                            </div>
+                            <Switch id="auto-startup" aria-label="Lancer au demarrage de Windows" checked={autoStartupEnabled} onCheckedChange={handleAutoStartupToggle} disabled={loading || checkingAutoStartup} />
+                        </div>
+                    </section>
+                </TabsContent>
+
+                <TabsContent value="services" className="space-y-4">
+                    <section className={settingsPanelClass}>
+                        <h4 className={settingsHeaderClass}>
+                            <Settings className="h-5 w-5 text-primary" />
+                            Services & presence
+                        </h4>
+
+                        <div className={settingRowClass}>
+                            <div className={settingInfoClass}>
+                                <span className="text-sm font-medium">Service de fond</span>
+                                <p className="text-sm text-muted-foreground">Verifie periodiquement les mises a jour de traduction.</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {serviceRunning && <span className="text-xs font-medium text-emerald-400">Actif</span>}
+                                {!serviceRunning && config.enabled && <span className="text-xs font-medium text-amber-400">Demarrage...</span>}
+                                {!serviceRunning && !config.enabled && <span className="text-xs font-medium text-muted-foreground">Inactif</span>}
+                                <Switch id="background-service" aria-label="Service de fond" checked={config.enabled} onCheckedChange={handleServiceToggle} disabled={loading} />
+                            </div>
+                        </div>
+
+                        <div className={settingsHintBoxClass}>
+                            <Label htmlFor="check-interval">Intervalle de verification (minutes)</Label>
+                            <div className="flex items-center gap-3">
+                                <Input
+                                    id="check-interval"
+                                    type="number"
+                                    min="1"
+                                    max="1440"
+                                    value={config.check_interval_minutes}
+                                    onChange={(e) => {
+                                        const value = parseInt(e.target.value);
+                                        if (!isNaN(value)) setServiceState(s => ({ ...s, config: { ...s.config, check_interval_minutes: value } }));
+                                    }}
+                                    onBlur={(e) => {
+                                        const value = parseInt(e.target.value);
+                                        if (!isNaN(value) && value >= 1) handleIntervalChange(value);
+                                    }}
+                                    className="w-32"
+                                    disabled={loading}
+                                />
+                                <span className="text-sm text-muted-foreground">Toutes les {config.check_interval_minutes} minute(s)</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">Minimum 1 minute, recommande 5 minutes.</p>
+                        </div>
+
+                        <div className={settingRowClass}>
+                            <div className={settingInfoClass}>
+                                <span className="text-sm font-medium">Activite Discord</span>
+                                <p className="text-sm text-muted-foreground">Montre que vous utilisez StarTrad FR sur votre profil Discord.</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {discordEnabled && !discordConnecting && discordConnected && (
+                                    <span className="flex items-center gap-1 text-sm text-[#5865F2]">
+                                        <IconBrandDiscord size={16} />
+                                        Connecte
+                                    </span>
+                                )}
+                                {discordEnabled && !discordConnecting && !discordConnected && (
+                                    <span className="flex items-center gap-1 text-sm text-amber-500">
+                                        <IconBrandDiscord size={16} />
+                                        En attente
+                                    </span>
+                                )}
+                                {discordConnecting && (
+                                    <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    </span>
+                                )}
+                                <Switch
+                                    id="discord-rpc"
+                                    aria-label="Discord Rich Presence"
+                                    checked={discordEnabled}
+                                    onCheckedChange={handleDiscordToggle}
+                                    disabled={discordConnecting}
+                                />
+                            </div>
+                        </div>
+
+                        <div className={settingRowClass}>
+                            <div className={settingInfoClass}>
+                                <span className="text-sm font-medium">Popup du premier lancement</span>
+                                <p className="text-sm text-muted-foreground">Reafficher la popup de bienvenue et d'information de securite.</p>
+                            </div>
+                            <Button
+                                id="reset-warning"
+                                aria-label="Reinitialiser la popup du premier lancement"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                    localStorage.removeItem('security-warning-seen');
+                                    const keysToRemove: string[] = [];
+                                    for (let i = 0; i < localStorage.length; i++) {
+                                        const key = localStorage.key(i);
+                                        if (key && key.startsWith('startradfr_')) {
+                                            keysToRemove.push(key);
+                                        }
+                                    }
+                                    keysToRemove.forEach(key => localStorage.removeItem(key));
+                                    toast({
+                                        title: 'Popups reinitialisees',
+                                        description: 'Redemarrage de l\'application...',
+                                    });
+                                    setTimeout(() => {
+                                        window.location.reload();
+                                    }, 500);
+                                }}
+                                className="flex items-center gap-2"
+                            >
+                                <RotateCcw className="h-4 w-4" />
+                                Reinitialiser
+                            </Button>
+                        </div>
+                    </section>
+                </TabsContent>
+
+                <TabsContent value="cache" className="space-y-4">
+                    <section className={settingsPanelClass}>
+                        <h4 className={settingsHeaderClass}>
+                            <Save className="h-5 w-5 text-green-500" />
+                            Cache de traductions
+                        </h4>
+
+                        <div className={settingsHintBoxClass}>
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-muted-foreground">Fichiers en cache</span>
+                                <span className="text-sm font-medium">{cacheInfo?.total_files || 0}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-muted-foreground">Taille totale</span>
+                                <span className="text-sm font-medium">{formatBytes(cacheInfo?.total_size || 0)}</span>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-2">
+                            <Button variant="outline" size="sm" onClick={handleOpenCacheFolder} className="flex-1">
+                                Ouvrir le dossier
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={handleClearCache}
+                                disabled={loadingCache || (cacheInfo?.total_files || 0) === 0}
+                                className="flex-1"
+                            >
+                                {loadingCache ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <>
+                                        <Trash2 className="h-4 w-4 mr-2" />
+                                        Vider le cache
+                                    </>
+                                )}
+                            </Button>
+                        </div>
+
+                        <div className={settingsHintBoxClass}>
+                            <h4 className="font-medium text-sm">Mode hors-ligne</h4>
+                            <p className="text-sm text-muted-foreground">
+                                Les traductions installees sont automatiquement mises en cache.
+                                Vous pouvez les reinstaller meme sans connexion internet depuis la page Traduction.
+                            </p>
+                        </div>
+                    </section>
+                </TabsContent>
+
+                <TabsContent value="stats" className="space-y-4">
+                    <StatsSection />
+                </TabsContent>
+            </Tabs>
         </div>
     );
+
 }
 
 interface AppStats {
@@ -1873,30 +1992,30 @@ function StatsSection() {
 
     if (loading) {
         return (
-            <div className="space-y-4">
+            <section className="space-y-4 rounded-xl border border-border/55 bg-background/55 p-4 sm:p-5 shadow-[0_16px_32px_rgba(0,0,0,0.28)] backdrop-blur-xl">
                 <div className="flex items-center gap-2">
                     <BarChart3 className="h-5 w-5 text-primary" />
-                    <h3 className="text-lg font-semibold">Statistiques</h3>
+                    <h3 className="text-base font-semibold tracking-tight">Statistiques</h3>
                 </div>
                 <div className="flex items-center justify-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
-            </div>
+            </section>
         );
     }
 
     return (
-        <div className="space-y-4">
+        <section className="space-y-4 rounded-xl border border-border/55 bg-background/55 p-4 sm:p-5 shadow-[0_16px_32px_rgba(0,0,0,0.28)] backdrop-blur-xl">
             <div className="flex items-center gap-2">
                 <BarChart3 className="h-5 w-5 text-primary" />
-                <h3 className="text-lg font-semibold">Statistiques</h3>
+                <h3 className="text-base font-semibold tracking-tight">Statistiques</h3>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
                 {stats.map((stat) => (
                     <div
                         key={stat.label}
-                        className="bg-muted/30 rounded-lg p-3 border border-border/30 hover:bg-muted/50 transition-colors"
+                        className="rounded-lg border border-border/35 bg-background/35 p-3 transition-all duration-200 hover:border-primary/30 hover:bg-background/55"
                     >
                         <div className="flex items-center gap-2 mb-1">
                             {stat.icon}
@@ -1913,6 +2032,7 @@ function StatsSection() {
             <p className="text-xs text-muted-foreground text-center">
                 Données réelles depuis le système
             </p>
-        </div>
+        </section>
     );
 }
+

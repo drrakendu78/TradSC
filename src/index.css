@@ -7,6 +7,27 @@
     0%, 85% { opacity: 1; }
     100% { opacity: 0; }
 }
+@keyframes splash-logo-in {
+    0%   { opacity: 0; transform: scale(0.82) translateY(8px); filter: blur(6px); }
+    100% { opacity: 1; transform: scale(1)    translateY(0);   filter: blur(0); }
+}
+@keyframes splash-text-in {
+    0%   { opacity: 0; transform: translateY(10px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes splash-bar-fill {
+    0%   { width: 0%; }
+    80%  { width: 92%; }
+    100% { width: 100%; }
+}
+@keyframes splash-dot {
+    0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+    40%            { opacity: 1;   transform: scale(1.1); }
+}
+@keyframes splash-out {
+    0%   { opacity: 1; }
+    100% { opacity: 0; }
+}
 @layer base {
     :root {
         --background: 0 0% 98%;
@@ -238,6 +259,82 @@
     }
     .dark .modern-scrollbar {
         scrollbar-color: hsl(var(--primary) / 0.6) transparent;
+    }
+
+    /* Light mode: improve sidebar readability */
+    .light .app-sidebar-shell {
+        background: linear-gradient(
+            180deg,
+            hsl(var(--background) / 0.975) 0%,
+            hsl(var(--background) / 0.94) 100%
+        ) !important;
+        border-color: hsl(var(--border) / 0.82) !important;
+        box-shadow:
+            0 24px 60px rgba(15, 23, 42, 0.28),
+            inset 0 1px 0 rgba(255, 255, 255, 0.55) !important;
+    }
+
+    .light .app-sidebar-shell .app-sidebar-header {
+        border-bottom-color: hsl(var(--border) / 0.65) !important;
+    }
+
+    .light .app-sidebar-shell .app-sidebar-icon-btn {
+        color: hsl(var(--foreground) / 0.74) !important;
+    }
+
+    .light .app-sidebar-shell .app-sidebar-icon-btn:hover {
+        background: hsl(var(--foreground) / 0.08) !important;
+        color: hsl(var(--foreground) / 0.96) !important;
+    }
+
+    .light .app-sidebar-shell .app-sidebar-nav .text-muted-foreground {
+        color: hsl(var(--foreground) / 0.74) !important;
+    }
+
+    .light .app-sidebar-shell .app-sidebar-nav .text-muted-foreground\/70,
+    .light .app-sidebar-shell .app-sidebar-nav .text-muted-foreground\/85 {
+        color: hsl(var(--foreground) / 0.66) !important;
+    }
+
+    .light .app-sidebar-shell .app-sidebar-nav .hover\:text-foreground:hover {
+        color: hsl(var(--foreground) / 0.98) !important;
+    }
+
+    .light .app-sidebar-shell .app-sidebar-nav .bg-white\/5 {
+        background-color: hsl(var(--foreground) / 0.045) !important;
+    }
+
+    .light .app-sidebar-shell .app-sidebar-nav .hover\:bg-white\/5:hover {
+        background-color: hsl(var(--foreground) / 0.075) !important;
+    }
+
+    .light .app-sidebar-shell .app-sidebar-nav .hover\:bg-white\/8:hover {
+        background-color: hsl(var(--foreground) / 0.095) !important;
+    }
+
+    .light .app-sidebar-shell .app-sidebar-nav .bg-primary\/15 {
+        background: linear-gradient(
+            140deg,
+            hsl(var(--primary) / 0.18),
+            hsl(var(--primary) / 0.1)
+        ) !important;
+        color: hsl(var(--primary) / 0.9) !important;
+        box-shadow: inset 0 0 0 1px hsl(var(--primary) / 0.2);
+    }
+
+    .light .app-sidebar-shell .app-sidebar-nav .bg-popover\/95 {
+        background-color: hsl(var(--background) / 0.99) !important;
+        color: hsl(var(--foreground) / 0.9) !important;
+        border-color: hsl(var(--border) / 0.85) !important;
+    }
+
+    .light .sidebar-toggle-open {
+        border-color: hsl(0 0% 0% / 0.10) !important;
+        background-color: hsl(0 0% 100% / 0.70) !important;
+    }
+
+    .light .sidebar-toggle-open:hover {
+        background-color: hsl(0 0% 100% / 0.82) !important;
     }
 }
 

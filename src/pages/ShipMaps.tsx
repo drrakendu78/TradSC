@@ -1,6 +1,5 @@
 import { m } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { ExternalLink, RefreshCw, Loader2, Map, PictureInPicture2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import openExternal from "@/utils/external";
@@ -154,26 +153,38 @@ export default function ShipMaps() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
-            className="flex w-full h-full flex-col relative p-4 overflow-hidden"
+            className="flex w-full h-full flex-col relative overflow-hidden"
             style={{ maxHeight: "100%", height: "100%", minHeight: 0, flex: "1 1 0%", position: "relative", overflow: "hidden" }}
         >
-            <div className="absolute top-4 left-4 right-4 z-10 flex items-center justify-between">
-                <div className="flex items-center gap-3 bg-background/80 backdrop-blur-sm rounded-lg px-4 py-2 border border-border/50 shadow-sm">
-                    <Map className="h-5 w-5 text-indigo-500" />
-                    <span className="font-medium text-sm">Cartes de Vaisseaux ADI</span>
+            <div className="absolute top-2 left-2 right-2 z-10 flex items-center justify-between">
+                <div className="flex items-center gap-2 bg-background/80 backdrop-blur-md rounded-full px-3 py-1.5 border border-border/60 shadow-sm">
+                    <Map className="h-4 w-4 text-indigo-500" />
+                    <span className="font-medium text-[12px]">Cartes de Vaisseaux ADI</span>
                 </div>
-                <div className="flex gap-2">
-                    <Button variant="secondary" size="sm" onClick={handleRefresh} className="h-8 px-3 bg-background/80 backdrop-blur-sm border border-border/50 shadow-sm" title="Rafraichir">
-                        <RefreshCw className="h-4 w-4" />
-                    </Button>
-                    <Button variant="secondary" size="sm" onClick={handleOpenOverlay} className="h-8 px-3 bg-background/80 backdrop-blur-sm border border-border/50 shadow-sm gap-2" title="Detacher en overlay">
-                        <PictureInPicture2 className="h-4 w-4" />
-                        <span className="hidden sm:inline text-xs">Overlay</span>
-                    </Button>
-                    <Button variant="secondary" size="sm" onClick={handleOpenExternal} className="h-8 px-3 bg-background/80 backdrop-blur-sm border border-border/50 shadow-sm gap-2" title="Ouvrir dans le navigateur">
-                        <ExternalLink className="h-4 w-4" />
-                        <span className="hidden sm:inline text-xs">Navigateur</span>
-                    </Button>
+                <div className="flex gap-1.5">
+                    <button
+                        onClick={handleRefresh}
+                        className="flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-background/80 text-foreground/80 backdrop-blur-md shadow-sm transition-all hover:border-primary/50 hover:bg-primary/15 hover:text-primary"
+                        title="Rafraichir"
+                    >
+                        <RefreshCw className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                        onClick={handleOpenOverlay}
+                        className="flex h-8 items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-3 text-[11.5px] text-foreground/80 backdrop-blur-md shadow-sm transition-all hover:border-primary/50 hover:bg-primary/15 hover:text-primary"
+                        title="Detacher en overlay"
+                    >
+                        <PictureInPicture2 className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Overlay</span>
+                    </button>
+                    <button
+                        onClick={handleOpenExternal}
+                        className="flex h-8 items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-3 text-[11.5px] text-foreground/80 backdrop-blur-md shadow-sm transition-all hover:border-primary/50 hover:bg-primary/15 hover:text-primary"
+                        title="Ouvrir dans le navigateur"
+                    >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Navigateur</span>
+                    </button>
                 </div>
             </div>
 
@@ -191,14 +202,20 @@ export default function ShipMaps() {
                     <div className="flex flex-col items-center gap-4 p-6 bg-card rounded-lg border border-border shadow-lg max-w-md">
                         <p className="text-sm text-muted-foreground text-center">Impossible de charger les cartes de vaisseaux ADI.</p>
                         <div className="flex gap-2">
-                            <Button variant="outline" size="sm" onClick={handleRefresh}>
-                                <RefreshCw className="h-4 w-4 mr-2" />
+                            <button
+                                onClick={handleRefresh}
+                                className="flex h-8 items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-3 text-[11.5px] text-foreground/80 backdrop-blur-md shadow-sm transition-all hover:border-primary/50 hover:bg-primary/15 hover:text-primary"
+                            >
+                                <RefreshCw className="h-3.5 w-3.5" />
                                 Reessayer
-                            </Button>
-                            <Button variant="default" size="sm" onClick={handleOpenExternal}>
-                                <ExternalLink className="h-4 w-4 mr-2" />
+                            </button>
+                            <button
+                                onClick={handleOpenExternal}
+                                className="flex h-8 items-center gap-1.5 rounded-full border border-primary/40 bg-primary/15 px-3 text-[11.5px] text-primary backdrop-blur-md shadow-sm transition-all hover:border-primary/60 hover:bg-primary/25"
+                            >
+                                <ExternalLink className="h-3.5 w-3.5" />
                                 Ouvrir dans le navigateur
-                            </Button>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -212,12 +229,18 @@ export default function ShipMaps() {
                     <div className="max-w-md w-full rounded-lg border border-border bg-card/60 backdrop-blur-sm p-5 text-center space-y-3">
                         <p className="text-sm text-muted-foreground">ShipMaps est detache en overlay pour eviter le rendu en double.</p>
                         <div className="flex items-center justify-center gap-2">
-                            <Button variant="outline" size="sm" onClick={handleRefresh}>
+                            <button
+                                onClick={handleRefresh}
+                                className="flex h-8 items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-3 text-[11.5px] text-foreground/80 backdrop-blur-md shadow-sm transition-all hover:border-primary/50 hover:bg-primary/15 hover:text-primary"
+                            >
                                 Recharger dans l'app
-                            </Button>
-                            <Button variant="default" size="sm" onClick={handleOpenOverlay}>
+                            </button>
+                            <button
+                                onClick={handleOpenOverlay}
+                                className="flex h-8 items-center gap-1.5 rounded-full border border-primary/40 bg-primary/15 px-3 text-[11.5px] text-primary backdrop-blur-md shadow-sm transition-all hover:border-primary/60 hover:bg-primary/25"
+                            >
                                 Re-focus overlay
-                            </Button>
+                            </button>
                         </div>
                     </div>
                 </div>

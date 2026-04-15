@@ -87,16 +87,18 @@ function CharacterActionsCell({ character, toast, refreshData }: CharacterAction
     };
 
     return (
-        <div className="flex flex-col items-start gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
             <button
+                type="button"
                 onClick={() => { setPendingAction("delete"); setModalOpen("delete"); }}
-                className="flex items-center gap-2 hover:text-red-500 transition-colors"
+                className="inline-flex h-7 items-center gap-1.5 rounded-md border border-red-500/30 bg-red-500/8 px-2 text-xs text-red-600 transition-colors hover:bg-red-500/14 dark:text-red-300"
                 aria-label="Supprimer le personnage"
             >
-                <Trash strokeWidth={3} className="h-4 w-4" />
-                <span>Supprimer le personnage</span>
+                <Trash strokeWidth={2.5} className="h-3.5 w-3.5" />
+                <span>Supprimer</span>
             </button>
             <button
+                type="button"
                 onClick={() => {
                     const path = character.versions.find(v => v.path)?.path;
                     if (path) {
@@ -105,19 +107,20 @@ function CharacterActionsCell({ character, toast, refreshData }: CharacterAction
                         toast({ title: "Erreur", description: "Impossible de dupliquer : aucun chemin disponible.", success: "false", duration: 3000 });
                     }
                 }}
-                className="flex items-center gap-2 hover:text-primary transition-colors"
+                className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border/45 bg-background/20 px-2 text-xs text-foreground/85 transition-colors hover:bg-background/35 hover:text-foreground"
                 aria-label="Dupliquer le personnage"
             >
-                <FolderSync strokeWidth={3} className="h-4 w-4" />
-                <span>Dupliquer le personnage</span>
+                <FolderSync strokeWidth={2.5} className="h-3.5 w-3.5" />
+                <span>Dupliquer</span>
             </button>
             <button
+                type="button"
                 onClick={() => { setPendingAction("open"); setModalOpen("open"); }}
-                className="flex items-center gap-2 hover:text-primary transition-colors"
+                className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border/45 bg-background/20 px-2 text-xs text-foreground/85 transition-colors hover:bg-background/35 hover:text-foreground"
                 aria-label="Ouvrir le dossier des personnages"
             >
-                <Folder strokeWidth={3} className="h-4 w-4" />
-                <span>Ouvrir le dossier des personnages</span>
+                <Folder strokeWidth={2.5} className="h-3.5 w-3.5" />
+                <span>Dossier</span>
             </button>
             <PresetActionModal
                 open={!!modalOpen}

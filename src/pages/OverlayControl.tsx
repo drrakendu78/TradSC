@@ -42,11 +42,11 @@ const OverlayControl = () => {
             <button
                 onClick={backToEditMode}
                 title="Mode jeu actif - cliquer pour passer en mode edit"
-                className="h-full w-full rounded-sm border border-sky-300/60 bg-[linear-gradient(180deg,rgba(28,52,72,0.99),rgba(18,34,49,0.99))] shadow-[inset_0_1px_0_rgba(148,197,255,0.22),inset_0_0_0_1px_rgba(56,189,248,0.24),0_0_0_1px_rgba(56,189,248,0.45),0_0_12px_rgba(56,189,248,0.42),0_0_22px_rgba(37,99,235,0.28),0_2px_6px_rgba(0,0,0,0.55)] flex items-center justify-center disabled:opacity-70"
+                className="h-full w-full rounded-full border border-sky-300/50 bg-sky-500/15 text-sky-100 backdrop-blur-md shadow-sm transition-all hover:border-sky-200/70 hover:bg-sky-500/25 flex items-center justify-center disabled:opacity-70"
                 disabled={loading}
             >
                 {loading ? (
-                    <Loader2 className="h-3 w-3 text-slate-100" />
+                    <Loader2 className="h-2.5 w-2.5" />
                 ) : (
                     <svg
                         viewBox="0 0 24 24"
@@ -55,7 +55,7 @@ const OverlayControl = () => {
                         strokeWidth="2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        className="h-3 w-3 text-slate-100"
+                        className="h-2.5 w-2.5"
                         aria-hidden="true"
                     >
                         <rect x="5" y="11" width="14" height="10" rx="2" />

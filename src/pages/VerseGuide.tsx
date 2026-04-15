@@ -1,6 +1,5 @@
 import { m } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { ExternalLink, RefreshCw, Loader2, BookOpen, PictureInPicture2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import openExternal from "@/utils/external";
@@ -103,23 +102,35 @@ export default function VerseGuide() {
             transition={{ duration: 0.4, ease: "easeOut" }}
             className="flex flex-col w-full h-full overflow-hidden"
         >
-            <div className="flex items-center justify-between px-4 py-2 border-b border-border/50 bg-background/80 backdrop-blur-sm flex-shrink-0">
-                <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between px-2 py-1.5 border-b border-border/50 bg-background/80 backdrop-blur-md flex-shrink-0">
+                <div className="flex items-center gap-2 rounded-full border border-border/60 bg-background/80 px-3 py-1.5 backdrop-blur-md shadow-sm">
                     <BookOpen className="h-4 w-4 text-indigo-500" />
-                    <span className="font-medium text-sm">VerseGuide</span>
+                    <span className="font-medium text-[12px]">VerseGuide</span>
                 </div>
-                <div className="flex gap-2">
-                    <Button variant="ghost" size="sm" onClick={handleRefresh} className="h-7 px-2" title="Rafraichir">
+                <div className="flex gap-1.5">
+                    <button
+                        onClick={handleRefresh}
+                        className="flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-background/80 text-foreground/80 backdrop-blur-md shadow-sm transition-all hover:border-primary/50 hover:bg-primary/15 hover:text-primary"
+                        title="Rafraichir"
+                    >
                         <RefreshCw className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={handleOpenOverlay} className="h-7 px-2 gap-1.5" title="Detacher en overlay">
+                    </button>
+                    <button
+                        onClick={handleOpenOverlay}
+                        className="flex h-8 items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-3 text-[11.5px] text-foreground/80 backdrop-blur-md shadow-sm transition-all hover:border-primary/50 hover:bg-primary/15 hover:text-primary"
+                        title="Detacher en overlay"
+                    >
                         <PictureInPicture2 className="h-3.5 w-3.5" />
-                        <span className="text-xs">Overlay</span>
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={handleOpenExternal} className="h-7 px-2 gap-1.5" title="Ouvrir dans le navigateur">
+                        <span>Overlay</span>
+                    </button>
+                    <button
+                        onClick={handleOpenExternal}
+                        className="flex h-8 items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-3 text-[11.5px] text-foreground/80 backdrop-blur-md shadow-sm transition-all hover:border-primary/50 hover:bg-primary/15 hover:text-primary"
+                        title="Ouvrir dans le navigateur"
+                    >
                         <ExternalLink className="h-3.5 w-3.5" />
-                        <span className="text-xs">Navigateur</span>
-                    </Button>
+                        <span>Navigateur</span>
+                    </button>
                 </div>
             </div>
 
@@ -140,14 +151,20 @@ export default function VerseGuide() {
                                 Impossible de charger VerseGuide. Le site ne supporte peut-etre pas l'integration iframe.
                             </p>
                             <div className="flex gap-2">
-                                <Button variant="outline" size="sm" onClick={handleRefresh}>
-                                    <RefreshCw className="h-4 w-4 mr-2" />
+                                <button
+                                    onClick={handleRefresh}
+                                    className="flex h-8 items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-3 text-[11.5px] text-foreground/80 backdrop-blur-md shadow-sm transition-all hover:border-primary/50 hover:bg-primary/15 hover:text-primary"
+                                >
+                                    <RefreshCw className="h-3.5 w-3.5" />
                                     Reessayer
-                                </Button>
-                                <Button variant="default" size="sm" onClick={handleOpenExternal}>
-                                    <ExternalLink className="h-4 w-4 mr-2" />
+                                </button>
+                                <button
+                                    onClick={handleOpenExternal}
+                                    className="flex h-8 items-center gap-1.5 rounded-full border border-primary/40 bg-primary/15 px-3 text-[11.5px] text-primary backdrop-blur-md shadow-sm transition-all hover:border-primary/60 hover:bg-primary/25"
+                                >
+                                    <ExternalLink className="h-3.5 w-3.5" />
                                     Ouvrir dans le navigateur
-                                </Button>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -158,12 +175,18 @@ export default function VerseGuide() {
                         <div className="max-w-md w-full rounded-lg border border-border bg-card/60 backdrop-blur-sm p-5 text-center space-y-3">
                             <p className="text-sm text-muted-foreground">VerseGuide est detache en overlay pour eviter le rendu en double.</p>
                             <div className="flex items-center justify-center gap-2">
-                                <Button variant="outline" size="sm" onClick={handleRefresh}>
+                                <button
+                                    onClick={handleRefresh}
+                                    className="flex h-8 items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-3 text-[11.5px] text-foreground/80 backdrop-blur-md shadow-sm transition-all hover:border-primary/50 hover:bg-primary/15 hover:text-primary"
+                                >
                                     Recharger dans l'app
-                                </Button>
-                                <Button variant="default" size="sm" onClick={handleOpenOverlay}>
+                                </button>
+                                <button
+                                    onClick={handleOpenOverlay}
+                                    className="flex h-8 items-center gap-1.5 rounded-full border border-primary/40 bg-primary/15 px-3 text-[11.5px] text-primary backdrop-blur-md shadow-sm transition-all hover:border-primary/60 hover:bg-primary/25"
+                                >
                                     Re-focus overlay
-                                </Button>
+                                </button>
                             </div>
                         </div>
                     </div>
