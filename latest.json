@@ -1,0 +1,11 @@
+{
+    "version": "4.0.0",
+    "notes": "v4.0.0 - Refonte complete de l'interface (glassmorphisme, dark/light mode), nouveau logo, overlay repense, corrections mode clair, double toast, encodage accents.",
+    "pub_date": "2026-04-15T00:00:00.000Z",
+    "platforms": {
+        "windows-x86_64": {
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRb1BzLzdHaFk1RmJUNVdlSHZEZCt3VTNQMkd1QTJhSkFBdEJQUXZrNkx3SmdvRURzVkhTamkwbGFnQWZWZDZnTWpmK0s0aDBobGM2Q0JVR1l5UmtpckE4RCtTZjV6TXc0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc2MjEyNDA3CWZpbGU6U3RhclRyYWQgRlJfNC4wLjBfeDY0LXNldHVwLmV4ZQpqRVIzeUdFZGlHdXBkUGtuQjVSQjNiY0pwZnYyTS9ZVWRET2Y2VFUwZ0hKOExBR0pRSXFFRUNlb1RiY0Y1Vk5xR0NjcU4xZHU4WExsRVRtbXhYSTJEZz09Cg==",
+            "url": "https://github.com/drrakendu78/TradSC/releases/download/v4.0.0/StarTrad.FR_4.0.0_x64-setup.exe"
+        }
+    }
+}
