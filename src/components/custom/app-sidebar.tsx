@@ -42,6 +42,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { invoke } from "@tauri-apps/api/core";
+import { emit } from "@tauri-apps/api/event";
 import { supabase } from "@/lib/supabase";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 import { LogIn, LogOut, User } from "lucide-react";
@@ -1227,6 +1228,32 @@ function isAmbilightPreset(value: string | null): value is AmbilightPreset {
     return value === 'soft' || value === 'cinema' || value === 'intense';
 }
 
+type OverlayHubPreset =
+    | 'free'
+    | 'top'
+    | 'top-left'
+    | 'top-right'
+    | 'left'
+    | 'right'
+    | 'bottom-left'
+    | 'bottom-right';
+
+const OVERLAY_HUB_PRESET_STORAGE_KEY = 'overlay_hub_preset_v1';
+const OVERLAY_HUB_PRESET_EVENT = 'overlay_hub_preset_change';
+
+function isOverlayHubPreset(value: string | null): value is OverlayHubPreset {
+    return (
+        value === 'free' ||
+        value === 'top' ||
+        value === 'top-left' ||
+        value === 'top-right' ||
+        value === 'left' ||
+        value === 'right' ||
+        value === 'bottom-left' ||
+        value === 'bottom-right'
+    );
+}
+
 function SettingsContent() {
     const { toast } = useToast();
     const [{ loading, serviceRunning, config, autoStartupEnabled, checkingAutoStartup }, setServiceState] = useState<{ loading: boolean; serviceRunning: boolean; config: BackgroundServiceConfig; autoStartupEnabled: boolean; checkingAutoStartup: boolean }>({
@@ -1269,6 +1296,10 @@ function SettingsContent() {
             backgroundVideoEnabled: saved === null ? true : saved === 'true',
             ambilightPreset: isAmbilightPreset(savedPreset) ? savedPreset : 'soft',
         };
+    });
+    const [overlayHubPreset, setOverlayHubPreset] = useState<OverlayHubPreset>(() => {
+        const saved = localStorage.getItem(OVERLAY_HUB_PRESET_STORAGE_KEY);
+        return isOverlayHubPreset(saved) ? saved : 'free';
     });
 
     // Charger la configuration au montage
@@ -1706,6 +1737,36 @@ function SettingsContent() {
                                     <SelectItem value="soft">Doux</SelectItem>
                                     <SelectItem value="cinema">Cinema</SelectItem>
                                     <SelectItem value="intense">Intense</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className={settingRowClass}>
+                            <div className={settingInfoClass}>
+                                <span className="text-sm font-medium">Position du hub overlay</span>
+                                <p className="text-sm text-muted-foreground">Choisissez une position fixe ou laissez « Libre » pour déplacer le hub à la souris.</p>
+                            </div>
+                            <Select
+                                value={overlayHubPreset}
+                                onValueChange={(value) => {
+                                    if (!isOverlayHubPreset(value)) return;
+                                    setOverlayHubPreset(value);
+                                    localStorage.setItem(OVERLAY_HUB_PRESET_STORAGE_KEY, value);
+                                    emit(OVERLAY_HUB_PRESET_EVENT, { preset: value }).catch(() => {});
+                                }}
+                            >
+                                <SelectTrigger className="w-[200px]" aria-label="Position du hub overlay">
+                                    <SelectValue placeholder="Choisir une position" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="free">Libre (glisser à la souris)</SelectItem>
+                                    <SelectItem value="top">Haut centre</SelectItem>
+                                    <SelectItem value="top-left">Haut gauche</SelectItem>
+                                    <SelectItem value="top-right">Haut droite</SelectItem>
+                                    <SelectItem value="left">Gauche (centré)</SelectItem>
+                                    <SelectItem value="right">Droite (centré)</SelectItem>
+                                    <SelectItem value="bottom-left">Bas gauche</SelectItem>
+                                    <SelectItem value="bottom-right">Bas droite</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

@@ -58,8 +58,10 @@ fn open_overlay_targets(app_handle: &AppHandle) -> Vec<(String, String)> {
 const CONTROL_WIDTH: i32 = 20;
 const CONTROL_HEIGHT: i32 = 20;
 const OVERLAY_HUB_LABEL: &str = "overlayhub_main";
-const OVERLAY_HUB_WIDTH: f64 = 46.0;
-const OVERLAY_HUB_HEIGHT: f64 = 34.0;
+// Must match HUB_COLLAPSED_WIDTH / HUB_COLLAPSED_HEIGHT in src/pages/OverlayHub.tsx
+// (logical pixels — Tauri scales to physical per monitor DPI).
+const OVERLAY_HUB_WIDTH: f64 = 90.0;
+const OVERLAY_HUB_HEIGHT: f64 = 42.0;
 const OVERLAY_HUB_TOP_OFFSET: f64 = 10.0;
 static OVERLAY_HUB_EDIT_MODE: AtomicBool = AtomicBool::new(true);
 
@@ -137,16 +139,27 @@ fn control_geometry(
 fn overlay_hub_geometry(app_handle: &AppHandle, hub_width: f64) -> (f64, f64) {
     if let Some(main) = app_handle.get_webview_window("main") {
         if let Ok(Some(monitor)) = main.current_monitor() {
+            // monitor position/size are physical pixels; inner_size/position on the
+            // builder accept logical pixels. Convert to logical so scaled displays
+            // (125%/150%) don't crop the hub content.
+            let scale = monitor.scale_factor();
             let monitor_pos = monitor.position();
             let monitor_size = monitor.size();
-            let x = monitor_pos.x as f64 + ((monitor_size.width as f64 - hub_width) / 2.0).max(0.0);
-            let y = monitor_pos.y as f64 + OVERLAY_HUB_TOP_OFFSET;
-            return (x, y.max(0.0));
+            let logical_monitor_x = monitor_pos.x as f64 / scale;
+            let logical_monitor_y = monitor_pos.y as f64 / scale;
+            let logical_monitor_width = monitor_size.width as f64 / scale;
+            let x = logical_monitor_x + ((logical_monitor_width - hub_width) / 2.0).max(0.0);
+            let y = logical_monitor_y + OVERLAY_HUB_TOP_OFFSET;
+            return (x, y.max(logical_monitor_y));
         }
 
         if let (Ok(main_pos), Ok(main_size)) = (main.outer_position(), main.outer_size()) {
-            let x = main_pos.x as f64 + ((main_size.width as f64 - hub_width) / 2.0).max(0.0);
-            let y = main_pos.y as f64 + OVERLAY_HUB_TOP_OFFSET;
+            let scale = main.scale_factor().unwrap_or(1.0);
+            let logical_main_x = main_pos.x as f64 / scale;
+            let logical_main_y = main_pos.y as f64 / scale;
+            let logical_main_width = main_size.width as f64 / scale;
+            let x = logical_main_x + ((logical_main_width - hub_width) / 2.0).max(0.0);
+            let y = logical_main_y + OVERLAY_HUB_TOP_OFFSET;
             return (x, y.max(0.0));
         }
     }
