@@ -47,12 +47,40 @@ fn parse_overlay_target_label(label: &str) -> Option<(String, String)> {
     None
 }
 
+fn parse_overlay_control_label(label: &str) -> Option<(String, String)> {
+    if let Some(id) = label.strip_prefix("overlayctl_wv_") {
+        if !id.is_empty() {
+            return Some((id.to_string(), "webview".to_string()));
+        }
+    }
+
+    if let Some(id) = label.strip_prefix("overlayctl_if_") {
+        if !id.is_empty() {
+            return Some((id.to_string(), "iframe".to_string()));
+        }
+    }
+
+    None
+}
+
 fn open_overlay_targets(app_handle: &AppHandle) -> Vec<(String, String)> {
     app_handle
         .webview_windows()
         .keys()
         .filter_map(|label| parse_overlay_target_label(label.as_str()))
         .collect()
+}
+
+fn cleanup_orphaned_control_windows(app_handle: &AppHandle) {
+    let windows = app_handle.webview_windows();
+    for (label, win) in &windows {
+        if let Some((id, overlay_type)) = parse_overlay_control_label(label.as_str()) {
+            let target_label = overlay_target_label(&id, &overlay_type);
+            if !windows.contains_key(&target_label) {
+                let _ = win.close();
+            }
+        }
+    }
 }
 
 const CONTROL_WIDTH: i32 = 20;
@@ -255,6 +283,8 @@ pub async fn is_overlay_hub_open(app_handle: AppHandle) -> Result<bool, String> 
 pub async fn set_overlay_hub_mode(app_handle: AppHandle, edit_mode: bool) -> Result<bool, String> {
     OVERLAY_HUB_EDIT_MODE.store(edit_mode, Ordering::Relaxed);
 
+    cleanup_orphaned_control_windows(&app_handle);
+
     if let Some(win) = app_handle.get_webview_window(OVERLAY_HUB_LABEL) {
         win.set_ignore_cursor_events(false).map_err(|e| e.to_string())?;
         if edit_mode {
@@ -275,6 +305,11 @@ pub async fn set_overlay_hub_mode(app_handle: AppHandle, edit_mode: bool) -> Res
             false,
         );
     }
+
+    // Notify any open hub window so its React state syncs — without this,
+    // toggling edit mode via the companion leaves the hub visually stale
+    // until the user toggles it again locally.
+    let _ = app_handle.emit("overlay_hub_mode_changed", edit_mode);
 
     Ok(edit_mode)
 }
@@ -389,6 +424,7 @@ pub async fn open_overlay(
     let id_for_events = id.clone();
     win.on_window_event(move |event| {
         if matches!(event, tauri::WindowEvent::Destroyed) {
+            close_overlay_control_window(&app_handle_for_events, &id_for_events, "iframe");
             let _ = app_handle_for_events.emit(
                 "overlay_closed",
                 OverlayClosedPayload {
@@ -690,6 +726,7 @@ pub async fn open_webview_overlay(
     let id_for_events = id.clone();
     win.on_window_event(move |event| {
         if matches!(event, tauri::WindowEvent::Destroyed) {
+            close_overlay_control_window(&app_handle_for_events, &id_for_events, "webview");
             let _ = app_handle_for_events.emit(
                 "overlay_closed",
                 OverlayClosedPayload {
@@ -748,6 +785,8 @@ pub async fn set_window_opacity(
         let alpha = ((opacity.clamp(0.1, 1.0)) * 255.0) as u8;
         unsafe {
             let h = HWND(hwnd.0 as *mut _);
+            let ex_style = GetWindowLongW(h, GWL_EXSTYLE);
+            SetWindowLongW(h, GWL_EXSTYLE, ex_style | WS_EX_LAYERED.0 as i32);
             SetLayeredWindowAttributes(h, None, alpha, LWA_ALPHA).map_err(|e| e.to_string())?;
         }
     }
@@ -872,7 +911,7 @@ pub async fn set_overlay_interaction(
 pub async fn close_overlay(app_handle: AppHandle, id: String) -> Result<(), String> {
     let label = overlay_target_label(&id, "iframe");
     if let Some(win) = app_handle.get_webview_window(&label) {
-        win.close().map_err(|e| e.to_string())?;
+        let _ = win.close();
     }
     close_overlay_control_window(&app_handle, &id, "iframe");
     let _ = app_handle.emit(
@@ -889,7 +928,7 @@ pub async fn close_overlay(app_handle: AppHandle, id: String) -> Result<(), Stri
 pub async fn close_webview_overlay(app_handle: AppHandle, id: String) -> Result<(), String> {
     let label = overlay_target_label(&id, "webview");
     if let Some(win) = app_handle.get_webview_window(&label) {
-        win.close().map_err(|e| e.to_string())?;
+        let _ = win.close();
     }
     close_overlay_control_window(&app_handle, &id, "webview");
     let _ = app_handle.emit(

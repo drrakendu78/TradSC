@@ -1,52 +1,97 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
+import { invoke } from "@tauri-apps/api/core";
 import AppRouter from "./components/utils/routes";
 import { LazyMotion, domAnimation, MotionConfig, useReducedMotion } from "framer-motion";
-import './index.css';
+import "./index.css";
 import { ThemeProvider } from "@/components/utils/theme-provider";
 import { BorderBeam } from "@/components/magicui/border-beam";
 import { SecurityWarning } from "@/components/custom/SecurityWarning";
 import AdminElevateButton from "@/components/custom/AdminElevateButton";
 import { ErrorBoundary } from "@/components/custom/ErrorBoundary";
 import { SplashScreen } from "@/components/custom/SplashScreen";
+import { useCompanionBridge } from "@/hooks/useCompanionBridge";
+import { isTauri } from "@/utils/tauri-helpers";
 
+const COMPANION_ENABLED_KEY = "companionServerEnabled";
+const DEFAULT_COMPANION_PORT = 47823;
 
-// Helper pour détecter si on est dans Tauri ou dans un navigateur web
-export const isTauri = (): boolean => {
-  return typeof window !== 'undefined' && '__TAURI__' in window;
-};
-
-// Helper pour détecter si on est sur Vercel (navigateur web direct)
-export const isVercelWeb = (): boolean => {
-  return import.meta.env.VITE_IS_VERCEL === true || import.meta.env.VITE_IS_VERCEL === 'true';
-};
+function setCompanionEnabledState(next: boolean) {
+  window.localStorage.setItem(COMPANION_ENABLED_KEY, String(next));
+  window.dispatchEvent(
+    new CustomEvent("companion-enabled-changed", {
+      detail: { enabled: next },
+    })
+  );
+}
 
 function App() {
   useReducedMotion();
   const [showSplash, setShowSplash] = useState(true);
 
-  // Détecter et traiter les tokens OAuth dans l'URL au démarrage
   useEffect(() => {
     const hash = window.location.hash;
-    if (hash && (hash.includes('access_token') || hash.includes('error=') || hash.includes('code='))) {
-      // Supabase détecte le token automatiquement (detectSessionInUrl: true)
-      // Nettoyer immédiatement l'URL pour ne pas exposer le token
-      window.history.replaceState(null, '', window.location.pathname + '#/');
+    if (hash && (hash.includes("access_token") || hash.includes("error=") || hash.includes("code="))) {
+      window.history.replaceState(null, "", window.location.pathname + "#/");
     }
   }, []);
 
   const isOverlay =
-    window.location.hash.includes('/overlay-view') ||
-    window.location.hash.includes('/overlay-control') ||
-    window.location.hash.includes('/pvp-overlay') ||
-    window.location.hash.includes('/overlay-hub');
+    window.location.hash.includes("/overlay-view") ||
+    window.location.hash.includes("/overlay-control") ||
+    window.location.hash.includes("/pvp-overlay") ||
+    window.location.hash.includes("/overlay-hub");
+
+  useCompanionBridge(!isOverlay);
+
+  useEffect(() => {
+    if (isOverlay || !isTauri()) return;
+
+    const enabled = window.localStorage.getItem(COMPANION_ENABLED_KEY) === "true";
+    if (!enabled) return;
+
+    let cancelled = false;
+
+    const startCompanionWithRetry = async () => {
+      let lastError: unknown = null;
+
+      for (const delay of [0, 450, 1200]) {
+        if (cancelled) return;
+
+        if (delay > 0) {
+          await new Promise((resolve) => window.setTimeout(resolve, delay));
+        }
+
+        try {
+          await invoke("start_companion_server", { port: DEFAULT_COMPANION_PORT });
+          if (!cancelled) {
+            setCompanionEnabledState(true);
+          }
+          return;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+
+      console.error("Impossible de relancer Companion LAN au demarrage:", lastError);
+      if (!cancelled) {
+        setCompanionEnabledState(false);
+      }
+    };
+
+    startCompanionWithRetry().catch(console.error);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOverlay]);
 
   return (
     <>
       {showSplash && !isOverlay && <SplashScreen onComplete={() => setShowSplash(false)} />}
       {(isOverlay || !showSplash) && (
         <>
-          {!isOverlay && <SecurityWarning onContinue={() => { }} />}
+          {!isOverlay && <SecurityWarning onContinue={() => {}} />}
           <AppRouter />
           {!isOverlay && <AdminElevateButton />}
           {!isOverlay && <BorderBeam duration={8} size={150} colorFrom="#FAFAFA" colorTo="#FAFAFA" />}

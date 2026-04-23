@@ -69,6 +69,15 @@ pub fn set_background_service_config(
     Ok(())
 }
 
+/// Retourne si la boucle du service est actuellement en cours d'execution
+#[command]
+pub fn is_background_service_running(
+    state: tauri::State<BackgroundServiceState>,
+) -> Result<bool, String> {
+    let is_running = state.is_running.lock().map_err(|e| e.to_string())?;
+    Ok(*is_running)
+}
+
 /// Démarre le service de tâche de fond (version publique pour usage interne)
 pub async fn start_background_service_internal(
     state: BackgroundServiceState,
@@ -376,4 +385,3 @@ pub fn load_background_service_config(app: AppHandle) -> Result<BackgroundServic
     let json_data = fs::read_to_string(config_file).map_err(|e| e.to_string())?;
     serde_json::from_str(&json_data).map_err(|e| e.to_string())
 }
-

@@ -149,7 +149,7 @@ fn calculate_days_since(date_str: &str) -> Option<i64> {
     let install_date = DateTime::parse_from_rfc3339(date_str).ok()?;
     let now = Utc::now();
     let duration = now.signed_duration_since(install_date.with_timezone(&Utc));
-    Some(duration.num_days())
+    Some(duration.num_days().max(0))
 }
 
 /// Compte le nombre de backups locaux en réutilisant list_character_backups

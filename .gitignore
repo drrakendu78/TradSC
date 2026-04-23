@@ -58,3 +58,5 @@ _nul
 checksums.txt
 latest.json
 PLAN_OVERLAY.md
+.aidesigner/*
+!.aidesigner/.gitkeep

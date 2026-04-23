@@ -4,7 +4,7 @@ use is_elevated::is_elevated;
 use scripts::background_service::{
     get_background_service_config, load_background_service_config, save_background_service_config,
     set_background_service_config, start_background_service, start_background_service_internal,
-    stop_background_service, BackgroundServiceState,
+    stop_background_service, is_background_service_running, BackgroundServiceState,
 };
 use scripts::bindings_functions::{
     delete_bindings_file, import_bindings_file, list_bindings_files, open_bindings_folder,
@@ -32,7 +32,7 @@ use scripts::graphics_settings::{
     get_graphics_presets, apply_graphics_preset,
 };
 use scripts::local_characters_functions::{
-    delete_character, download_character, duplicate_character, get_character_informations,
+    apply_character_to_version, delete_character, download_character, duplicate_character, get_character_informations,
     open_characters_folder,
 };
 use scripts::patchnote::get_latest_commits;
@@ -62,6 +62,10 @@ use scripts::offline_cache::{
 };
 use scripts::overlay::{
     open_overlay_hub, toggle_overlay_hub, is_overlay_hub_open, set_overlay_hub_mode, get_overlay_hub_mode, is_overlay_open, open_overlay, open_webview_overlay, close_overlay, close_webview_overlay, set_overlay_size, set_window_opacity, set_overlay_interaction,
+};
+use scripts::companion_server::{
+    companion_broadcast, companion_send, get_companion_info, start_companion_server,
+    stop_companion_server, set_companion_persistent_token, CompanionState,
 };
 use std::sync::Mutex;
 use tauri::{command, Emitter, Manager};
@@ -399,6 +403,12 @@ pub fn run() {
             let discord_state = DiscordState::default();
             app.manage(discord_state);
 
+            // Initialiser l'état Companion (serveur LAN). Serveur non démarré par défaut :
+            // le front doit appeler start_companion_server quand l'utilisateur active le
+            // switch "Companion LAN" dans les réglages.
+            let companion_state = CompanionState::new(app.handle().clone());
+            app.manage(companion_state);
+
             // Configurer le system tray
             if let Err(e) = setup_system_tray(&app.handle()) {
                 eprintln!("Échec de la configuration du system tray: {}", e);
@@ -445,11 +455,14 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                // Empêcher la fermeture par défaut
-                api.prevent_close();
-                // Cacher la fenêtre dans le tray au lieu de la fermer
-                if let Err(e) = window.hide() {
-                    eprintln!("Échec de la minimisation dans le tray: {}", e);
+                // Seule la fenêtre principale doit être cachée dans le tray au lieu d'être fermée.
+                // Les overlays, le hub et les control windows doivent être réellement détruits
+                // sinon ils restent zombies dans webview_windows() et font ressurgir des cadenas.
+                if window.label() == "main" {
+                    api.prevent_close();
+                    if let Err(e) = window.hide() {
+                        eprintln!("Échec de la minimisation dans le tray: {}", e);
+                    }
                 }
             }
         })
@@ -477,6 +490,7 @@ pub fn run() {
             delete_character,
             open_characters_folder,
             duplicate_character,
+            apply_character_to_version,
             download_character,
             get_characters,
             open_external,
@@ -501,6 +515,7 @@ pub fn run() {
             open_bindings_folder,
             refresh_bindings,
             get_background_service_config,
+            is_background_service_running,
             set_background_service_config,
             start_background_service,
             stop_background_service,
@@ -570,6 +585,12 @@ pub fn run() {
             set_overlay_size,
             set_window_opacity,
             set_overlay_interaction,
+            start_companion_server,
+            stop_companion_server,
+            get_companion_info,
+            set_companion_persistent_token,
+            companion_broadcast,
+            companion_send,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

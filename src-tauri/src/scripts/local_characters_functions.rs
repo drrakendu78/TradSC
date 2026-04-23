@@ -164,6 +164,52 @@ pub fn duplicate_character(character_path: String) -> Result<bool, String> {
 }
 
 #[command]
+pub fn apply_character_to_version(character_path: String, version: String) -> Result<bool, String> {
+    let versions = get_star_citizen_versions();
+    let source = Path::new(&character_path);
+
+    if !source.exists() {
+        return Err(format!("Le fichier '{}' n'existe pas.", character_path));
+    }
+
+    let version_info = versions
+        .versions
+        .get(&version)
+        .ok_or_else(|| format!("Version {} non trouvée", version))?;
+
+    let file_name = source
+        .file_name()
+        .ok_or_else(|| "Nom de fichier invalide".to_string())?;
+
+    let dest_dir = Path::new(&version_info.path)
+        .join("user")
+        .join("client")
+        .join("0")
+        .join("customcharacters");
+
+    if !dest_dir.exists() {
+        fs::create_dir_all(&dest_dir).map_err(|e| {
+            format!(
+                "Erreur lors de la création du dossier '{}': {}",
+                dest_dir.display(),
+                e
+            )
+        })?;
+    }
+
+    let dest_file = dest_dir.join(file_name);
+    fs::copy(source, &dest_file).map_err(|e| {
+        format!(
+            "Erreur lors de la copie vers '{}': {}",
+            dest_file.display(),
+            e
+        )
+    })?;
+
+    Ok(true)
+}
+
+#[command]
 pub fn download_character(dna_url: String, title: String) -> Result<bool, String> {
     let versions = get_star_citizen_versions();
     let first = versions

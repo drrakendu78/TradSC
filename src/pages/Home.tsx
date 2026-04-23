@@ -136,6 +136,7 @@ function QuickAction({ to, icon, title, description, color, index }: QuickAction
 }
 
 const LAUNCHER_CACHE_KEY = 'startradfr_launcher_status';
+const PLAYTIME_CACHE_KEY = 'startradfr_playtime_cache';
 const AMBILIGHT_PRESET_STORAGE_KEY = 'ambilightPreset';
 type AmbilightPreset = 'soft' | 'cinema' | 'intense';
 
@@ -216,11 +217,19 @@ function getCachedLauncherStatus(): LauncherStatus {
     return { installed: false, path: null };
 }
 
+function getCachedPlaytime(): PlaytimeStats | null {
+    try {
+        const cached = localStorage.getItem(PLAYTIME_CACHE_KEY);
+        if (cached) return JSON.parse(cached) as PlaytimeStats;
+    } catch {}
+    return null;
+}
+
 function Home() {
     const [showContent, setShowContent] = useState(true);
     const [isInTauri] = useState(() => isTauri());
     const [launcherStatus, setLauncherStatus] = useState<LauncherStatus>(() => getCachedLauncherStatus());
-    const [playtime, setPlaytime] = useState<PlaytimeStats | null>(null);
+    const [playtime, setPlaytime] = useState<PlaytimeStats | null>(() => getCachedPlaytime());
     const [launchingLauncher, setLaunchingLauncher] = useState(false);
     const [isBackgroundVideoEnabled, setIsBackgroundVideoEnabled] = useState(() => {
         const saved = localStorage.getItem('backgroundVideoEnabled');
@@ -279,6 +288,7 @@ function Home() {
         }).catch(() => {});
 
         tauriInvoke<PlaytimeStats>('get_playtime').then((stats) => {
+            try { localStorage.setItem(PLAYTIME_CACHE_KEY, JSON.stringify(stats)); } catch {}
             setPlaytime(stats);
         }).catch(() => {});
     }, []);

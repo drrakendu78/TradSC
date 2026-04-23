@@ -149,6 +149,13 @@ const OverlayHub = () => {
     const [activeOverlayIds, setActiveOverlayIds] = useState<Set<string>>(new Set());
     const [customPos, setCustomPos] = useState<HubPosition | null>(() => loadSavedHubPosition());
     const [dockSide, setDockSide] = useState<"top" | "left" | "right">("top");
+    // Independent anchors inside the monitor. `hAlign` decides where the toggle
+    // sits horizontally and which way a horizontal dock grows; `vAlign` does the
+    // same on the Y axis. They're decoupled from `dockSide` so corner presets
+    // (top-left, bottom-right, …) can use a horizontal dock *anchored* at a
+    // corner rather than morphing into the vertical-side layout.
+    const [hAlign, setHAlign] = useState<"left" | "center" | "right">("center");
+    const [vAlign, setVAlign] = useState<"top" | "center" | "bottom">("top");
     const [preset, setPreset] = useState<HubPreset>(() => loadHubPreset());
     const [contentSize, setContentSize] = useState({
         collapsedW: HUB_COLLAPSED_WIDTH,
@@ -186,6 +193,32 @@ const OverlayHub = () => {
 
         return () => {
             mounted = false;
+        };
+    }, []);
+
+    // Sync with remote mode changes (typically triggered by the companion).
+    // The local lock button path goes through `setHubMode` which already
+    // updates state, but an external call to `set_overlay_hub_mode` would
+    // leave this window stale — the dock wouldn't re-expand after a remote
+    // unlock, which is exactly the "I need to hide/show the hub to see it
+    // again" symptom reported from the companion.
+    useEffect(() => {
+        let unlisten: (() => void) | undefined;
+        listen<boolean>("overlay_hub_mode_changed", (event) => {
+            const next = Boolean(event.payload);
+            setIsEditMode(next);
+            if (next) {
+                openHub();
+            } else {
+                closeHub();
+            }
+        })
+            .then((fn) => {
+                unlisten = fn;
+            })
+            .catch(console.error);
+        return () => {
+            if (unlisten) unlisten();
         };
     }, []);
 
@@ -237,10 +270,19 @@ const OverlayHub = () => {
     };
 
     const openIntentRef = useRef(false);
+    // Mirrors `expanded` so handlers called from stale closures (listeners set
+    // up on mount, timers captured during one render) read the live value.
+    // Without this, unlocking via the companion could hit the `setMenuVisible`
+    // branch while the window was actually collapsed, leaving the dock empty.
+    const expandedRef = useRef(expanded);
+    useEffect(() => {
+        expandedRef.current = expanded;
+    }, [expanded]);
+
     const openHub = () => {
         clearCollapseTimer();
         openIntentRef.current = true;
-        if (!expanded) {
+        if (!expandedRef.current) {
             setExpanded(true);
             return;
         }
@@ -382,6 +424,8 @@ const OverlayHub = () => {
         const syncWindowGeometry = async () => {
             let width = expanded ? contentSize.expandedW : contentSize.collapsedW;
             let height = expanded ? contentSize.expandedH : contentSize.collapsedH;
+            const collapsedW = contentSize.collapsedW;
+            const collapsedH = contentSize.collapsedH;
 
             setIsGeometrySyncing(true);
 
@@ -406,9 +450,16 @@ const OverlayHub = () => {
 
             let targetPos: LogicalPosition | null = null;
 
-            if (preset !== "free" && monitor) {
-                // Preset-locked position: snap to the chosen corner/edge of the
-                // current monitor, ignoring the custom drag position.
+            if ((preset !== "free" || customPos) && monitor) {
+                // Anchor-based positioning. The anchor is the top-left corner of
+                // the collapsed window at its "home" position for the current
+                // alignment — either the monitor-edge snap (preset mode) or the
+                // user-dragged customPos (free mode). We then derive the real
+                // window position by shifting that anchor so the side the user
+                // cares about (corner or center) stays visually stable across
+                // the expand/collapse toggle. Without this, expanding near the
+                // right edge used to clamp the left edge and let the toggle
+                // drift toward the centre.
                 const scale = monitor.scaleFactor || 1;
                 const lx = monitor.position.x / scale;
                 const ly = monitor.position.y / scale;
@@ -416,60 +467,35 @@ const OverlayHub = () => {
                 const lh = monitor.size.height / scale;
                 const m = HUB_EDGE_MARGIN;
 
-                let px = lx + (lw - width) / 2;
-                let py = ly + HUB_TOP_OFFSET;
+                let anchorX: number;
+                let anchorY: number;
 
-                switch (preset) {
-                    case "top":
-                        px = lx + (lw - width) / 2;
-                        py = ly + m;
-                        break;
-                    case "top-left":
-                        px = lx + m;
-                        py = ly + m;
-                        break;
-                    case "top-right":
-                        px = lx + lw - width - m;
-                        py = ly + m;
-                        break;
-                    case "left":
-                        px = lx + m;
-                        py = ly + (lh - height) / 2;
-                        break;
-                    case "right":
-                        px = lx + lw - width - m;
-                        py = ly + (lh - height) / 2;
-                        break;
-                    case "bottom-left":
-                        px = lx + m;
-                        py = ly + lh - height - m;
-                        break;
-                    case "bottom-right":
-                        px = lx + lw - width - m;
-                        py = ly + lh - height - m;
-                        break;
+                if (preset === "free" && customPos) {
+                    anchorX = customPos.x;
+                    anchorY = customPos.y;
+                } else {
+                    if (hAlign === "left") anchorX = lx + m;
+                    else if (hAlign === "right") anchorX = lx + lw - collapsedW - m;
+                    else anchorX = lx + (lw - collapsedW) / 2;
+
+                    if (vAlign === "top") anchorY = ly + m;
+                    else if (vAlign === "bottom") anchorY = ly + lh - collapsedH - m;
+                    else anchorY = ly + (lh - collapsedH) / 2;
                 }
+
+                let px: number;
+                let py: number;
+                if (hAlign === "right") px = anchorX + collapsedW - width;
+                else if (hAlign === "center") px = anchorX + (collapsedW - width) / 2;
+                else px = anchorX;
+
+                if (vAlign === "bottom") py = anchorY + collapsedH - height;
+                else if (vAlign === "center") py = anchorY + (collapsedH - height) / 2;
+                else py = anchorY;
 
                 px = Math.max(lx, Math.min(px, lx + lw - width));
                 py = Math.max(ly, Math.min(py, ly + lh - height));
                 targetPos = new LogicalPosition(Math.round(px), Math.round(py));
-            } else if (customPos) {
-                // User-dragged position: honor it, clamped to the current monitor
-                // so it never ends up off-screen (resolution/DPI change, monitor
-                // unplug). Overlay stays on the same screen as the game — no reason
-                // to let it wander to another display.
-                let cx = customPos.x;
-                let cy = customPos.y;
-                if (monitor) {
-                    const s = monitor.scaleFactor || 1;
-                    const lx = monitor.position.x / s;
-                    const ly = monitor.position.y / s;
-                    const lw = monitor.size.width / s;
-                    const lh = monitor.size.height / s;
-                    cx = Math.max(lx, Math.min(cx, lx + lw - width));
-                    cy = Math.max(ly, Math.min(cy, ly + lh - height));
-                }
-                targetPos = new LogicalPosition(Math.round(cx), Math.round(cy));
             } else if (monitor) {
                 // Default: centered horizontally, glued to the top of the monitor.
                 const scale = monitor.scaleFactor || 1;
@@ -508,7 +534,7 @@ const OverlayHub = () => {
                     setIsGeometrySyncing(false);
                 }
             });
-    }, [expanded, contentSize, customPos, hubWindow, preset]);
+    }, [expanded, contentSize, customPos, hubWindow, preset, hAlign, vAlign]);
 
     // Measure the real rendered pills and use those dimensions for the Tauri window.
     // This keeps the hub correctly sized regardless of DPI, font rendering, or future
@@ -577,18 +603,54 @@ const OverlayHub = () => {
     // right edge → dock opens to the left, otherwise horizontal.
     useEffect(() => {
         if (preset !== "free") {
-            if (preset === "left" || preset === "top-left" || preset === "bottom-left") {
-                setDockSide("left");
-            } else if (preset === "right" || preset === "top-right" || preset === "bottom-right") {
-                setDockSide("right");
-            } else {
-                setDockSide("top");
+            // Only the pure-side presets keep the vertical dock. Corner presets
+            // get a horizontal dock anchored at the corner — otherwise picking
+            // « top-right » would slide items down the right edge instead of
+            // hugging the top-right corner like the user asks for.
+            switch (preset) {
+                case "top":
+                    setDockSide("top");
+                    setHAlign("center");
+                    setVAlign("top");
+                    break;
+                case "top-left":
+                    setDockSide("top");
+                    setHAlign("left");
+                    setVAlign("top");
+                    break;
+                case "top-right":
+                    setDockSide("top");
+                    setHAlign("right");
+                    setVAlign("top");
+                    break;
+                case "left":
+                    setDockSide("left");
+                    setHAlign("left");
+                    setVAlign("center");
+                    break;
+                case "right":
+                    setDockSide("right");
+                    setHAlign("right");
+                    setVAlign("center");
+                    break;
+                case "bottom-left":
+                    setDockSide("top");
+                    setHAlign("left");
+                    setVAlign("bottom");
+                    break;
+                case "bottom-right":
+                    setDockSide("top");
+                    setHAlign("right");
+                    setVAlign("bottom");
+                    break;
             }
             return;
         }
 
         if (!customPos) {
             setDockSide("top");
+            setHAlign("center");
+            setVAlign("top");
             return;
         }
         let cancelled = false;
@@ -597,19 +659,34 @@ const OverlayHub = () => {
                 if (cancelled || !m) return;
                 const scale = m.scaleFactor || 1;
                 const lx = m.position.x / scale;
+                const ly = m.position.y / scale;
                 const lw = m.size.width / scale;
+                const lh = m.size.height / scale;
                 const hubCenterX = customPos.x + contentSize.collapsedW / 2;
-                const pct = (hubCenterX - lx) / lw;
-                let next: "top" | "left" | "right" = "top";
-                if (pct < 0.15) next = "left";
-                else if (pct > 0.85) next = "right";
-                setDockSide(next);
+                const hubCenterY = customPos.y + contentSize.collapsedH / 2;
+                const pctX = (hubCenterX - lx) / lw;
+                const pctY = (hubCenterY - ly) / lh;
+                let nextDock: "top" | "left" | "right" = "top";
+                let nextH: "left" | "center" | "right" = "center";
+                let nextV: "top" | "center" | "bottom" = "top";
+                if (pctX < 0.15) {
+                    nextDock = "left";
+                    nextH = "left";
+                } else if (pctX > 0.85) {
+                    nextDock = "right";
+                    nextH = "right";
+                }
+                if (pctY > 0.7) nextV = "bottom";
+                else if (pctY > 0.3) nextV = "center";
+                setDockSide(nextDock);
+                setHAlign(nextH);
+                setVAlign(nextV);
             })
             .catch(() => undefined);
         return () => {
             cancelled = true;
         };
-    }, [customPos, contentSize.collapsedW, preset]);
+    }, [customPos, contentSize.collapsedW, contentSize.collapsedH, preset]);
 
     // Track user-driven window moves and persist the position so the hub reopens
     // where the user placed it. Programmatic moves (sync effect) are ignored via
@@ -673,7 +750,7 @@ const OverlayHub = () => {
         hubWindow.startDragging().catch(console.error);
     };
 
-    const handlePillDoubleClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    const handlePillDoubleClick = async (event: ReactMouseEvent<HTMLDivElement>) => {
         if (preset !== "free") return;
         const target = event.target as HTMLElement;
         if (target.closest("button, input")) return;
@@ -683,6 +760,22 @@ const OverlayHub = () => {
             window.localStorage.removeItem(HUB_POSITION_STORAGE_KEY);
         } catch {
             /* ignore */
+        }
+        // Geometry sync in free mode reads the live window position — nulling
+        // customPos alone would keep the hub wherever the user dragged it.
+        // Move the window explicitly so the recenter intent is honored.
+        const monitor = await currentMonitor().catch(() => null);
+        if (monitor) {
+            const scale = monitor.scaleFactor || 1;
+            const lx = monitor.position.x / scale;
+            const ly = monitor.position.y / scale;
+            const lw = monitor.size.width / scale;
+            const cx = lx + (lw - contentSize.collapsedW) / 2;
+            const cy = ly + HUB_TOP_OFFSET;
+            suppressMoveUntilRef.current = Date.now() + 800;
+            await hubWindow
+                .setPosition(new LogicalPosition(Math.round(cx), Math.round(cy)))
+                .catch(console.error);
         }
     };
 
@@ -899,33 +992,66 @@ const OverlayHub = () => {
     const lockButtonDisabled = isLockRearming;
 
     const isVertical = dockSide !== "top";
+    const isRightDock = dockSide === "right";
+    const isBottomAnchored = !isVertical && vAlign === "bottom";
+    const isRightAligned = !isVertical && hAlign === "right";
+    const isLeftAligned = !isVertical && hAlign === "left";
+    // In vertical mode we use compact round icon buttons. We also opt in for
+    // corner presets so a « top-right » bar doesn't balloon into an enormous
+    // labelled strip that shoves the toggle off-corner.
+    const compactItems = isVertical || isLeftAligned || isRightAligned;
 
-    // Keep the visual layout simple: in vertical mode the toggle is on the left
-    // and the dock extends to its right. The clamping in the geometry sync keeps
-    // the whole window on the current monitor, so a hub dropped against the right
-    // edge is shifted left just enough to fit — no anchor gymnastics required.
+    // Horizontal mode: the toggle is on top (vAlign="top"/"center") or at the
+    // bottom (vAlign="bottom"), and hAlign decides whether the whole stack is
+    // flushed left / centered / flushed right. Without anchoring the stack on
+    // the same corner as the window, expanding the dock would let the toggle
+    // drift away from the corner the user picked.
+    const hJustify = isRightAligned ? "justify-end" : isLeftAligned ? "justify-start" : "justify-center";
+    const vItems = isBottomAnchored ? "items-end" : "items-start";
     const outerAlignClass = isVertical
-        ? "items-center justify-start"
-        : "items-start justify-center";
+        ? isRightDock
+            ? "items-center justify-end"
+            : "items-center justify-start"
+        : `${vItems} ${hJustify}`;
+    const stackItemsClass = isRightAligned ? "items-end" : isLeftAligned ? "items-start" : "items-center";
     const stackClass = isVertical
-        ? "flex flex-row items-center pointer-events-none"
-        : "pt-0 flex flex-col items-center pointer-events-none w-full";
+        ? `flex ${isRightDock ? "flex-row-reverse" : "flex-row"} items-center pointer-events-none`
+        : `flex ${isBottomAnchored ? "flex-col-reverse" : "flex-col"} ${stackItemsClass} pointer-events-none`;
     const pillInnerFlex = isVertical
         ? "flex flex-col items-center gap-1.5"
         : "flex items-center gap-1.5";
-    // In vertical mode we drop the labels entirely and render compact round
-    // icon buttons — a long column of wide pills (« VERSEGUIDE », « SHIPMAPS »…)
-    // makes the overlay huge and unreadable next to the desktop.
     const dockInnerFlex = isVertical
         ? "flex flex-col items-center gap-1.5"
         : "flex items-center gap-1.5";
     const dockWrapperSpacing = isVertical
-        ? "ml-1 flex flex-row items-center"
-        : "mt-1 flex flex-col items-center";
-    const dockAnimOrigin = isVertical ? "origin-left" : "origin-top";
-    const dockClosedOffset = isVertical ? "-translate-x-1" : "-translate-y-1";
+        ? isRightDock
+            ? "mr-1 flex flex-row items-center"
+            : "ml-1 flex flex-row items-center"
+        : isBottomAnchored
+          ? "mb-1 flex flex-col items-center"
+          : "mt-1 flex flex-col items-center";
+    const dockAnimOrigin = isVertical
+        ? isRightDock
+            ? "origin-right"
+            : "origin-left"
+        : isBottomAnchored
+          ? "origin-bottom"
+          : "origin-top";
+    const dockClosedOffset = isVertical
+        ? isRightDock
+            ? "translate-x-1"
+            : "-translate-x-1"
+        : isBottomAnchored
+          ? "translate-y-1"
+          : "-translate-y-1";
     const dockScrollerOverflow = isVertical ? "overflow-y-auto" : "overflow-x-auto";
-    const itemClosedOffset = isVertical ? "-translate-x-1" : "-translate-y-1";
+    const itemClosedOffset = isVertical
+        ? isRightDock
+            ? "translate-x-1"
+            : "-translate-x-1"
+        : isBottomAnchored
+          ? "translate-y-1"
+          : "-translate-y-1";
     const itemOpenOffset = isVertical ? "translate-x-0" : "translate-y-0";
 
     return (
@@ -1094,7 +1220,7 @@ const OverlayHub = () => {
                                 const tooltip = isActive
                                     ? `${item.label} actif (clic = fermer)`
                                     : `Ouvrir ${item.label} en overlay`;
-                                if (isVertical) {
+                                if (compactItems) {
                                     return (
                                         <button
                                             key={item.id}

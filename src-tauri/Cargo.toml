@@ -1,6 +1,6 @@
 [package]
 name = "startradfr"
-version = "4.0.1"
+version = "4.0.2"
 description = "StarTrad FR - Traduction franÃ§aise pour Star Citizen"
 authors = ["Drrakendu78"]
 edition = "2021"
@@ -28,9 +28,10 @@ reqwest = { version = "0.11", features = ["json", "blocking"] }
 chrono = "0.4"
 window-vibrancy = "0.6.0"
 tokio = { version = "1.40.0", features = ["full"] }
-axum = "0.7"
+axum = { version = "0.7", features = ["ws"] }
 tower = "0.4"
 tower-http = { version = "0.5", features = ["cors"] }
+futures-util = "0.3"
 urlencoding = "2.1.3"
 tauri-plugin-dialog = "2.3"
 tauri-plugin-notification = "2"

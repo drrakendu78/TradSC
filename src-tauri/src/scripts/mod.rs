@@ -21,3 +21,4 @@ pub mod oauth_callback;
 pub mod discord_presence;
 pub mod offline_cache;
 pub mod overlay;
+pub mod companion_server;

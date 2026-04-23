@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#0a0a0c">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>StarTrad FR Companion</title>
+  <link rel="manifest" href="/manifest.json?v=3">
+  <link rel="icon" type="image/png" href="/logo.png?v=3">
+  <link rel="apple-touch-icon" href="/logo.png?v=3">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/app.css?v=3">
+  <style>
+    .pvp-card { padding: 22px; display: flex; flex-direction: column; gap: 12px; }
+    .pvp-phase-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+    .pvp-phase-name {
+      font-family: var(--serif);
+      font-size: 32px;
+      line-height: 1;
+      letter-spacing: -0.015em;
+      font-weight: 400;
+    }
+    .pvp-phase-name.red { color: var(--danger); }
+    .pvp-phase-name.green { color: var(--accent); }
+    .pvp-phase-name.black { color: var(--warning); }
+    .pvp-timer {
+      font-family: var(--mono);
+      font-variant-numeric: tabular-nums;
+      font-size: 40px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      color: var(--ink);
+      line-height: 1;
+    }
+    .pvp-sub { font-size: 12px; color: var(--muted); }
+    .pvp-fill.red { background: linear-gradient(90deg, #dc2626, #f87171); }
+    .pvp-fill.green { background: linear-gradient(90deg, #059669, #34d399); }
+    .pvp-fill.black { background: linear-gradient(90deg, #ca8a04, #fbbf24); }
+    .progress-bar.pvp-fill { transition: width 1s linear; }
+
+    .controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .control-tile {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-tile);
+      padding: 14px 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      text-align: left;
+      min-height: 118px;
+      transition: border-color .2s var(--ease), transform .15s var(--ease);
+    }
+    .control-tile:active { transform: scale(0.98); }
+    .control-tile.active { border-color: color-mix(in oklab, var(--accent) 50%, transparent); background: color-mix(in oklab, var(--accent) 6%, var(--surface)); }
+    .control-tile.edit-mode { border-color: color-mix(in oklab, var(--warm) 50%, transparent); background: color-mix(in oklab, var(--warm) 6%, var(--surface)); }
+    .control-label {
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .control-tile.active .control-label { color: var(--accent); }
+    .control-tile.edit-mode .control-label { color: var(--warm); }
+    .control-title { font-family: var(--serif); font-size: 19px; font-weight: 400; letter-spacing: -0.01em; color: var(--ink); line-height: 1.1; }
+    .control-sub { font-size: 11px; color: var(--muted); }
+
+    .service-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-card);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-bottom: 12px;
+    }
+    .service-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .service-title {
+      font-family: var(--serif);
+      font-size: 24px;
+      font-weight: 400;
+      line-height: 1;
+      letter-spacing: -0.015em;
+    }
+    .service-sub {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+      line-height: 1.45;
+    }
+    .service-meta {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .service-stat {
+      border: 1px solid var(--line);
+      background: var(--bg-2);
+      border-radius: 14px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .service-stat-label {
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .service-stat-value {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+    .service-range-block {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .service-range-head,
+    .overlay-slider-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .range-input {
+      width: 100%;
+      accent-color: var(--ink);
+    }
+    .range-value {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--ink);
+    }
+      .service-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        width: 100%;
+      }
+      .service-actions .btn { flex: 1 1 0; }
+
+    #overlayContainer {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .overlay-tile {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-tile);
+      padding: 12px 13px;
+      text-align: left;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 8px;
+      min-height: 118px;
+      transition: border-color .2s var(--ease), transform .15s var(--ease);
+      box-shadow: 0 10px 24px -20px rgba(0,0,0,.18);
+      cursor: pointer;
+      min-width: 0;
+    }
+    .overlay-tile:active { transform: scale(0.985); }
+    .overlay-tile.active { border-color: color-mix(in oklab, var(--accent) 50%, transparent); background: color-mix(in oklab, var(--accent) 6%, var(--surface)); }
+    .overlay-main {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      width: 100%;
+    }
+    .overlay-tile-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+    .overlay-tile-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--ink);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .overlay-tile-meta { font-size: 10px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+    .overlay-slider-block {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      width: 100%;
+      padding-top: 4px;
+    }
+      .overlay-slider-block.compact {
+        margin-top: -2px;
+      }
+
+    .count-pill {
+      font-family: var(--mono);
+      font-variant-numeric: tabular-nums;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .companion-meta-card {
+      background: color-mix(in oklab, var(--surface) 96%, transparent);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-card);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .meta-stat {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--bg-2);
+      padding: 12px 13px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+    .meta-stat-label {
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 700;
+    }
+    .meta-stat-value {
+      font-family: var(--serif);
+      font-size: 22px;
+      line-height: 1;
+      color: var(--ink);
+    }
+    .meta-stat-sub {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.45;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    @media (min-width: 720px) {
+      .pvp-phase-name { font-size: 40px; }
+      .pvp-timer { font-size: 52px; }
+      #overlayContainer { gap: 12px; }
+      .controls-grid { grid-template-columns: repeat(2, 1fr); max-width: 480px; }
+      .service-head { align-items: center; }
+      .meta-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    }
+    @media (min-width: 1024px) {
+      .pvp-phase-name { font-size: 44px; }
+      .pvp-timer { font-size: 60px; }
+      #overlayContainer { grid-template-columns: repeat(2, 1fr); }
+      .controls-grid { max-width: none; }
+    }
+    @media (orientation: landscape) and (max-height: 520px) {
+      .pvp-card { padding: 16px; }
+      .pvp-phase-name { font-size: 22px; }
+      .pvp-timer { font-size: 28px; }
+      .controls-grid { grid-template-columns: repeat(4, 1fr); }
+      .service-card { padding: 14px; gap: 10px; }
+      .service-title { font-size: 20px; }
+      #overlayContainer { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+      .overlay-tile { padding: 10px 11px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="page-header">
+      <div class="brand">
+        <div class="brand-mark"><img src="/logo.png" alt="StarTrad FR"></div>
+        <div class="brand-text">
+          <span class="brand-name">StarTrad FR</span>
+          <span class="brand-sub">Companion · LAN</span>
+        </div>
+      </div>
+      <div class="status-chip">
+        <span class="status-dot connecting" id="dot"></span>
+        <span id="statusText">Connexion</span>
+      </div>
+    </header>
+
+    <section class="section fade-up">
+      <div class="section-head">
+        <h2 class="section-title">Contested Zone</h2>
+        <span class="section-kicker" id="pvpKicker">-</span>
+      </div>
+      <div id="pvpBlock"><div class="skel"></div></div>
+    </section>
+
+    <section class="section fade-up" style="animation-delay:.05s">
+      <div class="section-head">
+        <h2 class="section-title">Commandes</h2>
+        <span class="count-pill" id="serviceSummary">-</span>
+      </div>
+      <div id="serviceBlock"></div>
+
+      <div class="section-head" style="padding-top:4px">
+        <h2 class="section-title">Overlays</h2>
+        <span class="count-pill" id="overlayCount">-</span>
+      </div>
+      <div class="controls-grid" id="controls"></div>
+      <div class="grid-1" id="overlayContainer"></div>
+    </section>
+
+    <section class="section fade-up" style="animation-delay:.08s">
+      <div class="section-head">
+        <h2 class="section-title">Temps de jeux</h2>
+      </div>
+      <div id="metaBlock"></div>
+    </section>
+  </div>
+
+  <nav class="dock" aria-label="Navigation">
+    <a href="/" class="dock-item active" id="navDash" aria-label="Dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12 12 3l9 9"/><path d="M5 10v10h14V10"/></svg>
+      <span class="dock-label">Dashboard</span>
+    </a>
+    <a href="/traduction" class="dock-item" id="navTrad" aria-label="Traduction">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
+      <span class="dock-label">Traduction</span>
+    </a>
+    <a href="/outils" class="dock-item" id="navTools" aria-label="Outils">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 1 1.4 0l1.6 1.6a1 1 0 0 1 0 1.4l-7.8 7.8-3.1.8.8-3.1 7.1-7.1Z"></path><path d="M16 4l4 4"></path><path d="M12 20h9"></path></svg>
+      <span class="dock-label">Outils</span>
+    </a>
+    <a href="/infos" class="dock-item" id="navInfos" aria-label="Infos">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+      <span class="dock-label">Infos</span>
+    </a>
+  </nav>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="/companion.js?v=3"></script>
+  <script>
+    (function() {
+      var token = new URLSearchParams(location.search).get("token") || "";
+      var wsUrl = (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws?token=" + encodeURIComponent(token);
+      var ws = null;
+      var reconnectTimer = null;
+      var backoff = 500;
+      var ready = false;
+      var CACHE_KEY = "startrad-companion-dashboard-cache-v1";
+      var state = {
+        hubOpen: false,
+        editMode: true,
+        launcher: { installed: false },
+        service: { enabled: false, check_interval_minutes: 5, running: false },
+        stats: { translations_installed_count: 0, translated_versions: [], local_backups_count: 0, days_since_install: null },
+        playtime: { total_hours: 0, formatted: "0min", session_count: 0 },
+        overlays: [],
+        pvp: null
+      };
+      var pvpTicker = null;
+      var pvpRendered = false;
+        function el(id) { return document.getElementById(id); }
+
+      function saveCache() {
+        try {
+          localStorage.setItem(CACHE_KEY, JSON.stringify({
+            hubOpen: !!state.hubOpen,
+            editMode: !!state.editMode,
+            launcher: state.launcher || { installed: false },
+            service: state.service || { enabled: false, check_interval_minutes: 5, running: false },
+            stats: state.stats || null,
+            playtime: state.playtime || null,
+            overlays: Array.isArray(state.overlays) ? state.overlays : [],
+            pvp: state.pvp || null,
+            ready: !!ready
+          }));
+        } catch (e) {}
+      }
+
+      function loadCache() {
+        try {
+          var raw = localStorage.getItem(CACHE_KEY);
+          if (!raw) return;
+          var cached = JSON.parse(raw);
+          if (!cached || typeof cached !== "object") return;
+          state.hubOpen = !!cached.hubOpen;
+          state.editMode = !!cached.editMode;
+          state.launcher = cached.launcher || state.launcher;
+          state.service = cached.service || state.service;
+          state.stats = cached.stats || state.stats;
+          state.playtime = cached.playtime || state.playtime;
+          state.overlays = Array.isArray(cached.overlays) ? cached.overlays : state.overlays;
+          state.pvp = cached.pvp || state.pvp;
+          ready = !!cached.ready || state.overlays.length > 0 || !!state.stats || !!state.playtime;
+        } catch (e) {}
+      }
+
+      function setStatus(cls, text) {
+        el("dot").className = "status-dot " + (cls || "");
+        el("statusText").textContent = text;
+      }
+
+      function toast(msg, isErr) {
+        var t = el("toast");
+        t.textContent = msg;
+        t.className = "toast show" + (isErr ? " err" : "");
+        setTimeout(function() { t.className = "toast" + (isErr ? " err" : ""); }, 1900);
+      }
+
+      function send(msg) {
+        if (!ws || ws.readyState !== 1) {
+          toast("Deconnecte", true);
+          return false;
+        }
+        ws.send(JSON.stringify(msg));
+        return true;
+      }
+
+      function escapeHtml(s) {
+        return String(s == null ? "" : s).replace(/[&<>\"']/g, function(c) {
+          return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c];
+        });
+      }
+
+      function fmtHMS(sec) {
+        if (!Number.isFinite(sec) || sec < 0) sec = 0;
+        var h = Math.floor(sec / 3600);
+        var m = Math.floor((sec % 3600) / 60);
+        var s = Math.floor(sec % 60);
+        var pad = function(n) { return n < 10 ? "0" + n : String(n); };
+        return pad(h) + ":" + pad(m) + ":" + pad(s);
+      }
+
+      function renderControls() {
+        el("controls").innerHTML =
+          '<button class="control-tile ' + (state.hubOpen ? "active" : "") + '" data-act="hub.toggle">' +
+            '<span class="control-label">Hub</span>' +
+            '<span class="control-title">' + (state.hubOpen ? "Ouvert" : "Ferme") + "</span>" +
+            '<span class="control-sub">' + (state.hubOpen ? "Tap pour fermer" : "Tap pour ouvrir") + "</span>" +
+          "</button>" +
+          '<button class="control-tile ' + (state.editMode ? "edit-mode" : "") + '" data-act="hub.mode">' +
+            '<span class="control-label">Mode</span>' +
+            '<span class="control-title">' + (state.editMode ? "Edition" : "Verrouille") + "</span>" +
+            '<span class="control-sub">' + (state.editMode ? "Libre · drag ON" : "Click-through") + "</span>" +
+          "</button>";
+
+        el("controls").querySelectorAll("[data-act]").forEach(function(button) {
+          button.addEventListener("click", function() {
+            var act = button.dataset.act;
+            if (act === "hub.toggle") send({ type: "hub.toggle" });
+            if (act === "hub.mode") send({ type: "hub.set_mode", editMode: !state.editMode });
+          });
+        });
+      }
+
+      function renderService() {
+        var host = el("serviceBlock");
+        var svc = state.service || { enabled: false, check_interval_minutes: 5, running: false };
+        var installed = !!(state.launcher && state.launcher.installed);
+        var serviceLabel = svc.running ? "run" : (svc.enabled ? "boot" : "off");
+        el("serviceSummary").textContent = "launcher " + (installed ? "ok" : "absent") + " · service " + serviceLabel;
+
+        host.innerHTML =
+          '<div class="service-card">' +
+            '<div class="service-head">' +
+              "<div>" +
+                '<div class="service-title">Session PC</div>' +
+                '<div class="service-sub">Lance RSI et pilote l auto-check directement depuis le telephone.</div>' +
+              "</div>" +
+              '<span class="pill ' + (svc.running ? "accent" : svc.enabled ? "warn" : "muted") + '">' + (svc.running ? "RUN" : svc.enabled ? "BOOT" : "OFF") + "</span>" +
+            "</div>" +
+            '<div class="service-meta">' +
+              '<div class="service-stat"><span class="service-stat-label">Launcher</span><span class="service-stat-value">' + (installed ? "RSI pret" : "Introuvable") + "</span></div>" +
+              '<div class="service-stat"><span class="service-stat-label">Service</span><span class="service-stat-value">' + (svc.enabled ? "Actif" : "Arrete") + "</span></div>" +
+              '<div class="service-stat"><span class="service-stat-label">Intervalle</span><span class="service-stat-value">' + Number(svc.check_interval_minutes || 5) + " min</span></div>" +
+            "</div>" +
+            '<div class="service-range-block">' +
+              '<div class="service-range-head"><span>Frequence de verification</span><span class="range-value" id="serviceRangeValue">' + Number(svc.check_interval_minutes || 5) + " min</span></div>" +
+              '<input id="serviceInterval" class="range-input" type="range" min="1" max="60" step="1" value="' + Number(svc.check_interval_minutes || 5) + '">' +
+            "</div>" +
+            '<div class="service-actions">' +
+              '<button class="btn primary" id="launchRsiBtn"' + (installed ? "" : " disabled") + ">Lancer Star Citizen</button>" +
+              '<button class="btn ' + (svc.enabled ? "danger" : "accent") + '" id="toggleServiceBtn">' + (svc.enabled ? "Couper auto-check" : "Activer auto-check") + "</button>" +
+            "</div>" +
+          "</div>";
+
+        var launchBtn = el("launchRsiBtn");
+        if (launchBtn) {
+          launchBtn.addEventListener("click", function() {
+            send({ type: "launcher.launch" });
+          });
+        }
+
+        var toggleBtn = el("toggleServiceBtn");
+        if (toggleBtn) {
+          toggleBtn.addEventListener("click", function() {
+            send({ type: "service.set_enabled", enabled: !svc.enabled });
+          });
+        }
+
+        var range = el("serviceInterval");
+        var rangeValue = el("serviceRangeValue");
+        if (range && rangeValue) {
+          range.addEventListener("input", function() {
+            rangeValue.textContent = range.value + " min";
+          });
+          range.addEventListener("change", function() {
+            send({ type: "service.set_interval", minutes: Number(range.value || 5) });
+          });
+        }
+      }
+
+      function renderOverlays() {
+        var host = el("overlayContainer");
+        var n = state.overlays.length;
+        el("overlayCount").textContent = n + " overlay" + (n > 1 ? "s" : "");
+
+        if (!ready) {
+          host.innerHTML = '<div class="skel" style="height:88px"></div><div class="skel" style="height:88px"></div>';
+          return;
+        }
+        if (n === 0) {
+          host.innerHTML = '<div class="empty">Aucun overlay enregistre</div>';
+          return;
+        }
+
+        host.innerHTML = state.overlays.map(function(ov) {
+          var pct = Math.round((Number(ov.opacity || 1) || 1) * 100);
+          return '<div class="overlay-tile ' + (ov.active ? "active" : "") + '" data-id="' + escapeHtml(ov.id) + '" data-type="' + escapeHtml(ov.type) + '">' +
+                   '<div class="overlay-main">' +
+                     '<div class="overlay-tile-info">' +
+                       '<span class="overlay-tile-name">' + escapeHtml(ov.title) + "</span>" +
+                       '<span class="overlay-tile-meta">' + escapeHtml(ov.type || "iframe") + "</span>" +
+                     '</div>' +
+                     '<span class="count-pill">' + pct + '%</span>' +
+                   '</div>' +
+                   '<div class="overlay-slider-block compact">' +
+                     '<div class="overlay-slider-head"><span>Opacite</span><span class="range-value" data-role="opacity-value">' + pct + '%</span></div>' +
+                     '<input class="range-input" data-role="opacity" type="range" min="10" max="100" step="5" value="' + pct + '">' +
+                   '</div>' +
+                 '</div>';
+        }).join("");
+
+        host.querySelectorAll("[data-id]").forEach(function(card) {
+          var id = card.dataset.id;
+          var type = card.dataset.type;
+          var slider = card.querySelector('[data-role="opacity"]');
+          var sliderValue = card.querySelector('[data-role="opacity-value"]');
+
+          if (slider && sliderValue) {
+            var emitOpacity = function() {
+              send({
+                type: "overlay.set_opacity",
+                id: id,
+                overlayType: type,
+                opacity: Number(slider.value || 100) / 100
+              });
+            };
+            ["pointerdown", "mousedown", "touchstart", "click"].forEach(function(eventName) {
+              slider.addEventListener(eventName, function(ev) {
+                ev.stopPropagation();
+              });
+            });
+            slider.addEventListener("input", function() {
+              sliderValue.textContent = slider.value + "%";
+              emitOpacity();
+            });
+            slider.addEventListener("change", function(ev) {
+              ev.stopPropagation();
+              emitOpacity();
+            });
+          }
+          card.addEventListener("click", function() {
+            var ov = state.overlays.find(function(item) { return item.id === id; });
+            if (!ov) return;
+            if (ov.active) {
+              send({ type: "overlay.close", id: id, overlayType: type });
+            } else {
+              send({
+                type: "overlay.open",
+                id: id,
+                overlayType: type,
+                url: ov.url,
+                width: ov.width,
+                height: ov.height,
+                opacity: ov.opacity
+              });
+            }
+          });
+        });
+      }
+
+      function renderMeta() {
+        var host = el("metaBlock");
+        var stats = state.stats || {};
+        var playtime = state.playtime || {};
+        var versions = Array.isArray(stats.translated_versions) && stats.translated_versions.length
+          ? stats.translated_versions.join(" · ")
+          : "Aucune version traduite";
+        var days = Number(stats.days_since_install);
+
+        host.innerHTML =
+          '<div class="companion-meta-card">' +
+            '<div class="meta-grid">' +
+              '<div class="meta-stat"><span class="meta-stat-label">Temps joue</span><span class="meta-stat-value">' + escapeHtml(playtime.formatted || "0min") + '</span><span class="meta-stat-sub">' + Number(playtime.session_count || 0) + ' session' + (Number(playtime.session_count || 0) > 1 ? 's' : '') + '</span></div>' +
+              '<div class="meta-stat"><span class="meta-stat-label">Trads installees</span><span class="meta-stat-value">' + Number(stats.translations_installed_count || 0) + '</span><span class="meta-stat-sub">' + escapeHtml(versions) + '</span></div>' +
+              '<div class="meta-stat"><span class="meta-stat-label">Backups</span><span class="meta-stat-value">' + Number(stats.local_backups_count || 0) + '</span><span class="meta-stat-sub">Persos sauvegardes localement</span></div>' +
+              '<div class="meta-stat"><span class="meta-stat-label">Depuis</span><span class="meta-stat-value">' + (Number.isFinite(days) && days >= 0 ? days + "j" : "—") + '</span><span class="meta-stat-sub">Depuis l installation</span></div>' +
+            '</div>' +
+          '</div>';
+      }
+
+      function pvpPhaseInfo(cycleStart, d) {
+        var total = d.red + d.green + d.black;
+        var now = Math.floor(Date.now() / 1000);
+        var elapsed = ((now - cycleStart) % total + total) % total;
+        if (elapsed < d.red) {
+          return { phase: "red", name: "Hangar ferme", remaining: d.red - elapsed, total: d.red, sub: "Ouverture du hangar" };
+        }
+        if (elapsed < d.red + d.green) {
+          return { phase: "green", name: "Hangar ouvert", remaining: d.green - (elapsed - d.red), total: d.green, sub: "Fermeture du hangar" };
+        }
+        return { phase: "black", name: "Reinitialisation", remaining: d.black - (elapsed - d.red - d.green), total: d.black, sub: "Prochain cycle" };
+      }
+
+      function renderPvp() {
+        var block = el("pvpBlock");
+        if (!state.pvp) {
+          pvpRendered = false;
+          block.innerHTML = '<div class="skel" style="height:140px"></div>';
+          return;
+        }
+        if (!state.pvp.cycleStart) {
+          pvpRendered = false;
+          block.innerHTML = '<div class="empty">Impossible de recuperer l heure du cycle.</div>';
+          el("pvpKicker").textContent = "hors-ligne";
+          return;
+        }
+        var info = pvpPhaseInfo(state.pvp.cycleStart, state.pvp.durations);
+        var pct = Math.min(100, Math.max(0, ((info.total - info.remaining) / info.total) * 100));
+        el("pvpKicker").textContent = "Cycle 3h";
+
+        if (!pvpRendered) {
+          block.innerHTML =
+          '<div class="card pvp-card fade-up" id="pvpCard">' +
+            '<div class="pvp-phase-row">' +
+              '<span class="pvp-phase-name" id="pvpPhaseName"></span>' +
+              '<span class="pill" id="pvpPhasePill"></span>' +
+            "</div>" +
+            '<div class="pvp-timer" id="pvpTimer"></div>' +
+            '<div class="pvp-sub" id="pvpSub"></div>' +
+            '<div class="progress"><div class="progress-bar pvp-fill" id="pvpProgress"></div></div>' +
+          "</div>";
+          pvpRendered = true;
+        }
+
+        var phaseName = el("pvpPhaseName");
+        var phasePill = el("pvpPhasePill");
+        var timer = el("pvpTimer");
+        var sub = el("pvpSub");
+        var progress = el("pvpProgress");
+
+        if (phaseName) {
+          phaseName.className = "pvp-phase-name " + info.phase;
+          phaseName.textContent = info.name;
+        }
+        if (phasePill) {
+          phasePill.className = "pill " + (info.phase === "green" ? "accent" : info.phase === "red" ? "danger" : "warn");
+          phasePill.textContent = info.phase.toUpperCase();
+        }
+        if (timer) timer.textContent = fmtHMS(info.remaining);
+        if (sub) sub.textContent = info.sub;
+        if (progress) {
+          progress.className = "progress-bar pvp-fill " + info.phase;
+          progress.style.width = pct.toFixed(1) + "%";
+        }
+      }
+
+      function startPvpTicker() {
+        if (pvpTicker) clearInterval(pvpTicker);
+        pvpTicker = setInterval(function() {
+          if (state.pvp && state.pvp.cycleStart) renderPvp();
+        }, 1000);
+      }
+
+      function connect() {
+        setStatus("connecting", "Connexion");
+        try { ws = new WebSocket(wsUrl); } catch (e) { scheduleReconnect(); return; }
+          ws.addEventListener("open", function() {
+            backoff = 500;
+            setStatus("", "Connecte");
+            send({ type: "state.query" });
+            send({ type: "pvp.query" });
+        });
+        ws.addEventListener("message", function(ev) {
+          try { handle(JSON.parse(ev.data)); } catch (e) {}
+        });
+        ws.addEventListener("close", function() {
+          setStatus("offline", "Deconnecte");
+          scheduleReconnect();
+        });
+        ws.addEventListener("error", function() { try { ws.close(); } catch (e) {} });
+      }
+
+      function handle(msg) {
+        if (!msg || typeof msg !== "object") return;
+        if (msg.type === "state") {
+          state.hubOpen = !!msg.hubOpen;
+          state.editMode = !!msg.editMode;
+          state.launcher = msg.launcher || { installed: false };
+          state.service = msg.service || { enabled: false, check_interval_minutes: 5, running: false };
+          state.overlays = Array.isArray(msg.overlays) ? msg.overlays : [];
+          ready = true;
+          saveCache();
+          renderControls();
+          renderService();
+          renderOverlays();
+          renderMeta();
+          return;
+        }
+        if (msg.type === "state.overlays") {
+          var incoming = Array.isArray(msg.overlays) ? msg.overlays : [];
+          if (incoming.length) {
+            state.overlays = state.overlays.map(function(current) {
+              var next = incoming.find(function(item) {
+                return item.id === current.id && item.type === current.type;
+              });
+              return next ? {
+                id: current.id,
+                title: current.title,
+                type: current.type,
+                url: current.url,
+                width: current.width,
+                height: current.height,
+                label: current.label,
+                opacity: typeof next.opacity === "number" ? next.opacity : current.opacity,
+                active: !!next.active
+              } : current;
+            });
+            renderOverlays();
+            saveCache();
+          }
+          return;
+        }
+        if (msg.type === "state.meta") {
+          state.stats = msg.stats || state.stats;
+          state.playtime = msg.playtime || state.playtime;
+          saveCache();
+          renderMeta();
+          return;
+        }
+        if (msg.type === "pvp.state") {
+          state.pvp = msg;
+          saveCache();
+          renderPvp();
+          startPvpTicker();
+          return;
+        }
+        if (msg.type === "toast") { toast(msg.message || "", !!msg.isError); return; }
+        if (msg.type === "ready") return;
+        if (msg.type === "error") { toast(msg.message || "Erreur", true); return; }
+      }
+
+      function scheduleReconnect() {
+        if (reconnectTimer) return;
+        reconnectTimer = setTimeout(function() {
+          reconnectTimer = null;
+          connect();
+        }, backoff);
+        backoff = Math.min(backoff * 2, 5000);
+      }
+
+      ["navDash", "navTrad", "navInfos", "navTools"].forEach(function(id) {
+        var a = el(id);
+        if (a) a.href = a.getAttribute("href") + location.search;
+      });
+
+      window.__companionRefresh = function() {
+        send({ type: "state.query" });
+        send({ type: "pvp.query" });
+        return new Promise(function(resolve) { setTimeout(resolve, 450); });
+      };
+      loadCache();
+      renderControls();
+      renderService();
+      renderOverlays();
+      renderMeta();
+      renderPvp();
+      connect();
+    })();
+  </script>
+</body>
+</html>

@@ -1,11 +1,11 @@
 {
-    "version": "4.0.1",
-    "notes": "v4.0.1 - Build de maintenance.",
-    "pub_date": "2026-04-20T17:03:59.000Z",
+    "version": "4.0.2",
+    "notes": "v4.0.2 - Companion LAN, stats et corrections d'affichage.",
+    "pub_date": "2026-04-23T09:58:50.164Z",
     "platforms": {
         "windows-x86_64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRb1BzLzdHaFk1RmNWemIrSXlWbFp6blRiUUF5VHVtdDJyYTlmYk9Ea2wxSVJrRkhpcVF1eVFwNlZvTHVvQW9UUldRSVUxZ210VFhCL2tJdkVnbkNxU3MwNUFWZFhnZWcwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc2NzA0NjM5CWZpbGU6U3RhclRyYWQgRlJfNC4wLjFfeDY0LXNldHVwLmV4ZQpqNk9lVzVUcHl6bURhTGFpbWFEbjdvWEFCeXFyV2FlQ29NSG5iUVNKVlBYYzJNOEhzSHZzcXZmZ3pXSFZBQVZiMWtsWDJQU3JRVmJtRHlHU0RBRzlCUT09Cg==",
-            "url": "https://github.com/drrakendu78/TradSC/releases/download/v4.0.1/StarTrad.FR_4.0.1_x64-setup.exe"
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRb1BzLzdHaFk1RlRpdzFTWDJyMlM0MndhMk1VdFlUTzZ4L29mSzd1RHM2ZzA3QXZ4VnVEMVZKVG1UUVg5ZGlvYWJMeEhOczVBS0ZMZE1FR0hOZ0dELzhrc1praHJCcXdFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc2OTM4MzExCWZpbGU6U3RhclRyYWQgRlJfNC4wLjJfeDY0LXNldHVwLmV4ZQpoaGVSL0R4ZlJtaEFpVVhBYWhFV2lwUEgwQUFEU0xwWUR0MFAvYjExb256Qmo5QjZvNzBEREdoM2p0TXBpL0huN3EzUWZEWVcrWDBvdUV1TlRRRzNCdz09Cg==",
+            "url": "https://github.com/drrakendu78/TradSC/releases/download/v4.0.2/StarTrad.FR_4.0.2_x64-setup.exe"
         }
     }
 }

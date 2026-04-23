@@ -58,6 +58,7 @@ interface PreferencesSyncStore {
 }
 
 const EXPORT_VERSION = "1.0.0";
+const PLAYTIME_CACHE_KEY = "startradfr_playtime_cache";
 
 export const usePreferencesSyncStore = create<PreferencesSyncStore>((set, get) => ({
     isSyncing: false,
@@ -164,6 +165,7 @@ export const usePreferencesSyncStore = create<PreferencesSyncStore>((set, get) =
                 version: 0,
             };
             localStorage.setItem("stats-storage", JSON.stringify(statsData));
+            localStorage.removeItem(PLAYTIME_CACHE_KEY);
 
             // Import custom links (si présent - compatibilité avec anciennes versions)
             if (prefs.customLinks?.links) {

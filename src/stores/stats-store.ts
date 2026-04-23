@@ -23,6 +23,7 @@ interface StatsStore {
     recordBackupCreated: () => void;
     recordCharacterDownload: () => void;
     setSavedPlaytimeHours: (hours: number) => void;
+    setFirstUseDate: (date: string) => void;
     getTranslationInstalledDays: (version: string) => number | null;
     getAppUsageDays: () => number | null;
 }
@@ -63,23 +64,28 @@ export const useStatsStore = create<StatsStore>()(
             })),
 
             setSavedPlaytimeHours: (hours: number) => set({ savedPlaytimeHours: hours }),
+            setFirstUseDate: (date: string) => set((state) => ({
+                firstUseDate: state.firstUseDate || date,
+            })),
 
             getTranslationInstalledDays: (version: string) => {
                 const date = get().translationInstallDates[version];
                 if (!date) return null;
                 const installDate = new Date(date);
+                if (!Number.isFinite(installDate.getTime())) return null;
                 const now = new Date();
-                const diffTime = Math.abs(now.getTime() - installDate.getTime());
-                return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                const diffTime = now.getTime() - installDate.getTime();
+                return Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
             },
 
             getAppUsageDays: () => {
                 const date = get().firstUseDate;
                 if (!date) return null;
                 const firstDate = new Date(date);
+                if (!Number.isFinite(firstDate.getTime())) return null;
                 const now = new Date();
-                const diffTime = Math.abs(now.getTime() - firstDate.getTime());
-                return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                const diffTime = now.getTime() - firstDate.getTime();
+                return Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
             },
         }),
         {

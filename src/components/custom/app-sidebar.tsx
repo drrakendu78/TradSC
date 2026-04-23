@@ -54,6 +54,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { CompanionCard } from "@/components/custom/CompanionCard";
 
 interface NavigationItem {
     id: string;
@@ -1894,6 +1895,8 @@ function SettingsContent() {
                             </Button>
                         </div>
                     </section>
+
+                    <CompanionCard />
                 </TabsContent>
 
                 <TabsContent value="cache" className="space-y-4">
@@ -1966,7 +1969,7 @@ interface AppStats {
 type StatsSectionState = { appStats: AppStats | null; cloudBackupsCount: number; loading: boolean };
 
 function StatsSection() {
-    const { cacheCleanCount, characterDownloadCount, getAppUsageDays, firstUseDate, backupCreatedCount } = useStatsStore();
+    const { cacheCleanCount, characterDownloadCount, getAppUsageDays, firstUseDate, backupCreatedCount, setFirstUseDate } = useStatsStore();
     const [{ appStats, cloudBackupsCount, loading }, setStatsState] = useState<StatsSectionState>({ appStats: null, cloudBackupsCount: 0, loading: true });
 
     // Utiliser le store (sync cloud) en priorité, sinon le backend
@@ -1980,15 +1983,7 @@ function StatsSection() {
 
                 // Si pas de firstUseDate dans le store mais le backend en a une, l'initialiser
                 if (!firstUseDate && stats.first_install_date) {
-                    // On stocke directement dans localStorage pour ne pas incrémenter les compteurs
-                    const currentStorage = localStorage.getItem("stats-storage");
-                    if (currentStorage) {
-                        const parsed = JSON.parse(currentStorage);
-                        if (!parsed.state.firstUseDate) {
-                            parsed.state.firstUseDate = stats.first_install_date;
-                            localStorage.setItem("stats-storage", JSON.stringify(parsed));
-                        }
-                    }
+                    setFirstUseDate(stats.first_install_date);
                 }
 
                 // Récupérer le nombre de backups cloud si connecté
@@ -2008,10 +2003,10 @@ function StatsSection() {
         };
 
         fetchStats();
-    }, [firstUseDate]);
+    }, [firstUseDate, setFirstUseDate]);
 
-    // Utiliser backupCreatedCount du store (sync cloud) pour les backups locaux
-    const totalBackups = backupCreatedCount + cloudBackupsCount;
+    const localBackups = appStats?.local_backups_count ?? backupCreatedCount;
+    const totalBackups = localBackups + cloudBackupsCount;
 
     // Priorité : store (sync cloud) > backend (système)
     const daysToShow = appUsageDays !== null ? appUsageDays : appStats?.days_since_install;
@@ -2041,7 +2036,7 @@ function StatsSection() {
             icon: <Save className="h-4 w-4 text-green-500" />,
             label: "Backups",
             value: totalBackups.toString(),
-            description: `${backupCreatedCount} local${cloudBackupsCount > 0 ? ` + ${cloudBackupsCount} cloud` : ''}`
+            description: `${localBackups} local${cloudBackupsCount > 0 ? ` + ${cloudBackupsCount} cloud` : ''}`
         },
         {
             icon: <Users className="h-4 w-4 text-purple-500" />,
