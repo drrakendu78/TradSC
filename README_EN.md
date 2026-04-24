@@ -19,6 +19,14 @@ _French Translation Tool for Star Citizen – Version 3_
 
 <br/>
 
+**Install with winget**
+
+```powershell
+winget install Drrakendu78.StarTradFR
+```
+
+<br/>
+
 <sub>
 ✔️ <strong>Microsoft Store</strong> version: application <strong>signed and distributed by Microsoft</strong><br/>
 ✔️ <strong>EXE / MSI</strong> versions available on GitHub (unsigned)<br/>

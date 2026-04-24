@@ -19,6 +19,14 @@ _Traduction française pour Star Citizen – Version 3_
 
 <br/>
 
+**Installation via winget**
+
+```powershell
+winget install Drrakendu78.StarTradFR
+```
+
+<br/>
+
 <sub>
 ✔️ Versions <strong>EXE / MSI</strong> disponibles sur GitHub (non signées)<br/>
 ➡️ Les versions EXE / MSI incluent une fonctionnalité supplémentaire :<br/>
