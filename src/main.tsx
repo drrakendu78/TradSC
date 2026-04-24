@@ -93,7 +93,7 @@ function App() {
         <>
           {!isOverlay && <SecurityWarning onContinue={() => {}} />}
           <AppRouter />
-          {!isOverlay && <AdminElevateButton />}
+          {!isOverlay && process.env.TAURI_ENV_MS_STORE !== "true" && <AdminElevateButton />}
           {!isOverlay && <BorderBeam duration={8} size={150} colorFrom="#FAFAFA" colorTo="#FAFAFA" />}
           {!isOverlay && <BorderBeam delay={4} duration={8} size={150} colorFrom="#FAFAFA" colorTo="#FAFAFA" />}
         </>
