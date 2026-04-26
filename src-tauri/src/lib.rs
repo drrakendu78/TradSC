@@ -67,6 +67,9 @@ use scripts::companion_server::{
     companion_broadcast, companion_send, get_companion_info, start_companion_server,
     stop_companion_server, set_companion_persistent_token, CompanionState,
 };
+use scripts::onboarding::{
+    complete_onboarding, get_onboarding_state, record_onboarding_attempt, reset_onboarding,
+};
 use std::sync::Mutex;
 use tauri::{command, Emitter, Manager};
 use tauri_plugin_deep_link::DeepLinkExt;
@@ -591,6 +594,10 @@ pub fn run() {
             set_companion_persistent_token,
             companion_broadcast,
             companion_send,
+            get_onboarding_state,
+            record_onboarding_attempt,
+            complete_onboarding,
+            reset_onboarding,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
