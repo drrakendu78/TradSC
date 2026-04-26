@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { getOverlayHubItems } from "@/utils/overlay-hub-registry";
 import type { OverlayHubItem } from "@/types/overlay-hub";
 import { useCustomLinksStore } from "@/stores/custom-links-store";
@@ -258,9 +258,13 @@ export function useCompanionBridge(enabled: boolean = true) {
             await Promise.all(
                 items.map(async (it) => {
                     const key = overlayStateKey(it.id, it.kind);
+                    // Tauri convertit les params Rust snake_case en camelCase côté JS.
+                    // Param Rust `overlay_type` → JS `overlayType`. Sans la bonne clé,
+                    // Tauri voit `None` et retombe sur "iframe", ce qui fait foirer la
+                    // détection des overlays webview (SP Viewer / Routes).
                     const active = await invoke<boolean>("is_overlay_open", {
                         id: it.id,
-                        overlay_type: it.kind,
+                        overlayType: it.kind,
                     }).catch(() => false);
                     overlayActiveRef.current[key] = active;
                 })
@@ -876,16 +880,30 @@ export function useCompanionBridge(enabled: boolean = true) {
                     overlayOpacityRef.current[overlayStateKey(id, kind)] = opacity;
 
                     try {
+                        // camelCase obligatoire — voir refreshOverlayActivity.
                         const active = await invoke<boolean>("is_overlay_open", {
                             id,
-                            overlay_type: kind,
+                            overlayType: kind,
                         }).catch(() => false);
 
                         if (active) {
-                            await invoke("set_window_opacity", {
-                                label: overlayWindowLabel(id, kind),
-                                opacity,
-                            });
+                            if (kind === "webview") {
+                                // Webview overlay : pas de wrapper React, on doit
+                                // changer l'alpha au niveau OS via WS_EX_LAYERED +
+                                // SetLayeredWindowAttributes (set_window_opacity).
+                                await invoke("set_window_opacity", {
+                                    label: overlayWindowLabel(id, kind),
+                                    opacity,
+                                });
+                            } else {
+                                // Iframe overlay : OverlayView.tsx applique l'opacité
+                                // en CSS sur l'<iframe>. set_window_opacity ferait
+                                // disparaître la fenêtre car la window est créée
+                                // avec transparent(true) (DWM) — incompatible avec
+                                // un override LWA_ALPHA. On émet plutôt un event
+                                // que OverlayView écoute.
+                                await emit("overlay_opacity_set", { id, opacity });
+                            }
                         }
                     } catch (e) {
                         await sendToClient(clientId, {

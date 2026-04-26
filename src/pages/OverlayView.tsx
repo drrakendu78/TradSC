@@ -1,6 +1,7 @@
 import { useEffect, useState, type MouseEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Eye, EyeOff, GripVertical, X } from "lucide-react";
 
@@ -29,6 +30,22 @@ const OverlayView = () => {
             style.remove();
         };
     }, []);
+
+    // Pilotage de l'opacité depuis l'extérieur (slider companion). On reçoit un
+    // event broadcast et on filtre sur l'id de l'overlay courant. set_window_opacity
+    // n'est pas utilisable ici car la window est en transparent DWM — incompatible
+    // avec un override LWA_ALPHA, qui fait disparaître le contenu WebView2.
+    useEffect(() => {
+        if (!id) return;
+        let unlisten: (() => void) | undefined;
+        listen<{ id: string; opacity: number }>("overlay_opacity_set", (event) => {
+            const payload = event.payload;
+            if (!payload || payload.id !== id) return;
+            const next = Math.min(1, Math.max(0.1, Number(payload.opacity)));
+            if (Number.isFinite(next)) setOpacity(next);
+        }).then((fn) => { unlisten = fn; }).catch(console.error);
+        return () => { if (unlisten) unlisten(); };
+    }, [id]);
 
     const handleClose = () => {
         invoke("close_overlay", { id }).catch(console.error);
