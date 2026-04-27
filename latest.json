@@ -1,11 +1,11 @@
 {
-    "version": "4.0.4",
-    "notes": "v4.0.4 - Wizard d'onboarding au premier lancement, fix opacité overlays SP Viewer / Routes, sauvegarde de personnages plus claire.",
-    "pub_date": "2026-04-26T22:18:20.000Z",
+    "version": "4.0.5",
+    "notes": "v4.0.5 - Fix musique d'ambiance qui ne se coupait plus en tray, volume par defaut a 10%.",
+    "pub_date": "2026-04-27T03:27:10.000Z",
     "platforms": {
         "windows-x86_64": {
-            "signature": "ZFc1MGNuVnpkR1ZrSUdOdmJXMWxiblE2SUhOcFoyNWhkSFZ5WlNCbWNtOXRJSFJoZFhKcElITmxZM0psZENCclpYa0tVbFZSYjFCekx6ZEhhRmsxUmxGSWJWWnZSRGRtUkVkUFVEUTFRMWxLWjBseEwzaExNbVpqVXpaRU9UUlVNREJWVUdjelZqY3dVVk41YkhFMU5uSmpRbmhwWlZwVlMzSkdWamRPTVhkQk5ubHlUWEY1ZWxwMFZYbHdXakV4VG5GbVpYZGpQUXAwY25WemRHVmtJR052YlcxbGJuUTZJSFJwYldWemRHRnRjRG94TnpjM01qSTNNVE15Q1dacGJHVTZVM1JoY2xSeVlXUWdSbEpmTkM0d0xqUmZlRFkwTFhObGRIVndMbVY0WlFwaFlVaE9kVmgzZGtrNFdITkVNeXQ0YVVKaWVrUnFZamhCTmtSVlZIaG1VelZ1UVUxbVNGUnBZV3hWYlRaRk5YTnVlRVpOWW5wNFIza3ZPVlJxV1ZRdmQwYzBWblZXYkRsU2VVUlhPVmhNTVVGdVUwWkRVVDA5Q2c9PQ==",
-            "url": "https://github.com/drrakendu78/TradSC/releases/download/v4.0.4/StarTrad.FR_4.0.4_x64-setup.exe"
+            "signature": "ZFc1MGNuVnpkR1ZrSUdOdmJXMWxiblE2SUhOcFoyNWhkSFZ5WlNCbWNtOXRJSFJoZFhKcElITmxZM0psZENCclpYa0tVbFZSYjFCekx6ZEhhRmsxUmxaNlowcFhOME4xY1U1NWJXdFlOMjg0TTJabVNHVnNhbFZaVlRsYVJUaEZlVlF5YUhaSWJHOVhTVGxMUjBaQmR6UjNaRXBzWVcxM2IxRmlaVm80ZDFwVFFtZEVSbVprT0VoTE9IcDVhbTlRTVVwWE4yZHZQUXAwY25WemRHVmtJR052YlcxbGJuUTZJSFJwYldWemRHRnRjRG94TnpjM01qWXdOREF3Q1dacGJHVTZVM1JoY2xSeVlXUWdSbEpmTkM0d0xqVmZlRFkwTFhObGRIVndMbVY0WlFwVFFqaFpORlpDVjJaWWFrUmFaVzlaVW1SS09UVjJjekZFVnpOSlZEUk9iRlJzWmtkTk1FOXBjMEY2TlM4dmFtNVlSbmxrTWpWVFkwUm1XVTlKVDB4eVJXVjFNamxNWVRkSFJGSkhlR0kyYTJ4alMzQkVkejA5Q2c9PQ==",
+            "url": "https://github.com/drrakendu78/TradSC/releases/download/v4.0.5/StarTrad.FR_4.0.5_x64-setup.exe"
         }
     }
 }
