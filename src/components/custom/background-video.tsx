@@ -1,5 +1,4 @@
 import { useEffect, useState, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useSidebarStore } from '@/stores/sidebar-store';
 
@@ -18,7 +17,6 @@ const getInitialVideoEnabled = () => {
 };
 
 export function BackgroundVideo() {
-    const location = useLocation();
     const { isCollapsed } = useSidebarStore();
     const videoRef = useRef<HTMLVideoElement>(null);
     const youtubePlayerRef = useRef<any>(null);
@@ -44,9 +42,6 @@ export function BackgroundVideo() {
         };
     }, []);
 
-    // Afficher la vidéo uniquement sur la page d'accueil
-    const isHomePage = location.pathname === '/';
-    
     // ID de la playlist YouTube
     const PLAYLIST_ID = 'PLLcod52t0kpdZJxdds7VF3NX-XzM3tmb8';
     
@@ -125,7 +120,7 @@ export function BackgroundVideo() {
                 events: {
                     onReady: (event: any) => {
                         const savedVolume = localStorage.getItem('videoVolume');
-                        const vol = savedVolume ? parseFloat(savedVolume) : 0.5;
+                        const vol = savedVolume ? parseFloat(savedVolume) : 0.1;
                         const savedMuted = localStorage.getItem('videoMuted') === 'true';
                         event.target.setVolume(savedMuted ? 0 : vol * 100);
                         event.target.playVideo();
@@ -162,7 +157,7 @@ export function BackgroundVideo() {
                     youtubePlayerRef.current.setVolume(0);
                 } else {
                     const savedVolume = localStorage.getItem('videoVolume');
-                    const vol = savedVolume ? parseFloat(savedVolume) : 0.5;
+                    const vol = savedVolume ? parseFloat(savedVolume) : 0.1;
                     youtubePlayerRef.current.setVolume(vol * 100);
                 }
             }
@@ -205,7 +200,7 @@ export function BackgroundVideo() {
                             events: {
                                 onReady: (event: any) => {
                                     const savedVolume = localStorage.getItem('videoVolume');
-                                    const vol = savedVolume ? parseFloat(savedVolume) : 0.5;
+                                    const vol = savedVolume ? parseFloat(savedVolume) : 0.1;
                                     const savedMuted = localStorage.getItem('videoMuted') === 'true';
                                     event.target.setVolume(savedMuted ? 0 : vol * 100);
                                     event.target.playVideo();
@@ -285,76 +280,79 @@ export function BackgroundVideo() {
         };
     }, []);
     
-    // Mettre en pause la vidéo et YouTube uniquement quand la fenêtre est minimisée ou dans le tray
+    // Mettre en pause la vidéo locale + YouTube quand la fenêtre est
+    // minimisée, cachée (tray), ou que le document devient hidden.
+    //
+    // ⚠️ Bug fix : auparavant on early-return ait sur !videoRef.current,
+    // mais comme shouldShowVideo = false l'élément <video> n'est jamais
+    // rendu → videoRef.current est null → le polling ne se montait jamais
+    // et YouTube continuait à jouer en mode tray/minimisé. On découple
+    // maintenant la pause YouTube (toujours active) de celle de la vidéo
+    // locale (conditionnelle à la présence du ref).
     useEffect(() => {
-        const video = videoRef.current;
-        if (!video) return;
-
         let appWindow: any = null;
         let checkInterval: NodeJS.Timeout | null = null;
 
+        const pauseAll = () => {
+            const video = videoRef.current;
+            if (video && !video.paused) {
+                try { video.pause(); } catch { /* ignore */ }
+            }
+            const yt = youtubePlayerRef.current;
+            if (yt && typeof yt.pauseVideo === 'function') {
+                try { yt.pauseVideo(); } catch { /* ignore */ }
+            }
+        };
+
+        const resumeAll = () => {
+            const video = videoRef.current;
+            if (video && video.paused) {
+                video.play().catch(err => {
+                    console.error('Erreur de reprise de la vidéo:', err);
+                });
+            }
+            const yt = youtubePlayerRef.current;
+            if (yt && typeof yt.playVideo === 'function') {
+                try { yt.playVideo(); } catch { /* ignore */ }
+            }
+        };
+
         const checkWindowState = async () => {
-            if (!video) return;
-            
             try {
                 if (!appWindow) {
                     appWindow = getCurrentWindow();
                 }
-                
-                // Vérifier si la fenêtre est minimisée ou cachée
+                // On veut UNIQUEMENT pauser quand la fenêtre est cachée (tray)
+                // ou minimisée — PAS quand l'utilisateur change d'app sans
+                // minimiser StarTrad. La perte de focus seule ne doit rien
+                // couper, sinon la musique d'ambiance sert à rien dès que tu
+                // joues à SC en deuxième écran.
                 const isVisible = await appWindow.isVisible();
                 const isMinimized = await appWindow.isMinimized();
-                
+
+                const userPaused = localStorage.getItem('youtubePaused') === 'true';
+
                 if (!isVisible || isMinimized) {
-                    // Fenêtre minimisée ou dans le tray : mettre en pause
-                    if (!video.paused) {
-                        video.pause();
-                    }
-                    // Mettre en pause YouTube aussi
-                    if (youtubePlayerRef.current && youtubePlayerRef.current.pauseVideo) {
-                        youtubePlayerRef.current.pauseVideo();
-                    }
-                } else {
-                    // Fenêtre visible et non minimisée : reprendre la lecture
-                    if (video.paused) {
-                        video.play().catch(err => {
-                            console.error('Erreur de reprise de la vidéo:', err);
-                        });
-                    }
-                    // Reprendre YouTube aussi (sur toutes les pages)
-                    if (youtubePlayerRef.current && youtubePlayerRef.current.playVideo) {
-                        youtubePlayerRef.current.playVideo();
-                    }
+                    pauseAll();
+                } else if (!userPaused) {
+                    resumeAll();
                 }
             } catch (error) {
-                // Si Tauri n'est pas disponible ou en cas d'erreur, ne rien faire
                 console.log('Impossible de vérifier l\'état de la fenêtre:', error);
             }
         };
 
-        // Vérifier l'état de la fenêtre périodiquement (toutes les 500ms)
+        // Polling 500 ms (Tauri n'expose pas d'event minimize/restore fiable
+        // sur toutes les versions, le polling reste le moyen le plus robuste).
         checkInterval = setInterval(checkWindowState, 500);
-        
-        // Vérifier immédiatement
         checkWindowState();
 
-        // Écouter aussi les changements de visibilité du document (fallback)
-        const handleVisibilityChange = async () => {
-            if (!video) return;
-            
-            // Utiliser Tauri pour vérifier l'état réel de la fenêtre
-            await checkWindowState();
-        };
-        
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        
         return () => {
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
             if (checkInterval) {
                 clearInterval(checkInterval);
             }
         };
-    }, [isHomePage]);
+    }, []);
     
     const sidebarLeft = isCollapsed ? '5rem' : '14rem'; // w-20 = 5rem, w-56 = 14rem
     const sidebarWidth = isCollapsed ? '5rem' : '14rem';

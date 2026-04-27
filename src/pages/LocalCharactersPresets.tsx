@@ -26,18 +26,18 @@ import { cn } from "@/lib/utils";
 import { open } from "@tauri-apps/plugin-dialog";
 
 function LocalCharactersPresets() {
-    // Nouvelle structure : chaque personnage a une liste de versions et chemins associÃ©s
+    // Nouvelle structure : chaque personnage a une liste de versions et chemins associés
     type CharacterRow = {
         name: string;
         versions: { version: string; path: string }[];
-        // Ajoute d'autres propriÃ©tÃ©s si besoin (ex: description, etc.)
+        // Ajoute d'autres propriétés si besoin (ex: description, etc.)
     };
     const [localCharacters, setLocalCharacters] = useState<CharacterRow[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [loadingDot, setLoadingDot] = useState(0);
     const [gamePaths, setGamePaths] = useState<GamePaths | null>(null);
     const [gameCheckDone, setGameCheckDone] = useState(false);
-    const [isAdmin, setIsAdmin] = useState(true); // Supposer admin par dÃ©faut pour Ã©viter flash de toast
+    const [isAdmin, setIsAdmin] = useState(true); // Supposer admin par défaut pour éviter flash de toast
     const { toast } = useToast();
     const [backups, setBackups] = useState<Backup[]>([]);
     const [backupDir, setBackupDir] = useState("");
@@ -54,7 +54,7 @@ function LocalCharactersPresets() {
             );
 
             setLocalCharacters(prev => {
-                // RÃ©cupÃ¨re toutes les versions connues
+                // Récupère toutes les versions connues
                 const allVersions = Object.keys(gamePaths?.versions || {});
                 const map = new Map<string, CharacterRow>();
                 // Ajoute les anciens
@@ -106,11 +106,11 @@ function LocalCharactersPresets() {
         setIsLoading(false);
     }, [gamePaths, scanLocalCharacters]);
 
-    // RÃ©cupÃ©ration des versions de jeu et statut admin au chargement
+    // Récupération des versions de jeu et statut admin au chargement
     useEffect(() => {
         const getAdminStatus = (): Promise<boolean> =>
             invoke<boolean>("is_running_as_admin").catch((error) => {
-                logger.error("Erreur lors de la vÃ©rification du statut admin:", error);
+                logger.error("Erreur lors de la vérification du statut admin:", error);
                 return false;
             });
 
@@ -221,38 +221,43 @@ function LocalCharactersPresets() {
         }
     };
     
-    const handleChangeFolder = async () => {
+    // `isFirstSetup` = true quand on prompt automatiquement parce qu'aucun
+    // dossier n'a encore été choisi : on adapte le toast et on n'affiche pas
+    // l'avertissement « redémarrage requis » qui ne s'applique qu'aux changements.
+    const handleChangeFolder = async (isFirstSetup = false): Promise<boolean> => {
         try {
-            const selected = await open({ 
+            const selected = await open({
                 directory: true,
                 multiple: false,
-                title: "Sélectionner un dossier pour les sauvegardes"
+                title: isFirstSetup
+                    ? "Choisis où ranger tes sauvegardes"
+                    : "Sélectionner un dossier pour les sauvegardes"
             });
-            
+
             if (!selected) {
-                return; // L'utilisateur a annulÃ©
+                return false;
             }
-            
-            // Dans Tauri v2, open peut retourner string | string[] | null
+
             let dir: string;
             if (Array.isArray(selected)) {
                 dir = selected[0];
             } else if (typeof selected === 'string') {
                 dir = selected;
             } else {
-                return; // AnnulÃ©
+                return false;
             }
-            
-            console.log("Tentative de changement de dossier vers:", dir);
+
             await invoke("set_character_backup_directory", { path: dir });
             toast({
-                title: "Succès",
-                description: "Dossier de sauvegarde mis à jour. Redémarrage requis.",
+                title: isFirstSetup ? "Dossier configuré" : "Succès",
+                description: isFirstSetup
+                    ? "Tu peux maintenant créer une sauvegarde."
+                    : "Dossier de sauvegarde mis à jour. Redémarrage requis.",
                 variant: "default",
             });
-            refreshBackups();
+            await refreshBackups();
+            return true;
         } catch (e: unknown) {
-            console.error("Erreur complÃ¨te lors du changement de dossier:", e);
             let errorMessage = "Erreur lors du changement de dossier";
             if (e instanceof Error) {
                 errorMessage = e.message;
@@ -266,7 +271,18 @@ function LocalCharactersPresets() {
                 description: errorMessage,
                 variant: "destructive",
             });
+            return false;
         }
+    };
+
+    // Click handler du bouton « Créer une sauvegarde » : si aucun dossier n'a
+    // jamais été choisi, on prompt d'abord, puis on ouvre le modal.
+    const handleStartCreateBackup = async () => {
+        if (!backupDir) {
+            const ok = await handleChangeFolder(true);
+            if (!ok) return;
+        }
+        setCreateBackupModalOpen(true);
     };
     
     const handleOpenBackupFolder = async () => {
@@ -346,7 +362,7 @@ function LocalCharactersPresets() {
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
                 <p className="text-sm text-muted-foreground">
-                    Recuperation des donnees{Array.from({ length: loadingDot }).map((_, i) => <span key={i}>.</span>)}
+                    Récupération des données{Array.from({ length: loadingDot }).map((_, i) => <span key={i}>.</span>)}
                 </p>
             </div>
         );
@@ -430,52 +446,53 @@ function LocalCharactersPresets() {
                         </TabsContent>
 
                         <TabsContent value="backups" className="relative mt-0 px-2.5 pb-2.5 pt-2">
-                            <div className="mb-2 space-y-2 rounded-xl border border-border/35 bg-[hsl(var(--background)/0.22)] px-3 py-2.5">
-                                <p className="text-[11px] text-muted-foreground">
-                                    Gerez les sauvegardes de vos persos et restaurez-les vers les versions du jeu que vous utilisez.
-                                </p>
-                                <p className="text-[11px] text-amber-600 dark:text-amber-400">
-                                    Le changement d'emplacement de sauvegarde necessite un redemarrage de l'application.
-                                </p>
-
-                                <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
-                                    <div className="flex flex-wrap gap-2">
-                                        <Button
-                                            variant="default"
-                                            size="sm"
-                                            onClick={() => setCreateBackupModalOpen(true)}
-                                            disabled={gameVersionsList.length === 0}
-                                            className="h-8 gap-2 rounded-lg px-3"
-                                        >
-                                            <Plus className="h-4 w-4" />
-                                            Creer une sauvegarde
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={handleChangeFolder}
-                                            className="h-8 gap-2 rounded-lg border-border/50 bg-background/20 px-3"
-                                        >
-                                            <Folder className="h-4 w-4" />
-                                            Changer de dossier
-                                        </Button>
-                                        {backupDir && (
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={handleOpenBackupFolder}
-                                                className="h-8 gap-2 rounded-lg px-3"
-                                            >
-                                                <Folder className="h-4 w-4" />
-                                                Ouvrir
-                                            </Button>
-                                        )}
-                                    </div>
-                                    {backupDir && (
-                                        <p className="max-w-[380px] truncate text-[11px] text-muted-foreground">
-                                            {backupDir}
+                            <div className="mb-2 space-y-2.5 rounded-xl border border-border/35 bg-[hsl(var(--background)/0.22)] px-3 py-2.5">
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                    <div className="min-w-0 flex-1 space-y-0.5">
+                                        <p className="text-xs font-medium text-foreground">
+                                            Sauvegarde tes persos pour les restaurer plus tard
                                         </p>
+                                        <p className="text-[11px] text-muted-foreground">
+                                            Une sauvegarde reprend l'état d'un perso sur la version SC choisie. Tu pourras la restaurer sur n'importe quelle autre version.
+                                        </p>
+                                    </div>
+                                    <Button
+                                        variant="default"
+                                        size="sm"
+                                        onClick={handleStartCreateBackup}
+                                        disabled={gameVersionsList.length === 0}
+                                        className="h-8 flex-shrink-0 gap-2 rounded-lg px-3"
+                                    >
+                                        <Plus className="h-4 w-4" />
+                                        Créer une sauvegarde
+                                    </Button>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-1.5 border-t border-border/30 pt-2">
+                                    <Folder className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground/70" />
+                                    <span
+                                        className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground"
+                                        title={backupDir || "Dossier par défaut"}
+                                    >
+                                        {backupDir || "Dossier par défaut"}
+                                    </span>
+                                    {backupDir && (
+                                        <button
+                                            type="button"
+                                            onClick={handleOpenBackupFolder}
+                                            className="rounded-md px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+                                        >
+                                            Ouvrir
+                                        </button>
                                     )}
+                                    <button
+                                        type="button"
+                                        onClick={() => { void handleChangeFolder(false); }}
+                                        className="rounded-md px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+                                        title="Changer le dossier nécessite un redémarrage de l'app"
+                                    >
+                                        Changer
+                                    </button>
                                 </div>
                             </div>
 
@@ -509,10 +526,10 @@ function LocalCharactersPresets() {
                                     </div>
                                     <div className="min-w-0 space-y-1">
                                         <DialogTitle className="text-xl font-semibold tracking-tight">
-                                            CrÃ©er une sauvegarde
+                                            Créer une sauvegarde
                                         </DialogTitle>
                                         <DialogDescription className="text-sm text-muted-foreground/92">
-                                            Choisissez la version Ã  sauvegarder.
+                                            Choisissez la version à sauvegarder.
                                         </DialogDescription>
                                     </div>
                                 </div>
@@ -553,14 +570,14 @@ function LocalCharactersPresets() {
                                                 )}
                                             >
                                                 {isSelected && <Check className="h-3 w-3" />}
-                                                {isSelected ? "Selectionnee" : "Choisir"}
+                                                {isSelected ? "Sélectionnée" : "Choisir"}
                                             </span>
                                         </button>
                                     );
                                 })
                             ) : (
                                 <div className="rounded-xl border border-border/40 bg-[hsl(var(--background)/0.2)] px-3 py-3 text-sm text-muted-foreground">
-                                    Aucune version installÃ©e dÃ©tectÃ©e.
+                                    Aucune version installée détectée.
                                 </div>
                             )}
                         </div>
@@ -578,7 +595,7 @@ function LocalCharactersPresets() {
                                 disabled={!selectedBackupVersion}
                                 className="h-9 rounded-lg px-4"
                             >
-                                CrÃ©er
+                                Créer
                             </Button>
                         </DialogFooter>
                     </DialogContent>

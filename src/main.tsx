@@ -10,6 +10,7 @@ import { SecurityWarning } from "@/components/custom/SecurityWarning";
 import AdminElevateButton from "@/components/custom/AdminElevateButton";
 import { ErrorBoundary } from "@/components/custom/ErrorBoundary";
 import { SplashScreen } from "@/components/custom/SplashScreen";
+import OnboardingWizard from "@/components/custom/onboarding/OnboardingWizard";
 import { useCompanionBridge } from "@/hooks/useCompanionBridge";
 import { isTauri } from "@/utils/tauri-helpers";
 
@@ -28,12 +29,31 @@ function setCompanionEnabledState(next: boolean) {
 function App() {
   useReducedMotion();
   const [showSplash, setShowSplash] = useState(true);
+  // `null` = pas encore vérifié ; `true/false` = état chargé.
+  const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
 
   useEffect(() => {
     const hash = window.location.hash;
     if (hash && (hash.includes("access_token") || hash.includes("error=") || hash.includes("code="))) {
       window.history.replaceState(null, "", window.location.pathname + "#/");
     }
+  }, []);
+
+  // Check de l'état d'onboarding une fois la fenêtre principale prête.
+  // On ne le fait pas dans les overlays (fenêtres secondaires).
+  useEffect(() => {
+    const isOverlayWin =
+      window.location.hash.includes("/overlay-view") ||
+      window.location.hash.includes("/overlay-control") ||
+      window.location.hash.includes("/pvp-overlay") ||
+      window.location.hash.includes("/overlay-hub");
+    if (isOverlayWin || !isTauri()) {
+      setShowOnboarding(false);
+      return;
+    }
+    invoke<{ onboarding_done: boolean; attempts: number }>("get_onboarding_state")
+      .then((s) => setShowOnboarding(!s.onboarding_done))
+      .catch(() => setShowOnboarding(false));
   }, []);
 
   const isOverlay =
@@ -91,11 +111,23 @@ function App() {
       {showSplash && !isOverlay && <SplashScreen onComplete={() => setShowSplash(false)} />}
       {(isOverlay || !showSplash) && (
         <>
-          {!isOverlay && <SecurityWarning onContinue={() => {}} />}
+          {/* Wizard d'onboarding : remplace SecurityWarning au tout 1er lancement.
+              Quand actif, prend toute la fenêtre. À la fin, marque le flag et
+              démonte ; SecurityWarning reste là pour les utilisateurs déjà
+              onboardés mais sera court-circuité par son propre flag localStorage. */}
+          {showOnboarding === true && !isOverlay && (
+            <OnboardingWizard onClose={() => setShowOnboarding(false)} />
+          )}
+          {!isOverlay && showOnboarding === false && (
+            <SecurityWarning onContinue={() => {}} />
+          )}
           <AppRouter />
-          {!isOverlay && process.env.TAURI_ENV_MS_STORE !== "true" && <AdminElevateButton />}
-          {!isOverlay && <BorderBeam duration={8} size={150} colorFrom="#FAFAFA" colorTo="#FAFAFA" />}
-          {!isOverlay && <BorderBeam delay={4} duration={8} size={150} colorFrom="#FAFAFA" colorTo="#FAFAFA" />}
+          {/* On masque les widgets fixed (admin button, BorderBeam) quand le
+              wizard est actif : ils s'affichent par-dessus et bloquent les
+              clics sur le footer du wizard ("Suivant"). */}
+          {!isOverlay && showOnboarding === false && <AdminElevateButton />}
+          {!isOverlay && showOnboarding === false && <BorderBeam duration={8} size={150} colorFrom="#FAFAFA" colorTo="#FAFAFA" />}
+          {!isOverlay && showOnboarding === false && <BorderBeam delay={4} duration={8} size={150} colorFrom="#FAFAFA" colorTo="#FAFAFA" />}
         </>
       )}
     </>
