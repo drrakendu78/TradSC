@@ -91,8 +91,19 @@ export default function ControlMenu({ embedded = false, className }: ControlMenu
     const customLinks = useCustomLinksStore((state) => state.links);
     const customLinksRef = useRef<CustomLink[]>(customLinks);
     const [volume, setVolume] = useState(() => {
+        // Migration one-shot v4.0.4 : on baisse le défaut historique de 50 %
+        // à 10 % pour les utilisateurs existants qui n'ont jamais touché au
+        // slider. Le flag empêche l'override de se rejouer aux relances.
+        const MIGRATION_KEY = "videoVolumeMigrated_v404";
+        if (!localStorage.getItem(MIGRATION_KEY)) {
+            localStorage.setItem("videoVolume", "0.1");
+            localStorage.setItem(MIGRATION_KEY, "true");
+            // Notifie le BackgroundVideo player de prendre le nouveau volume.
+            window.dispatchEvent(new CustomEvent("videoVolumeChange", { detail: 0.1 }));
+            return 0.1;
+        }
         const saved = localStorage.getItem("videoVolume");
-        return saved ? parseFloat(saved) : 0.5;
+        return saved ? parseFloat(saved) : 0.1;
     });
     const [isMuted, setIsMuted] = useState(() => {
         return localStorage.getItem("videoMuted") === "true";
