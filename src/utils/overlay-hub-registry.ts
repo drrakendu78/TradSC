@@ -1,4 +1,5 @@
 import type { CustomLink } from "@/stores/custom-links-store";
+import { SC_EXTERNAL_TOOLS } from "@/data/sc-tools";
 import type { OverlayHubItem } from "@/types/overlay-hub";
 
 interface BuiltinOverlayHubDefinition extends Omit<OverlayHubItem, "url" | "source"> {
@@ -16,6 +17,13 @@ const ALLOWED_TOOL_DOMAINS = [
     "scmdb.net",
     "sccrafter.com",
     "uexcorp.space",
+    "schaulers.space",
+    "sc-cargo.space",
+    "getallsky.net",
+    "protixit.com",
+    "scdb.space",
+    "sc-craft.tools",
+    "thespacecoder.space",
 ] as const;
 
 const BUILTIN_OVERLAY_ITEMS: BuiltinOverlayHubDefinition[] = [
@@ -121,6 +129,17 @@ const BUILTIN_OVERLAY_ITEMS: BuiltinOverlayHubDefinition[] = [
     },
 ];
 
+const SC_TOOL_OVERLAY_ITEMS: BuiltinOverlayHubDefinition[] = SC_EXTERNAL_TOOLS.map((tool) => ({
+    id: tool.id,
+    label: tool.label,
+    kind: tool.mode === "webview" ? "webview" : "iframe",
+    url: tool.url,
+    width: tool.webviewWidth ?? 1200,
+    height: tool.webviewHeight ?? 780,
+    opacity: tool.webviewOpacity ?? 1.0,
+    iconKey: tool.icon,
+}));
+
 function extractHost(rawUrl: string): string | null {
     const trimmed = rawUrl.trim();
     if (!trimmed) return null;
@@ -179,7 +198,7 @@ function resolveCustomLabel(name: unknown, url: unknown): string {
 }
 
 export function getBuiltinOverlayHubItems(baseAppUrl: string): OverlayHubItem[] {
-    return BUILTIN_OVERLAY_ITEMS.map((item) => ({
+    return [...BUILTIN_OVERLAY_ITEMS, ...SC_TOOL_OVERLAY_ITEMS].map((item) => ({
         ...item,
         source: "builtin",
         url: item.resolveUrl ? item.resolveUrl(baseAppUrl) : (item.url ?? ""),

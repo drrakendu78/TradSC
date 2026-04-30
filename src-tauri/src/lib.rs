@@ -7,7 +7,8 @@ use scripts::background_service::{
     stop_background_service, is_background_service_running, BackgroundServiceState,
 };
 use scripts::bindings_functions::{
-    delete_bindings_file, import_bindings_file, list_bindings_files, open_bindings_folder,
+    delete_bindings_file, extract_default_bindings_from_game_data, import_bindings_file,
+    list_bindings_files, list_control_profiles, list_input_hardware_devices, open_bindings_folder,
     refresh_bindings,
 };
 use scripts::cache_functions::{
@@ -24,7 +25,10 @@ use scripts::cloud_backup::{
     save_preferences_to_cloud, load_preferences_from_cloud, delete_preferences_from_cloud,
 };
 use scripts::oauth_callback::start_oauth_callback_server;
-use scripts::gamepath::{get_star_citizen_versions, check_rsi_launcher, launch_rsi_launcher, get_folder_creation_date};
+use scripts::gamepath::{
+    check_rsi_launcher, get_folder_creation_date, get_launcher_activity_status,
+    get_star_citizen_versions, launch_rsi_launcher,
+};
 use scripts::graphics_settings::{
     get_graphics_renderer, set_graphics_renderer,
     get_user_cfg_resolution, set_user_cfg_resolution,
@@ -70,6 +74,7 @@ use scripts::companion_server::{
 use scripts::onboarding::{
     complete_onboarding, get_onboarding_state, record_onboarding_attempt, reset_onboarding,
 };
+use scripts::third_party_apps::launch_third_party_application;
 use std::sync::Mutex;
 use tauri::{command, Emitter, Manager};
 use tauri_plugin_deep_link::DeepLinkExt;
@@ -514,6 +519,9 @@ pub fn run() {
             set_character_backup_directory,
             import_bindings_file,
             list_bindings_files,
+            list_control_profiles,
+            list_input_hardware_devices,
+            extract_default_bindings_from_game_data,
             delete_bindings_file,
             open_bindings_folder,
             refresh_bindings,
@@ -547,6 +555,7 @@ pub fn run() {
             load_preferences_from_cloud,
             delete_preferences_from_cloud,
             check_rsi_launcher,
+            get_launcher_activity_status,
             launch_rsi_launcher,
             get_folder_creation_date,
             get_app_stats,
@@ -598,6 +607,7 @@ pub fn run() {
             record_onboarding_attempt,
             complete_onboarding,
             reset_onboarding,
+            launch_third_party_application,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

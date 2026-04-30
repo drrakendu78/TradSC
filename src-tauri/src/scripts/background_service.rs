@@ -1,14 +1,20 @@
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use tauri::{command, AppHandle, Manager, Emitter};
-use tokio::time::sleep;
+use tauri::{command, AppHandle, Emitter, Manager};
 use tauri_plugin_notification::NotificationExt;
+use tokio::time::sleep;
 
 use crate::scripts::gamepath::get_star_citizen_versions;
-use crate::scripts::translation_functions::{apply_branding_to_local_file, is_game_translated, is_translation_up_to_date_async, update_translation_async};
+use crate::scripts::offline_cache::{
+    download_and_cache_all_translations, download_and_cache_all_translations_with_force,
+    is_cache_empty_for_version,
+};
+use crate::scripts::translation_functions::{
+    apply_branding_to_local_file, is_game_translated, is_translation_up_to_date_async,
+    update_translation_async,
+};
 use crate::scripts::translation_preferences::load_translations_selected;
-use crate::scripts::offline_cache::{download_and_cache_all_translations, download_and_cache_all_translations_with_force, is_cache_empty_for_version};
 
 /// Configuration du service de tâche de fond
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,6 +38,20 @@ impl Default for BackgroundServiceConfig {
 }
 
 /// État du service de tâche de fond
+fn is_official_translation_link(link: &str) -> bool {
+    let link = link.to_lowercase();
+    link.contains("speed0u/scefra")
+        || link.contains("traduction.circuspes.fr")
+        || link.contains("circuspes")
+}
+
+fn is_custom_translation_setting(setting: &serde_json::Value, link: &str) -> bool {
+    setting
+        .get("custom")
+        .and_then(|value| value.as_bool())
+        .unwrap_or_else(|| !is_official_translation_link(link))
+}
+
 #[derive(Clone)]
 pub struct BackgroundServiceState {
     pub config: Arc<Mutex<BackgroundServiceConfig>>,
@@ -166,7 +186,10 @@ async fn run_background_service(
         match state.config.lock() {
             Ok(config_lock) => config_lock.clone(),
             Err(e) => {
-                eprintln!("[Background Service] Erreur lors de la récupération de la configuration: {}", e);
+                eprintln!(
+                    "[Background Service] Erreur lors de la récupération de la configuration: {}",
+                    e
+                );
                 return;
             }
         }
@@ -199,7 +222,7 @@ async fn run_background_service(
         let interval_seconds = config.check_interval_minutes * 60;
         let interval = Duration::from_secs(interval_seconds);
         println!("[Background Service] Attente de {} minute(s) ({} secondes) avant la prochaine vérification...", config.check_interval_minutes, interval_seconds);
-        
+
         tokio::select! {
             _ = sleep(interval) => {
                 // Continue la boucle après l'attente
@@ -237,7 +260,9 @@ async fn check_and_update_translations(app: &AppHandle, lang: &str) -> Result<()
 
     // Charger les préférences de traduction
     let translations_selected = load_translations_selected(app.clone())?;
-    let translations_obj = translations_selected.as_value().as_object()
+    let translations_obj = translations_selected
+        .as_value()
+        .as_object()
         .ok_or_else(|| "Format de traduction invalide".to_string())?;
 
     let mut updates_count = 0;
@@ -254,7 +279,10 @@ async fn check_and_update_translations(app: &AppHandle, lang: &str) -> Result<()
                     println!("[Background Service] {} source(s) téléchargée(s) pour {} (premier lancement)", cached, version_name);
                 }
                 Err(e) => {
-                    eprintln!("[Background Service] Erreur téléchargement initial pour {}: {}", version_name, e);
+                    eprintln!(
+                        "[Background Service] Erreur téléchargement initial pour {}: {}",
+                        version_name, e
+                    );
                 }
             }
         }
@@ -267,6 +295,15 @@ async fn check_and_update_translations(app: &AppHandle, lang: &str) -> Result<()
         // Vérifier si cette version a une traduction configurée
         if let Some(translation_setting) = translations_obj.get(version_name) {
             if let Some(link) = translation_setting.get("link").and_then(|v| v.as_str()) {
+                let selected_lang = translation_setting
+                    .get("lang")
+                    .and_then(|v| v.as_str())
+                    .filter(|value| !value.trim().is_empty())
+                    .unwrap_or(lang)
+                    .to_string();
+                let is_custom_translation =
+                    is_custom_translation_setting(translation_setting, link);
+
                 // Ignorer les liens cache: (mode hors-ligne) - pas de vérification de mise à jour possible
                 if link.starts_with("cache:") {
                     println!("[Background Service] {} utilise le cache hors-ligne, pas de vérification de mise à jour", version_name);
@@ -274,36 +311,71 @@ async fn check_and_update_translations(app: &AppHandle, lang: &str) -> Result<()
                 }
 
                 // Vérifier si la traduction est installée
-                if is_game_translated(version_path.clone(), lang.to_string()) {
+                if is_game_translated(version_path.clone(), selected_lang.clone()) {
                     // Appliquer le branding local si nécessaire (pour les installations existantes)
-                    match apply_branding_to_local_file(version_path.clone(), lang.to_string()) {
-                        Ok(true) => println!("[Background Service] Branding appliqué pour {}", version_name),
-                        Ok(false) => {}, // Déjà à jour, rien à faire
-                        Err(e) => eprintln!("[Background Service] Erreur branding pour {}: {}", version_name, e),
+                    if !is_custom_translation {
+                        match apply_branding_to_local_file(
+                            version_path.clone(),
+                            selected_lang.clone(),
+                        ) {
+                            Ok(true) => println!(
+                                "[Background Service] Branding appliqué pour {}",
+                                version_name
+                            ),
+                            Ok(false) => {} // Déjà à jour, rien à faire
+                            Err(e) => eprintln!(
+                                "[Background Service] Erreur branding pour {}: {}",
+                                version_name, e
+                            ),
+                        }
                     }
 
                     // Vérifier si une mise à jour est disponible (ASYNC)
-                    if !is_translation_up_to_date_async(version_path.clone(), link.to_string(), lang.to_string()).await {
-                        println!("[Background Service] Mise à jour disponible pour {}", version_name);
-                        
+                    if !is_translation_up_to_date_async(
+                        version_path.clone(),
+                        link.to_string(),
+                        selected_lang.clone(),
+                    )
+                    .await
+                    {
+                        println!(
+                            "[Background Service] Mise à jour disponible pour {}",
+                            version_name
+                        );
+
                         // Émettre un event pour le frontend (début de mise à jour)
                         let _ = app.emit("translation-update-start", &version_name);
 
                         // Mettre à jour la traduction (ASYNC)
-                        match update_translation_async(version_path.clone(), lang.to_string(), link.to_string()).await {
+                        match update_translation_async(
+                            version_path.clone(),
+                            selected_lang.clone(),
+                            link.to_string(),
+                        )
+                        .await
+                        {
                             Ok(_) => {
-                                println!("[Background Service] Traduction mise à jour pour {}", version_name);
+                                println!(
+                                    "[Background Service] Traduction mise à jour pour {}",
+                                    version_name
+                                );
                                 updates_count += 1;
 
                                 // Mettre à jour le cache avec les nouvelles versions
-                                println!("[Background Service] Mise à jour du cache pour {}...", version_name);
+                                println!(
+                                    "[Background Service] Mise à jour du cache pour {}...",
+                                    version_name
+                                );
                                 match download_and_cache_all_translations(version_name).await {
                                     Ok(cached) => {
                                         if cached > 0 {
                                             println!("[Background Service] {} source(s) mise(s) en cache pour {}", cached, version_name);
                                         }
                                     }
-                                    Err(e) => eprintln!("[Background Service] Erreur mise à jour cache pour {}: {}", version_name, e),
+                                    Err(e) => eprintln!(
+                                        "[Background Service] Erreur mise à jour cache pour {}: {}",
+                                        version_name, e
+                                    ),
                                 }
 
                                 // Émettre un event pour le frontend (fin de mise à jour)
@@ -320,7 +392,10 @@ async fn check_and_update_translations(app: &AppHandle, lang: &str) -> Result<()
                                 }
                             }
                             Err(e) => {
-                                eprintln!("[Background Service] Erreur lors de la mise à jour de {}: {}", version_name, e);
+                                eprintln!(
+                                    "[Background Service] Erreur lors de la mise à jour de {}: {}",
+                                    version_name, e
+                                );
                                 // Émettre un event d'erreur
                                 let _ = app.emit("translation-update-error", &version_name);
                             }
@@ -329,14 +404,20 @@ async fn check_and_update_translations(app: &AppHandle, lang: &str) -> Result<()
                         println!("[Background Service] {} est à jour", version_name);
                     }
                 } else {
-                    println!("[Background Service] Traduction non installée pour {}", version_name);
+                    println!(
+                        "[Background Service] Traduction non installée pour {}",
+                        version_name
+                    );
                 }
             }
         }
     }
 
     if updates_count > 0 {
-        println!("[Background Service] {} traduction(s) mise(s) à jour", updates_count);
+        println!(
+            "[Background Service] {} traduction(s) mise(s) à jour",
+            updates_count
+        );
     } else {
         println!("[Background Service] Toutes les traductions sont à jour");
     }

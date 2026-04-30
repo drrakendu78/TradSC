@@ -1,4 +1,4 @@
-var CACHE_NAME = "startrad-companion-v3";
+var CACHE_NAME = "startrad-companion-v5";
 
 self.addEventListener("install", function (event) {
   event.waitUntil(
@@ -13,10 +13,10 @@ self.addEventListener("install", function (event) {
           "/traduction",
           "/infos",
           "/outils",
-          "/app.css?v=3",
-          "/companion.js?v=3",
-          "/manifest.json?v=3",
-          "/logo.png?v=3"
+          "/app.css?v=5",
+          "/companion.js?v=5",
+          "/manifest.json?v=5",
+          "/logo.png?v=5"
         ]);
       });
     }).catch(function () {})

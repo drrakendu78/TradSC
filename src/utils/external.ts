@@ -27,10 +27,17 @@ const ALLOWED_DOMAINS = [
     "www.verseguide.com",
     "scmdb.net",
     "www.scmdb.net",
+    "schaulers.space",
+    "sc-cargo.space",
+    "getallsky.net",
+    "protixit.com",
+    "scdb.space",
+    "sc-craft.tools",
+    "thespacecoder.space",
 ];
 
 // Autorise https, http (si besoin), et schémas ms-windows-store
-function isAllowedUrl(url: string): boolean {
+export function isAllowedUrl(url: string): boolean {
     try {
         // Autoriser les schémas spéciaux
         if (url.startsWith("ms-windows-store://")) {

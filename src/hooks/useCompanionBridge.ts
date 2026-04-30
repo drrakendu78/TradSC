@@ -246,7 +246,12 @@ export function useCompanionBridge(enabled: boolean = true) {
                 const key = overlayStateKey(it.id, it.kind);
                 return {
                     id: it.id,
+                    title: it.label,
                     type: it.kind,
+                    url: it.url,
+                    width: it.width,
+                    height: it.height,
+                    label: overlayWindowLabel(it.id, it.kind),
                     active: Boolean(overlayActiveRef.current[key]),
                     opacity: overlayOpacityRef.current[key] ?? it.opacity,
                 };
@@ -1053,25 +1058,38 @@ export function useCompanionBridge(enabled: boolean = true) {
                 case "online.preset.download": {
                     const dnaUrl = String(msg.dnaUrl ?? "");
                     const title = String(msg.title ?? "");
+                    // Le téléphone stocke l'état "downloading" indexé par downloadKey
+                    // (= item.id côté HTML, fallback sur title). On le renvoie tel quel
+                    // pour que le cleanup côté HTML puisse retirer la bonne entrée
+                    // sans dépendre du contenu textuel du toast.
+                    const downloadKey = String(msg.downloadKey ?? title);
                     if (!dnaUrl || !title) break;
 
+                    let success = false;
+                    let errorMessage: string | undefined;
                     try {
-                        await invoke("download_character", {
-                            dnaUrl,
-                            title,
-                        });
+                        await invoke("download_character", { dnaUrl, title });
+                        success = true;
                         await sendToClient(clientId, {
                             type: "toast",
                             message: `Preset telecharge: ${title}`,
                         });
                     } catch (e) {
+                        errorMessage = String(e);
                         await sendToClient(clientId, {
                             type: "toast",
-                            message: `Telechargement preset: ${String(e)}`,
+                            message: `Telechargement preset: ${errorMessage}`,
                             isError: true,
                         });
                     }
 
+                    await sendToClient(clientId, {
+                        type: "online.preset.downloaded",
+                        downloadKey,
+                        title,
+                        success,
+                        ...(errorMessage ? { error: errorMessage } : {}),
+                    });
                     await sendToClient(clientId, await buildPresetsState());
                     break;
                 }

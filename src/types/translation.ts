@@ -4,6 +4,10 @@ export interface GamePaths {
             path: string;
             translated: boolean;
             up_to_date: boolean;
+            release_version?: string | null;
+            build_number?: string | null;
+            game_version?: string | null;
+            branch?: string | null;
         };
     };
 }
@@ -32,6 +36,8 @@ export interface LocalizationConfig {
 interface TranslationSetting {
     link: string | null;
     settingsEN: boolean;
+    lang?: string | null;
+    custom?: boolean | null;
 }
 
 export interface TranslationsChoosen {

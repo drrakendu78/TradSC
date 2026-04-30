@@ -2,6 +2,9 @@ import { m } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
 import {
     Dialog,
@@ -39,7 +42,16 @@ import {
     PanelLeft,
     BarChart3,
     Trash2,
-    AlertCircle
+    AlertCircle,
+    AppWindow,
+    FolderOpen,
+    Pencil,
+    Save,
+    Settings2,
+    X,
+    Zap,
+    CircleCheck,
+    Gamepad2
 } from 'lucide-react';
 import { usePreferencesSyncStore, ExportedPreferences } from '@/stores/preferences-sync-store';
 import { useStatsStore } from '@/stores/stats-store';
@@ -58,6 +70,11 @@ interface LauncherStatus {
     path: string | null;
 }
 
+interface LauncherActivityStatus {
+    launcher_running: boolean;
+    game_running: boolean;
+}
+
 interface VersionPlaytime {
     version: string;
     hours: number;
@@ -70,6 +87,21 @@ interface PlaytimeStats {
     formatted: string;
     session_count: number;
     by_version: VersionPlaytime[];
+}
+
+interface ThirdPartyApplication {
+    id: string;
+    name: string;
+    path: string;
+    enabled: boolean;
+    createdAt: string;
+    updatedAt: string;
+}
+
+interface ThirdPartyApplicationDraft {
+    name: string;
+    path: string;
+    enabled: boolean;
 }
 
 // ============================================
@@ -137,7 +169,12 @@ function QuickAction({ to, icon, title, description, color, index }: QuickAction
 
 const LAUNCHER_CACHE_KEY = 'startradfr_launcher_status';
 const PLAYTIME_CACHE_KEY = 'startradfr_playtime_cache';
+const THIRD_PARTY_APPS_STORAGE_KEY = 'startradfr_third_party_apps';
 const AMBILIGHT_PRESET_STORAGE_KEY = 'ambilightPreset';
+const DEFAULT_LAUNCHER_ACTIVITY: LauncherActivityStatus = {
+    launcher_running: false,
+    game_running: false,
+};
 type AmbilightPreset = 'soft' | 'cinema' | 'intense';
 
 interface AmbilightPresetSettings {
@@ -225,12 +262,76 @@ function getCachedPlaytime(): PlaytimeStats | null {
     return null;
 }
 
+function createThirdPartyApplicationId() {
+    if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+        return crypto.randomUUID();
+    }
+    return `third-party-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function getFilenameFromPath(path: string) {
+    return path.split(/[\\/]/).pop() || path;
+}
+
+function getApplicationNameFromPath(path: string) {
+    const filename = getFilenameFromPath(path).trim();
+    return filename.replace(/\.[^.]+$/, '') || 'Application tierce';
+}
+
+function readThirdPartyApplications(): ThirdPartyApplication[] {
+    try {
+        const raw = localStorage.getItem(THIRD_PARTY_APPS_STORAGE_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+
+        return parsed
+            .filter((item): item is Partial<ThirdPartyApplication> =>
+                Boolean(item) && typeof item === 'object' && typeof item.path === 'string'
+            )
+            .map((item) => {
+                const now = new Date().toISOString();
+                const name =
+                    typeof item.name === 'string' && item.name.trim()
+                        ? item.name.trim()
+                        : getApplicationNameFromPath(item.path || '');
+
+                return {
+                    id: typeof item.id === 'string' && item.id ? item.id : createThirdPartyApplicationId(),
+                    name,
+                    path: item.path || '',
+                    enabled: item.enabled !== false,
+                    createdAt: typeof item.createdAt === 'string' ? item.createdAt : now,
+                    updatedAt: typeof item.updatedAt === 'string' ? item.updatedAt : now,
+                };
+            })
+            .filter((item) => item.path.trim().length > 0);
+    } catch {}
+    return [];
+}
+
+function writeThirdPartyApplications(apps: ThirdPartyApplication[]) {
+    try {
+        localStorage.setItem(THIRD_PARTY_APPS_STORAGE_KEY, JSON.stringify(apps));
+    } catch {}
+}
+
 function Home() {
     const [showContent, setShowContent] = useState(true);
     const [isInTauri] = useState(() => isTauri());
     const [launcherStatus, setLauncherStatus] = useState<LauncherStatus>(() => getCachedLauncherStatus());
+    const [launcherActivity, setLauncherActivity] = useState<LauncherActivityStatus>(DEFAULT_LAUNCHER_ACTIVITY);
     const [playtime, setPlaytime] = useState<PlaytimeStats | null>(() => getCachedPlaytime());
     const [launchingLauncher, setLaunchingLauncher] = useState(false);
+    const [thirdPartyApps, setThirdPartyApps] = useState<ThirdPartyApplication[]>(() => readThirdPartyApplications());
+    const [showThirdPartyAppsDialog, setShowThirdPartyAppsDialog] = useState(false);
+    const [editingThirdPartyAppId, setEditingThirdPartyAppId] = useState<string | null>(null);
+    const [thirdPartyAppDraft, setThirdPartyAppDraft] = useState<ThirdPartyApplicationDraft>({
+        name: '',
+        path: '',
+        enabled: true,
+    });
+    const [launchingThirdPartyAppId, setLaunchingThirdPartyAppId] = useState<string | null>(null);
     const [isBackgroundVideoEnabled, setIsBackgroundVideoEnabled] = useState(() => {
         const saved = localStorage.getItem('backgroundVideoEnabled');
         return saved === null ? true : saved === 'true';
@@ -277,6 +378,14 @@ function Home() {
     const heroAmbilightProjectorRefs = useRef<(HTMLCanvasElement | null)[]>([]);
     const heroAmbilightRafRef = useRef<number | null>(null);
 
+    const refreshLauncherActivity = async () => {
+        if (!isInTauri) return DEFAULT_LAUNCHER_ACTIVITY;
+
+        const status = await tauriInvoke<LauncherActivityStatus>('get_launcher_activity_status');
+        setLauncherActivity(status);
+        return status;
+    };
+
     // Vérifier si on est dans Tauri et si le RSI Launcher est installé
     useEffect(() => {
         if (!isInTauri) return;
@@ -292,6 +401,28 @@ function Home() {
             setPlaytime(stats);
         }).catch(() => {});
     }, []);
+
+    useEffect(() => {
+        if (!isInTauri) return;
+
+        let disposed = false;
+        const refresh = async () => {
+            try {
+                const status = await tauriInvoke<LauncherActivityStatus>('get_launcher_activity_status');
+                if (!disposed) {
+                    setLauncherActivity(status);
+                }
+            } catch {}
+        };
+
+        refresh();
+        const interval = window.setInterval(refresh, 5000);
+
+        return () => {
+            disposed = true;
+            window.clearInterval(interval);
+        };
+    }, [isInTauri]);
 
     useEffect(() => {
         const handleVideoToggle = (event: Event) => {
@@ -847,12 +978,214 @@ function Home() {
         });
     };
 
+    const saveThirdPartyApps = (apps: ThirdPartyApplication[]) => {
+        setThirdPartyApps(apps);
+        writeThirdPartyApplications(apps);
+    };
+
+    const resetThirdPartyAppDraft = () => {
+        setEditingThirdPartyAppId(null);
+        setThirdPartyAppDraft({
+            name: '',
+            path: '',
+            enabled: true,
+        });
+    };
+
+    const handleSelectThirdPartyAppPath = async () => {
+        if (!isInTauri) return;
+
+        try {
+            const { open } = await import('@tauri-apps/plugin-dialog');
+            const selected = await open({
+                filters: [
+                    {
+                        name: 'Applications',
+                        extensions: ['exe', 'bat', 'cmd'],
+                    },
+                ],
+                multiple: false,
+            });
+
+            if (typeof selected !== 'string') return;
+
+            setThirdPartyAppDraft((draft) => ({
+                ...draft,
+                path: selected,
+                name: draft.name.trim() ? draft.name : getApplicationNameFromPath(selected),
+            }));
+        } catch (error: any) {
+            toast({
+                title: 'Selection impossible',
+                description: error?.message || error?.toString() || 'Impossible de choisir une application.',
+                variant: 'destructive',
+            });
+        }
+    };
+
+    const handleSaveThirdPartyApp = () => {
+        const name = thirdPartyAppDraft.name.trim();
+        const path = thirdPartyAppDraft.path.trim();
+
+        if (!name || !path) {
+            toast({
+                title: 'Configuration incomplete',
+                description: 'Ajoutez un nom et le chemin de l\'application.',
+                variant: 'warning',
+            });
+            return;
+        }
+
+        const now = new Date().toISOString();
+        const next = editingThirdPartyAppId
+            ? thirdPartyApps.map((app) =>
+                  app.id === editingThirdPartyAppId
+                      ? {
+                            ...app,
+                            name,
+                            path,
+                            enabled: thirdPartyAppDraft.enabled,
+                            updatedAt: now,
+                        }
+                      : app
+              )
+            : [
+                  ...thirdPartyApps,
+                  {
+                      id: createThirdPartyApplicationId(),
+                      name,
+                      path,
+                      enabled: thirdPartyAppDraft.enabled,
+                      createdAt: now,
+                      updatedAt: now,
+                  },
+              ];
+
+        saveThirdPartyApps(next);
+        resetThirdPartyAppDraft();
+
+        toast({
+            title: editingThirdPartyAppId ? 'Application mise a jour' : 'Application ajoutee',
+            description: `${name} sera ${thirdPartyAppDraft.enabled ? 'lancee' : 'gardee en pause'} avec le RSI Launcher.`,
+            variant: 'success',
+        });
+    };
+
+    const handleEditThirdPartyApp = (app: ThirdPartyApplication) => {
+        setEditingThirdPartyAppId(app.id);
+        setThirdPartyAppDraft({
+            name: app.name,
+            path: app.path,
+            enabled: app.enabled,
+        });
+    };
+
+    const handleToggleThirdPartyApp = (id: string, enabled: boolean) => {
+        saveThirdPartyApps(
+            thirdPartyApps.map((app) =>
+                app.id === id
+                    ? {
+                          ...app,
+                          enabled,
+                          updatedAt: new Date().toISOString(),
+                      }
+                    : app
+            )
+        );
+    };
+
+    const handleRemoveThirdPartyApp = (id: string) => {
+        const app = thirdPartyApps.find((item) => item.id === id);
+        saveThirdPartyApps(thirdPartyApps.filter((item) => item.id !== id));
+        if (editingThirdPartyAppId === id) {
+            resetThirdPartyAppDraft();
+        }
+        if (app) {
+            toast({
+                title: 'Application retiree',
+                description: `${app.name} ne sera plus lancee automatiquement.`,
+            });
+        }
+    };
+
+    const launchThirdPartyApplication = async (app: ThirdPartyApplication, showToast = false) => {
+        try {
+            await tauriInvoke('launch_third_party_application', { path: app.path });
+            if (showToast) {
+                toast({
+                    title: 'Application lancee',
+                    description: `${app.name} a ete ouverte.`,
+                    variant: 'success',
+                });
+            }
+            return true;
+        } catch (error: any) {
+            if (showToast) {
+                toast({
+                    title: 'Lancement impossible',
+                    description: error?.message || error?.toString() || `Impossible de lancer ${app.name}.`,
+                    variant: 'destructive',
+                });
+            }
+            return false;
+        }
+    };
+
+    const handleLaunchThirdPartyApp = async (app: ThirdPartyApplication) => {
+        if (!isInTauri) return;
+        setLaunchingThirdPartyAppId(app.id);
+        try {
+            await launchThirdPartyApplication(app, true);
+        } finally {
+            setLaunchingThirdPartyAppId(null);
+        }
+    };
+
+    const launchEnabledThirdPartyApplications = async () => {
+        const enabledApps = thirdPartyApps.filter((app) => app.enabled);
+        if (enabledApps.length === 0) {
+            return { launched: 0, failed: [] as string[] };
+        }
+
+        const results = await Promise.all(
+            enabledApps.map(async (app) => ({
+                name: app.name,
+                ok: await launchThirdPartyApplication(app),
+            }))
+        );
+
+        return {
+            launched: results.filter((result) => result.ok).length,
+            failed: results.filter((result) => !result.ok).map((result) => result.name),
+        };
+    };
+
     // Lancer le RSI Launcher
     const handleLaunchLauncher = async () => {
         if (!isInTauri) return;
         setLaunchingLauncher(true);
         try {
             await tauriInvoke('launch_rsi_launcher');
+            setLauncherActivity((status) => ({ ...status, launcher_running: true }));
+            void refreshLauncherActivity().catch(() => {});
+            window.setTimeout(() => {
+                void refreshLauncherActivity().catch(() => {});
+            }, 1500);
+            const companionLaunch = await launchEnabledThirdPartyApplications();
+            const companionSummary =
+                companionLaunch.launched > 0
+                    ? ` ${companionLaunch.launched} programme(s) tiers lance(s).`
+                    : '';
+            if (companionLaunch.launched > 0 || companionLaunch.failed.length > 0) {
+                toast({
+                    title: companionLaunch.failed.length > 0 ? 'Programmes tiers partiels' : 'Programmes tiers lances',
+                    description:
+                        companionLaunch.failed.length > 0
+                            ? `${companionSummary.trim()} Echec: ${companionLaunch.failed.join(', ')}`.trim()
+                            : companionSummary.trim(),
+                    variant: companionLaunch.failed.length > 0 ? 'warning' : 'success',
+                });
+            }
             toast({
                 title: 'RSI Launcher lancé',
                 description: 'Le launcher Star Citizen a été ouvert.',
@@ -877,6 +1210,20 @@ function Home() {
             window.open(url, '_blank');
         }
     };
+
+    const enabledThirdPartyAppCount = thirdPartyApps.filter((app) => app.enabled).length;
+    const thirdPartyAppDraftIsValid =
+        thirdPartyAppDraft.name.trim().length > 0 && thirdPartyAppDraft.path.trim().length > 0;
+    const launcherButtonLabel = launchingLauncher
+        ? 'Demarrage...'
+        : launcherActivity.game_running
+          ? 'Star Citizen en cours'
+          : launcherActivity.launcher_running
+            ? 'RSI Launcher actif'
+            : 'Demarrer RSI Launcher';
+    const launcherStatusTone = launcherActivity.game_running || launcherActivity.launcher_running
+        ? 'border-green-500/35 bg-green-500/10 text-green-500'
+        : 'border-border/35 bg-background/30 text-muted-foreground';
 
     return (
         <div className="flex w-full h-full flex-col gap-3 p-4 overflow-visible relative justify-between">
@@ -974,12 +1321,24 @@ function Home() {
                                             <Button
                                                 size="default"
                                                 variant="outline"
-                                                className="h-9 gap-2 px-4 text-sm"
+                                                className={`h-9 gap-2 px-4 text-sm ${
+                                                    launcherActivity.game_running || launcherActivity.launcher_running
+                                                        ? 'border-green-500/35 bg-green-500/10 text-green-500 hover:bg-green-500/15 hover:text-green-400'
+                                                        : ''
+                                                }`}
                                                 onClick={handleLaunchLauncher}
                                                 disabled={launchingLauncher}
                                             >
-                                                <Play className="h-4 w-4" />
-                                                {launchingLauncher ? 'Demarrage...' : 'Demarrer RSI Launcher'}
+                                                {launchingLauncher ? (
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                ) : launcherActivity.game_running ? (
+                                                    <Gamepad2 className="h-4 w-4" />
+                                                ) : launcherActivity.launcher_running ? (
+                                                    <CircleCheck className="h-4 w-4" />
+                                                ) : (
+                                                    <Play className="h-4 w-4" />
+                                                )}
+                                                {launcherButtonLabel}
                                             </Button>
                                         ) : (
                                             <Button
@@ -994,7 +1353,46 @@ function Home() {
                                             </Button>
                                     )
                                 )}
+                                {isInTauri && (
+                                    <Button
+                                        size="default"
+                                        variant="outline"
+                                        className="h-9 gap-2 px-4 text-sm"
+                                        onClick={() => setShowThirdPartyAppsDialog(true)}
+                                    >
+                                        <Settings2 className="h-4 w-4" />
+                                        Programmes tiers
+                                        {enabledThirdPartyAppCount > 0 && (
+                                            <Badge className="ml-0.5 border-primary/30 bg-primary/15 px-1.5 py-0 text-[10px] text-primary">
+                                                {enabledThirdPartyAppCount}
+                                            </Badge>
+                                        )}
+                                    </Button>
+                                )}
                             </div>
+
+                            {isInTauri && launcherStatus.installed && (
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium ${launcherStatusTone}`}>
+                                        <CircleCheck className="h-3.5 w-3.5" />
+                                        {launcherActivity.launcher_running
+                                            ? "RSI Launcher en cours d'utilisation"
+                                            : 'RSI Launcher pret'}
+                                    </span>
+                                    <span
+                                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium ${
+                                            launcherActivity.game_running
+                                                ? 'border-green-500/35 bg-green-500/10 text-green-500'
+                                                : 'border-border/35 bg-background/30 text-muted-foreground'
+                                        }`}
+                                    >
+                                        <Gamepad2 className="h-3.5 w-3.5" />
+                                        {launcherActivity.game_running
+                                            ? "Star Citizen en cours d'utilisation"
+                                            : 'Star Citizen en attente'}
+                                    </span>
+                                </div>
+                            )}
 
                             {isInTauri && ((playtime && playtime.session_count > 0) || savedPlaytimeHours > 0) && (() => {
                                 const calculatedHours = playtime?.total_hours || 0;
@@ -1122,8 +1520,8 @@ function Home() {
                         <QuickAction
                             to="/graphics-settings"
                             icon={<Monitor className="h-4 w-4" />}
-                            title="Graphismes"
-                            description="Paramètres visuels"
+                            title="Paramètres généraux"
+                            description="Graphismes et contrôles"
                             color="border-pink-500/30 bg-pink-500/10 text-pink-500"
                             index={4}
                         />
@@ -1270,6 +1668,228 @@ function Home() {
             >
                 💡 Astuce : Utilisez le menu à gauche pour naviguer rapidement
             </m.p>
+
+            {/* Dialog des programmes tiers */}
+            <Dialog
+                open={showThirdPartyAppsDialog}
+                onOpenChange={(open) => {
+                    setShowThirdPartyAppsDialog(open);
+                    if (!open) resetThirdPartyAppDraft();
+                }}
+            >
+                <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-3xl">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <AppWindow className="h-5 w-5 text-primary" />
+                            Programmes tiers
+                        </DialogTitle>
+                        <DialogDescription>
+                            Choisissez les applications a lancer automatiquement avec le RSI Launcher.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+                        <div className="min-h-0 space-y-2 overflow-y-auto pr-1">
+                            <div className="flex items-center justify-between gap-3 rounded-lg border border-border/35 bg-background/25 px-3 py-2">
+                                <div className="min-w-0">
+                                    <p className="text-sm font-medium">Lancement automatique</p>
+                                    <p className="truncate text-xs text-muted-foreground">
+                                        {enabledThirdPartyAppCount} actif(s) sur {thirdPartyApps.length}
+                                    </p>
+                                </div>
+                                <Badge variant="outline" className="shrink-0 border-primary/30 text-primary">
+                                    {enabledThirdPartyAppCount}
+                                </Badge>
+                            </div>
+
+                            {thirdPartyApps.length === 0 ? (
+                                <div className="flex min-h-[220px] flex-col items-center justify-center rounded-lg border border-dashed border-border/45 bg-background/20 px-6 text-center">
+                                    <AppWindow className="mb-3 h-9 w-9 text-muted-foreground/65" />
+                                    <p className="text-sm font-medium">Aucun programme configure</p>
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                        Ajoutez UEX, un outil de carte, Discord ou tout executable utile a votre session.
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {thirdPartyApps.map((app) => (
+                                        <div
+                                            key={app.id}
+                                            className="rounded-lg border border-border/35 bg-background/25 p-3 transition-colors hover:bg-background/35"
+                                        >
+                                            <div className="flex items-start gap-3">
+                                                <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/25 bg-primary/10 text-primary">
+                                                    <AppWindow className="h-4 w-4" />
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex min-w-0 items-center gap-2">
+                                                        <p className="truncate text-sm font-semibold">{app.name}</p>
+                                                        <Badge
+                                                            variant="outline"
+                                                            className={
+                                                                app.enabled
+                                                                    ? "border-green-500/30 text-green-500"
+                                                                    : "border-border/40 text-muted-foreground"
+                                                            }
+                                                        >
+                                                            {app.enabled ? 'Auto' : 'Pause'}
+                                                        </Badge>
+                                                    </div>
+                                                    <p className="mt-1 truncate text-xs text-muted-foreground" title={app.path}>
+                                                        {getFilenameFromPath(app.path)}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                                                <div className="flex items-center gap-2 rounded-md border border-border/30 bg-background/20 px-2 py-1">
+                                                    <Switch
+                                                        checked={app.enabled}
+                                                        onCheckedChange={(checked) => handleToggleThirdPartyApp(app.id, checked)}
+                                                        aria-label={`Lancer ${app.name} avec le RSI Launcher`}
+                                                    />
+                                                    <span className="text-xs text-muted-foreground">Avec RSI</span>
+                                                </div>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="h-8 gap-1.5 px-2.5 text-xs"
+                                                    onClick={() => handleLaunchThirdPartyApp(app)}
+                                                    disabled={launchingThirdPartyAppId === app.id}
+                                                >
+                                                    {launchingThirdPartyAppId === app.id ? (
+                                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                    ) : (
+                                                        <Zap className="h-3.5 w-3.5" />
+                                                    )}
+                                                    Tester
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    className="h-8 gap-1.5 px-2.5 text-xs"
+                                                    onClick={() => handleEditThirdPartyApp(app)}
+                                                >
+                                                    <Pencil className="h-3.5 w-3.5" />
+                                                    Modifier
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    className="h-8 gap-1.5 px-2.5 text-xs text-red-500 hover:text-red-500"
+                                                    onClick={() => handleRemoveThirdPartyApp(app.id)}
+                                                >
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                    Retirer
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="rounded-lg border border-border/35 bg-background/25 p-3">
+                            <div className="mb-3 flex items-center justify-between gap-2">
+                                <div>
+                                    <p className="text-sm font-semibold">
+                                        {editingThirdPartyAppId ? 'Modifier' : 'Ajouter'} une application
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">Executable local, lance en arriere-plan.</p>
+                                </div>
+                                {editingThirdPartyAppId && (
+                                    <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-8 w-8"
+                                        onClick={resetThirdPartyAppDraft}
+                                        aria-label="Annuler la modification"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                )}
+                            </div>
+
+                            <div className="space-y-3">
+                                <label className="block space-y-1.5">
+                                    <span className="text-xs font-medium text-muted-foreground">Nom affiche</span>
+                                    <Input
+                                        value={thirdPartyAppDraft.name}
+                                        onChange={(event) =>
+                                            setThirdPartyAppDraft((draft) => ({
+                                                ...draft,
+                                                name: event.target.value,
+                                            }))
+                                        }
+                                        placeholder="UEX, Discord, outil de carte..."
+                                        className="h-9 text-sm"
+                                    />
+                                </label>
+
+                                <label className="block space-y-1.5">
+                                    <span className="text-xs font-medium text-muted-foreground">Chemin de l'application</span>
+                                    <div className="flex gap-2">
+                                        <Input
+                                            value={thirdPartyAppDraft.path}
+                                            onChange={(event) =>
+                                                setThirdPartyAppDraft((draft) => ({
+                                                    ...draft,
+                                                    path: event.target.value,
+                                                }))
+                                            }
+                                            placeholder="C:\\Program Files\\..."
+                                            className="h-9 min-w-0 text-sm"
+                                        />
+                                        <Button
+                                            type="button"
+                                            size="icon"
+                                            variant="outline"
+                                            className="h-9 w-9 shrink-0"
+                                            onClick={handleSelectThirdPartyAppPath}
+                                            disabled={!isInTauri}
+                                            aria-label="Choisir une application"
+                                        >
+                                            <FolderOpen className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </label>
+
+                                <div className="flex items-center justify-between gap-3 rounded-lg border border-border/30 bg-background/20 px-3 py-2">
+                                    <div>
+                                        <p className="text-sm font-medium">Lancer avec RSI</p>
+                                        <p className="text-xs text-muted-foreground">Desactivez pour garder l'application en favoris.</p>
+                                    </div>
+                                    <Switch
+                                        checked={thirdPartyAppDraft.enabled}
+                                        onCheckedChange={(checked) =>
+                                            setThirdPartyAppDraft((draft) => ({
+                                                ...draft,
+                                                enabled: checked,
+                                            }))
+                                        }
+                                        aria-label="Lancer automatiquement avec le RSI Launcher"
+                                    />
+                                </div>
+
+                                <Button
+                                    className="h-9 w-full gap-2"
+                                    onClick={handleSaveThirdPartyApp}
+                                    disabled={!thirdPartyAppDraftIsValid}
+                                >
+                                    <Save className="h-4 w-4" />
+                                    {editingThirdPartyAppId ? 'Enregistrer' : 'Ajouter'}
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowThirdPartyAppsDialog(false)}>
+                            Fermer
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Dialog du gestionnaire cloud */}
             <Dialog open={showCloudPrefsManager} onOpenChange={setShowCloudPrefsManager}>

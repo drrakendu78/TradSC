@@ -418,7 +418,9 @@ body::after {
 /* ───── Floating bottom dock (iPhone style) ───── */
 .dock {
   position: fixed;
-  bottom: max(14px, env(safe-area-inset-bottom));
+  /* `--vv-offset` est piloté par companion.js (visualViewport) pour remonter
+     le dock quand la barre URL Safari ou le clavier mange l'espace en bas. */
+  bottom: calc(max(14px, env(safe-area-inset-bottom)) + var(--vv-offset, 0px));
   left: 50%;
   transform: translateX(-50%);
   display: inline-flex;
@@ -482,7 +484,7 @@ body::after {
 .toast {
   position: fixed;
   left: 50%;
-  bottom: calc(86px + env(safe-area-inset-bottom));
+  bottom: calc(86px + env(safe-area-inset-bottom) + var(--vv-offset, 0px));
   transform: translate(-50%, 18px);
   background: var(--ink);
   color: var(--bg);
@@ -637,7 +639,7 @@ body::after {
   .section-head { padding-bottom: 8px; }
   .section-title { font-size: 20px; }
   .card { padding: 14px; }
-  .dock { bottom: max(10px, env(safe-area-inset-bottom)); }
+  .dock { bottom: calc(max(10px, env(safe-area-inset-bottom)) + var(--vv-offset, 0px)); }
   .dock-item { height: 38px; min-width: 38px; }
   .dock-item svg { width: 16px; height: 16px; }
 }
@@ -657,7 +659,7 @@ body::after {
   body { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
   .dock {
     padding: 7px;
-    bottom: max(18px, env(safe-area-inset-bottom));
+    bottom: calc(max(18px, env(safe-area-inset-bottom)) + var(--vv-offset, 0px));
   }
   .dock-item {
     height: 46px;

@@ -23,6 +23,8 @@ import ScmDb from '@/pages/ScmDb';
 import OverlayView from '@/pages/OverlayView';
 import OverlayControl from '@/pages/OverlayControl';
 import OverlayHub from '@/pages/OverlayHub';
+import ScExternalTool from '@/pages/ScExternalTool';
+import { SC_IFRAME_TOOLS } from '@/data/sc-tools';
 
 
 const ScrollToTop = () => {
@@ -156,6 +158,9 @@ const AppRouter = () => (
         <Route path='/overlay-view' element={<OverlayView />} />
         <Route path='/overlay-control' element={<OverlayControl />} />
         <Route path='/overlay-hub' element={<OverlayHub />} />
+        {SC_IFRAME_TOOLS.map((tool) => (
+          <Route key={tool.id} path={tool.route} element={<ScExternalTool tool={tool} />} />
+        ))}
 
         <Route path="*" element={<NotFound />} />
       </Routes>

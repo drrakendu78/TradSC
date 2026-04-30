@@ -7,13 +7,13 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>StarTrad FR Companion</title>
-  <link rel="manifest" href="/manifest.json?v=3">
-  <link rel="icon" type="image/png" href="/logo.png?v=3">
-  <link rel="apple-touch-icon" href="/logo.png?v=3">
+  <link rel="manifest" href="/manifest.json?v=5">
+  <link rel="icon" type="image/png" href="/logo.png?v=5">
+  <link rel="apple-touch-icon" href="/logo.png?v=5">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/app.css?v=3">
+  <link rel="stylesheet" href="/app.css?v=5">
   <style>
     .pvp-card { padding: 22px; display: flex; flex-direction: column; gap: 12px; }
     .pvp-phase-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
@@ -361,7 +361,7 @@
 
   <div class="toast" id="toast"></div>
 
-  <script src="/companion.js?v=3"></script>
+  <script src="/companion.js?v=5"></script>
   <script>
     (function() {
       var token = new URLSearchParams(location.search).get("token") || "";
@@ -745,22 +745,41 @@
         if (msg.type === "state.overlays") {
           var incoming = Array.isArray(msg.overlays) ? msg.overlays : [];
           if (incoming.length) {
-            state.overlays = state.overlays.map(function(current) {
+            var merged = state.overlays.map(function(current) {
               var next = incoming.find(function(item) {
                 return item.id === current.id && item.type === current.type;
               });
               return next ? {
                 id: current.id,
-                title: current.title,
+                title: next.title || current.title,
                 type: current.type,
-                url: current.url,
-                width: current.width,
-                height: current.height,
-                label: current.label,
+                url: next.url || current.url,
+                width: Number(next.width || current.width),
+                height: Number(next.height || current.height),
+                label: next.label || current.label,
                 opacity: typeof next.opacity === "number" ? next.opacity : current.opacity,
                 active: !!next.active
               } : current;
             });
+            incoming.forEach(function(item) {
+              var exists = merged.some(function(current) {
+                return item.id === current.id && item.type === current.type;
+              });
+              if (!exists) {
+                merged.push({
+                  id: item.id,
+                  title: item.title || item.id,
+                  type: item.type || "iframe",
+                  url: item.url || "",
+                  width: Number(item.width || 600),
+                  height: Number(item.height || 800),
+                  label: item.label || item.id,
+                  opacity: typeof item.opacity === "number" ? item.opacity : 1,
+                  active: !!item.active
+                });
+              }
+            });
+            state.overlays = merged;
             renderOverlays();
             saveCache();
           }

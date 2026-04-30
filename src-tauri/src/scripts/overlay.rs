@@ -573,6 +573,26 @@ pub async fn open_webview_overlay(
                 `;
                 document.documentElement.appendChild(transparentStyle);
 
+                if ('{overlay_id}' === 'protixit-reputation' || '{overlay_id}' === 'scdb-space') {{
+                    var scrollbarStyle = document.createElement('style');
+                    scrollbarStyle.id = '__wv_overlay_scrollbar_cleanup';
+                    scrollbarStyle.textContent = `
+                        html, body, * {{
+                            scrollbar-width: none !important;
+                            -ms-overflow-style: none !important;
+                        }}
+                        html::-webkit-scrollbar,
+                        body::-webkit-scrollbar,
+                        *::-webkit-scrollbar {{
+                            width: 0 !important;
+                            height: 0 !important;
+                            display: none !important;
+                            background: transparent !important;
+                        }}
+                    `;
+                    document.documentElement.appendChild(scrollbarStyle);
+                }}
+
                 var bar = document.createElement('div');
                 bar.id = '__wv_overlay_bar';
                 bar.style.cssText = 'position:fixed;top:0;left:0;right:0;height:24px;z-index:999999;display:flex;align-items:center;gap:4px;padding:0 6px;background:linear-gradient(to bottom,rgba(0,0,0,0.5),transparent);cursor:move;user-select:none;';

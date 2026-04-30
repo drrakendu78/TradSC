@@ -13,8 +13,11 @@ import {
     Map,
     Package,
     PanelsTopLeft,
+    Pickaxe,
     Route,
     Search,
+    Server,
+    ShieldCheck,
     Swords,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -965,6 +968,20 @@ const OverlayHub = () => {
                 return <Hammer className="h-3.5 w-3.5" />;
             case "trading":
                 return <Route className="h-3.5 w-3.5" />;
+            case "server":
+                return <Server className="h-3.5 w-3.5" />;
+            case "package":
+                return <Package className="h-3.5 w-3.5" />;
+            case "database":
+                return <Database className="h-3.5 w-3.5" />;
+            case "hammer":
+                return <Hammer className="h-3.5 w-3.5" />;
+            case "route":
+                return <Route className="h-3.5 w-3.5" />;
+            case "pickaxe":
+                return <Pickaxe className="h-3.5 w-3.5" />;
+            case "shield":
+                return <ShieldCheck className="h-3.5 w-3.5" />;
             default:
                 return <Link2 className="h-3.5 w-3.5" />;
         }

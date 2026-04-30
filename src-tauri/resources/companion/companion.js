@@ -230,6 +230,47 @@
     });
   }
 
+  // Pin des éléments flottants (dock, toast, pull-indicator) au bas du visual
+  // viewport sur iOS Safari.
+  //
+  // `position: fixed; bottom: env(safe-area-inset-bottom)` colle l'élément au
+  // bas du *layout viewport*, qui ne change pas quand la barre d'URL Safari
+  // apparaît/disparaît ou que le clavier s'ouvre. Résultat : le dock part
+  // sous la barre URL ou derrière le clavier.
+  //
+  // On expose une CSS var `--vv-offset` synchronisée avec le visualViewport,
+  // que app.css consomme dans les `bottom: calc(... + var(--vv-offset, 0px))`.
+  // Pas de surcharge de transform → compatible avec les animations existantes
+  // (toast, pull-to-refresh, etc).
+  function installDockPinning() {
+    var vv = window.visualViewport;
+    if (!vv) return; // Anciens navigateurs : fallback sur le comportement CSS pur.
+
+    var root = document.documentElement;
+    var raf = 0;
+
+    function update() {
+      raf = 0;
+      var offsetBottom = window.innerHeight - (vv.height + vv.offsetTop);
+      if (offsetBottom < 0) offsetBottom = 0;
+      root.style.setProperty("--vv-offset", offsetBottom + "px");
+    }
+
+    function schedule() {
+      if (raf) return;
+      raf = window.requestAnimationFrame(update);
+    }
+
+    vv.addEventListener("resize", schedule);
+    vv.addEventListener("scroll", schedule);
+    window.addEventListener("orientationchange", function () {
+      // L'event arrive avant que vv soit à jour ; petit défer.
+      setTimeout(update, 60);
+    });
+
+    update();
+  }
+
   window.CompanionUI = {
     getTheme: getTheme,
     setTheme: setTheme,
@@ -241,5 +282,6 @@
   installThemeMediaSync();
   installPullToRefresh();
   installIosBanner();
+  installDockPinning();
   registerServiceWorker();
 })();

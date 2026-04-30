@@ -13,12 +13,21 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import logger from "@/utils/logger";
-import { Loader2, XCircle, CheckCircle, AlertCircle, HelpCircle, Globe2, Languages, Settings2, WifiOff, FolderOpen, Clock } from "lucide-react";
+import { Loader2, XCircle, CheckCircle, AlertCircle, HelpCircle, Globe2, Languages, Settings2, WifiOff, FolderOpen, Clock, Link2, Plus, Trash2 } from "lucide-react";
 import { useStatsStore } from "@/stores/stats-store";
 import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Input } from "@/components/ui/input";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import {
     Select,
     SelectContent,
@@ -43,6 +52,104 @@ type TraductionAction =
     | { type: 'SET_DATA_FETCHED' }
     | { type: 'SET_IS_ADMIN'; isAdmin: boolean };
 
+type CustomTranslationSource = {
+    id: string;
+    name: string;
+    url: string;
+    language: string;
+};
+
+const CUSTOM_TRANSLATION_SOURCES_KEY = "startrad.customTranslationSources.v1";
+const DEFAULT_CUSTOM_TRANSLATION_LANGUAGE = "french_(france)";
+const CUSTOM_TRANSLATION_LANGUAGES = [
+    { value: "chinese_(simplified)", label: "Chinese (Simplified)" },
+    { value: "chinese_(traditional)", label: "Chinese (Traditional)" },
+    { value: "english", label: "English" },
+    { value: "french_(france)", label: "French (France)" },
+    { value: "german_(germany)", label: "German (Germany)" },
+    { value: "italian_(italy)", label: "Italian (Italy)" },
+    { value: "japanese_(japan)", label: "Japanese (Japan)" },
+    { value: "korean_(south_korea)", label: "Korean (South Korea)" },
+    { value: "polish_(poland)", label: "Polish (Poland)" },
+    { value: "portuguese_(brazil)", label: "Portuguese (Brazil)" },
+    { value: "spanish_(latin_america)", label: "Spanish (Latin America)" },
+    { value: "spanish_(spain)", label: "Spanish (Spain)" },
+];
+
+const isSupportedCustomLanguage = (language: string) => (
+    CUSTOM_TRANSLATION_LANGUAGES.some((item) => item.value === language)
+);
+
+const getCustomLanguageLabel = (language: string | null | undefined) => (
+    CUSTOM_TRANSLATION_LANGUAGES.find((item) => item.value === language)?.label ?? "French (France)"
+);
+
+const normalizeGlobalIniUrl = (rawUrl: string): string | null => {
+    const trimmed = rawUrl.trim();
+    if (!trimmed) return null;
+
+    try {
+        const url = new URL(trimmed);
+        if (!["http:", "https:"].includes(url.protocol)) return null;
+
+        if (url.hostname.toLowerCase() === "github.com") {
+            const parts = url.pathname.split("/").filter(Boolean);
+            const blobIndex = parts.indexOf("blob");
+            if (blobIndex === 2 && parts.length > 4) {
+                const [owner, repo] = parts;
+                const branch = parts[3];
+                const filePath = parts.slice(4).join("/");
+                return normalizeGlobalIniUrl(`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`);
+            }
+        }
+
+        const cleanPath = url.pathname.replace(/\/+$/, "").toLowerCase();
+        if (!cleanPath.endsWith("global.ini")) return null;
+
+        url.hash = "";
+        return url.toString();
+    } catch {
+        return null;
+    }
+};
+
+const createCustomSourceId = () => {
+    if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+        return crypto.randomUUID();
+    }
+    return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+};
+
+const loadCustomTranslationSources = (): CustomTranslationSource[] => {
+    if (typeof window === "undefined") return [];
+
+    try {
+        const raw = window.localStorage.getItem(CUSTOM_TRANSLATION_SOURCES_KEY);
+        if (!raw) return [];
+
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+
+        return parsed
+            .map((source): CustomTranslationSource | null => {
+                if (!source || typeof source !== "object") return null;
+                const url = normalizeGlobalIniUrl(String(source.url ?? ""));
+                if (!url) return null;
+
+                const name = String(source.name ?? "").trim() || "Traduction perso";
+                const id = String(source.id ?? "").trim() || createCustomSourceId();
+                const rawLanguage = String(source.language ?? "").trim();
+                const language = isSupportedCustomLanguage(rawLanguage)
+                    ? rawLanguage
+                    : DEFAULT_CUSTOM_TRANSLATION_LANGUAGE;
+                return { id, name, url, language };
+            })
+            .filter((source): source is CustomTranslationSource => Boolean(source));
+    } catch {
+        return [];
+    }
+};
+
 function traductionReducer(state: TraductionState, action: TraductionAction): TraductionState {
     switch (action.type) {
         case 'SET_PATHS': return { ...state, paths: action.paths };
@@ -66,8 +173,31 @@ export default function Traduction() {
     const [earlyChecked, setEarlyChecked] = useState<boolean>(false);
     const [lastUpdatedDates, setLastUpdatedDates] = useState<Record<string, string | null>>({});
     const [cachedVersions, setCachedVersions] = useState<Record<string, Record<string, { cached_at: string; original_url: string }>>>({});
+    const [customSourceDialogOpen, setCustomSourceDialogOpen] = useState(false);
+    const [customSourceName, setCustomSourceName] = useState("");
+    const [customSourceUrl, setCustomSourceUrl] = useState("");
+    const [customSourceLanguage, setCustomSourceLanguage] = useState(DEFAULT_CUSTOM_TRANSLATION_LANGUAGE);
+    const [customTranslationSources, setCustomTranslationSources] = useState<CustomTranslationSource[]>(() => loadCustomTranslationSources());
 
     const defaultLanguage = "fr";
+
+    const officialTranslationLinks = translations?.fr?.links ?? [];
+    const customTranslationLinks = useMemo<Link[]>(() => (
+        customTranslationSources.map((source, index) => ({
+            id: -1 - index,
+            name: `Perso - ${source.name}`,
+            url: source.url,
+        }))
+    ), [customTranslationSources]);
+    const availableTranslationLinks = useMemo<Link[]>(() => (
+        [...officialTranslationLinks, ...customTranslationLinks]
+    ), [officialTranslationLinks, customTranslationLinks]);
+    const customSourceByUrl = useMemo(() => (
+        customTranslationSources.reduce<Record<string, CustomTranslationSource>>((acc, source) => {
+            acc[source.url] = source;
+            return acc;
+        }, {})
+    ), [customTranslationSources]);
 
     // Fonction pour formater la date en "il y a X jours"
     const formatRelativeDate = (isoDate: string | null): string | null => {
@@ -93,6 +223,14 @@ export default function Traduction() {
     // Stats
     const { recordTranslationInstall } = useStatsStore();
 
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(CUSTOM_TRANSLATION_SOURCES_KEY, JSON.stringify(customTranslationSources));
+        } catch (error) {
+            logger.error("Erreur sauvegarde sources personnalisÃ©es:", error);
+        }
+    }, [customTranslationSources]);
+
     const isProtectedPath = (p: string) => /:\\Program Files( \(x86\))?\\/i.test(p);
     const toFriendlyFsError = (err: unknown) => {
         const msg = String(err ?? "");
@@ -102,13 +240,32 @@ export default function Traduction() {
         return msg;
     };
 
+    const markVersionAsReady = useCallback((version: string) => {
+        if (!paths?.versions[version]) return;
+
+        dispatch({
+            type: 'SET_PATHS',
+            paths: {
+                ...paths,
+                versions: {
+                    ...paths.versions,
+                    [version]: {
+                        ...paths.versions[version],
+                        translated: true,
+                        up_to_date: true,
+                    },
+                },
+            },
+        });
+    }, [paths]);
+
     const getDefaultTranslationsState = (): TranslationsChoosen => {
         if (!paths) return {};
 
         const defaults: TranslationsChoosen = {};
 
         Object.keys(paths.versions).forEach(version => {
-            defaults[version] = { link: null, settingsEN: false };
+            defaults[version] = { link: null, settingsEN: false, lang: defaultLanguage, custom: false };
         });
 
         return defaults;
@@ -275,6 +432,81 @@ export default function Traduction() {
         [toast],
     );
 
+    const addCustomTranslationSource = useCallback(() => {
+        const url = normalizeGlobalIniUrl(customSourceUrl);
+        if (!url) {
+            toast({
+                title: "Lien invalide",
+                description: "La source personnalisÃ©e doit Ãªtre un lien http(s) qui pointe vers un fichier global.ini.",
+                variant: "destructive",
+                duration: 4000,
+            });
+            return;
+        }
+
+        if (customTranslationSources.some((source) => source.url === url) || officialTranslationLinks.some((link) => link.url === url)) {
+            toast({
+                title: "Source dÃ©jÃ  prÃ©sente",
+                description: "Ce lien global.ini est dÃ©jÃ  disponible dans la liste.",
+                duration: 3000,
+            });
+            return;
+        }
+
+        const urlParts = new URL(url);
+        const fallbackName = urlParts.hostname.replace(/^www\./, "");
+        const name = customSourceName.trim() || fallbackName || "Traduction perso";
+        const language = isSupportedCustomLanguage(customSourceLanguage)
+            ? customSourceLanguage
+            : DEFAULT_CUSTOM_TRANSLATION_LANGUAGE;
+
+        setCustomTranslationSources((sources) => [
+            ...sources,
+            { id: createCustomSourceId(), name, url, language },
+        ]);
+        setCustomSourceName("");
+        setCustomSourceUrl("");
+        setCustomSourceLanguage(DEFAULT_CUSTOM_TRANSLATION_LANGUAGE);
+
+        toast({
+            title: "Source personnalisÃ©e ajoutÃ©e",
+            description: `Elle est maintenant disponible pour ${getCustomLanguageLabel(language)}.`,
+            variant: "success",
+            duration: 3000,
+        });
+    }, [customSourceLanguage, customSourceName, customSourceUrl, customTranslationSources, officialTranslationLinks, toast]);
+
+    const removeCustomTranslationSource = useCallback(
+        async (sourceId: string) => {
+            const sourceToRemove = customTranslationSources.find((source) => source.id === sourceId);
+            if (!sourceToRemove) return;
+
+            setCustomTranslationSources((sources) => sources.filter((source) => source.id !== sourceId));
+
+            if (!translationsSelected) return;
+
+            let hasChanged = false;
+            const updatedTranslations: TranslationsChoosen = { ...translationsSelected };
+            Object.entries(translationsSelected).forEach(([version, settings]) => {
+                if (settings?.link === sourceToRemove.url) {
+                    updatedTranslations[version] = {
+                        ...settings,
+                        link: null,
+                        lang: defaultLanguage,
+                        custom: false,
+                    };
+                    hasChanged = true;
+                }
+            });
+
+            if (hasChanged) {
+                dispatch({ type: 'SET_TRANSLATIONS_SELECTED', selected: updatedTranslations });
+                await saveSelectedTranslations(updatedTranslations);
+            }
+        },
+        [customTranslationSources, translationsSelected, saveSelectedTranslations, defaultLanguage],
+    );
+
     const CheckTranslationsState = useCallback(
         async (paths: GamePaths) => {
             if (!translationsSelected) return;
@@ -283,21 +515,25 @@ export default function Traduction() {
             await Promise.all(
                 Object.entries(paths.versions).map(async ([key, value]) => {
                     const versionSettings = translationsSelected[key as keyof TranslationsChoosen];
+                    const isCustomSource = Boolean(versionSettings?.link && customSourceByUrl[versionSettings.link]);
+                    const selectedLanguage = versionSettings?.lang
+                        || (versionSettings?.link ? customSourceByUrl[versionSettings.link]?.language : undefined)
+                        || defaultLanguage;
 
                     const translated: boolean = await invoke(
                         "is_game_translated",
                         {
                             path: value.path,
-                            lang: defaultLanguage,
+                            lang: selectedLanguage,
                         },
                     );
 
                     // Appliquer le branding automatiquement si la traduction est installée
-                    if (translated) {
+                    if (translated && !isCustomSource) {
                         try {
                             await invoke("apply_branding_to_local_file", {
                                 path: value.path,
-                                lang: defaultLanguage,
+                                lang: selectedLanguage,
                             });
                         } catch (e) {
                             console.error("Erreur branding:", e);
@@ -309,14 +545,17 @@ export default function Traduction() {
                     const upToDate: boolean = (versionSettings && versionSettings.link)
                         ? versionSettings.link.startsWith("cache:")
                             ? translated // Si cache et traduit = à jour
-                            : await invoke("is_translation_up_to_date", {
+                            : isCustomSource
+                                ? translated
+                                : await invoke("is_translation_up_to_date", {
                                 path: value.path,
                                 translationLink: versionSettings.link,
-                                lang: defaultLanguage,
+                                lang: selectedLanguage,
                             })
                         : value.up_to_date;
 
                     const versionInfo = {
+                        ...value,
                         path: value.path,
                         translated: translated,
                         up_to_date: upToDate,
@@ -329,7 +568,7 @@ export default function Traduction() {
             dispatch({ type: 'SET_PATHS', paths: updatedPaths });
             dispatch({ type: 'SET_LOADING_BUTTON', id: null });
         },
-        [translationsSelected, defaultLanguage],
+        [translationsSelected, customSourceByUrl, defaultLanguage],
     );
 
     // Quand internet revient (translations disponible), convertir les liens cache: vers les vraies URLs
@@ -377,6 +616,8 @@ export default function Traduction() {
                     updatedPrefs[version as keyof TranslationsChoosen] = {
                         ...settings,
                         link: realUrl,
+                        lang: defaultLanguage,
+                        custom: false,
                     };
                     needsUpdate = true;
                 }
@@ -399,7 +640,7 @@ export default function Traduction() {
                 }
             }).catch((e) => logger.error("Erreur sauvegarde prefs online:", e));
         }
-    }, [translations, translationsSelected, paths, CheckTranslationsState, toast]);
+    }, [translations, translationsSelected, paths, CheckTranslationsState, toast, defaultLanguage]);
 
     const handleTranslationSelect = useCallback(
         async (version: string, linkUrl: string) => {
@@ -408,12 +649,16 @@ export default function Traduction() {
             const currentSetting = translationsSelected[version as keyof TranslationsChoosen];
             const versionData = paths.versions[version as keyof GamePaths["versions"]];
             const previousLink = currentSetting?.link;
+            const customSource = customSourceByUrl[linkUrl];
+            const selectedLanguage = customSource?.language || defaultLanguage;
 
             const updatedTranslations: TranslationsChoosen = {
                 ...translationsSelected,
                 [version]: {
                     link: linkUrl,
-                    settingsEN: currentSetting?.settingsEN ?? false,
+                    settingsEN: customSource ? false : currentSetting?.settingsEN ?? false,
+                    lang: selectedLanguage,
+                    custom: Boolean(customSource),
                 },
             };
 
@@ -421,15 +666,30 @@ export default function Traduction() {
             await saveSelectedTranslations(updatedTranslations);
 
             // Si une traduction est déjà installée ET qu'on change de source, on met à jour automatiquement
-            if (versionData?.translated && previousLink && previousLink !== linkUrl) {
-                dispatch({ type: 'SET_LOADING_BUTTON', id: `update-${version}` });
+            if (!versionData || (versionData.translated && previousLink === linkUrl)) return;
+
+            const isUpdate = versionData.translated;
+            dispatch({ type: 'SET_LOADING_BUTTON', id: `${isUpdate ? "update" : "install"}-${version}` });
+            if (isProtectedPath(versionData.path) && !isAdmin) {
+                toast({
+                    title: "Chemin protÃ©gÃ©",
+                    description: "Dossier sous Program Files: relance en admin recommandÃ©e (bouclier en bas Ã  droite).",
+                    success: "false",
+                    duration: 5000,
+                });
+            }
+
+            {
                 try {
-                    await invoke("update_translation", {
+                    await invoke(isUpdate ? "update_translation" : "init_translation_files", {
                         path: versionData.path,
                         translationLink: linkUrl,
-                        lang: defaultLanguage,
+                        lang: selectedLanguage,
                         gameVersion: version,
                     });
+                    if (!isUpdate) {
+                        recordTranslationInstall(version);
+                    }
                     toast({
                         title: "Traduction mise à jour",
                         description: "La nouvelle traduction a été installée automatiquement.",
@@ -459,7 +719,7 @@ export default function Traduction() {
                 }
             }
         },
-        [translationsSelected, saveSelectedTranslations, paths, toast, CheckTranslationsState, defaultLanguage],
+        [translationsSelected, saveSelectedTranslations, paths, toast, CheckTranslationsState, customSourceByUrl, defaultLanguage, isAdmin, recordTranslationInstall],
     );
 
     const handleInstallTranslation = useCallback(
@@ -478,6 +738,10 @@ export default function Traduction() {
             }
 
             const versionSettings = translationsSelected[version as keyof TranslationsChoosen];
+            const selectedLanguage = versionSettings?.lang
+                || (versionSettings?.link ? customSourceByUrl[versionSettings.link]?.language : undefined)
+                || defaultLanguage;
+            const isCustomVersionSource = Boolean(versionSettings?.link && customSourceByUrl[versionSettings.link]);
             const versionCaches = cachedVersions[version.toUpperCase()];
             const hasCached = versionCaches && Object.keys(versionCaches).length > 0;
 
@@ -519,7 +783,7 @@ export default function Traduction() {
 
                     await invoke("install_translation_from_cache", {
                         path: versionPath,
-                        lang: defaultLanguage,
+                        lang: selectedLanguage,
                         cachedContent: cachedContent,
                     });
 
@@ -562,7 +826,7 @@ export default function Traduction() {
                     await invoke("init_translation_files", {
                         path: versionPath,
                         translationLink: versionSettings.link,
-                        lang: defaultLanguage,
+                        lang: selectedLanguage,
                         gameVersion: version,
                     });
 
@@ -576,7 +840,12 @@ export default function Traduction() {
                         duration: 3000,
                     });
 
-                    if (paths) CheckTranslationsState(paths);
+                    if (isCustomVersionSource) {
+                        markVersionAsReady(version);
+                        dispatch({ type: 'SET_LOADING_BUTTON', id: null });
+                    } else if (paths) {
+                        CheckTranslationsState(paths);
+                    }
                     return;
                 } catch (error) {
                     logger.error("Erreur d'installation en ligne:", error);
@@ -596,7 +865,7 @@ export default function Traduction() {
 
                             await invoke("install_translation_from_cache", {
                                 path: versionPath,
-                                lang: defaultLanguage,
+                                lang: selectedLanguage,
                                 cachedContent: cachedContent,
                             });
 
@@ -636,7 +905,7 @@ export default function Traduction() {
 
                     await invoke("install_translation_from_cache", {
                         path: versionPath,
-                        lang: defaultLanguage,
+                        lang: selectedLanguage,
                         cachedContent: cachedContent,
                     });
 
@@ -662,7 +931,7 @@ export default function Traduction() {
                 }
             }
         },
-        [toast, paths, CheckTranslationsState, translationsSelected, cachedVersions, defaultLanguage, isAdmin, recordTranslationInstall],
+        [toast, paths, CheckTranslationsState, translationsSelected, cachedVersions, customSourceByUrl, defaultLanguage, isAdmin, markVersionAsReady, recordTranslationInstall],
     );
 
     const handleUpdateTranslation = useCallback(
@@ -672,6 +941,11 @@ export default function Traduction() {
             buttonId: string,
         ) => {
             dispatch({ type: 'SET_LOADING_BUTTON', id: `update-${buttonId}` });
+            const versionSettings = translationsSelected?.[buttonId as keyof TranslationsChoosen];
+            const selectedLanguage = versionSettings?.lang
+                || (versionSettings?.link ? customSourceByUrl[versionSettings.link]?.language : undefined)
+                || defaultLanguage;
+            const isCustomVersionSource = Boolean(versionSettings?.link && customSourceByUrl[versionSettings.link]);
             if (isProtectedPath(versionPath) && !isAdmin) {
                 toast({
                     title: "Chemin protégé",
@@ -693,7 +967,7 @@ export default function Traduction() {
 
                     await invoke("install_translation_from_cache", {
                         path: versionPath,
-                        lang: defaultLanguage,
+                        lang: selectedLanguage,
                         cachedContent: cachedContent,
                     });
 
@@ -729,7 +1003,7 @@ export default function Traduction() {
                 await invoke("update_translation", {
                     path: versionPath,
                     translationLink: translationLink,
-                    lang: defaultLanguage,
+                    lang: selectedLanguage,
                     gameVersion: buttonId,
                 });
                 toast({
@@ -738,7 +1012,11 @@ export default function Traduction() {
                     variant: "success",
                     duration: 3000,
                 });
-                if (paths) CheckTranslationsState(paths);
+                if (isCustomVersionSource) {
+                    markVersionAsReady(buttonId);
+                } else if (paths) {
+                    CheckTranslationsState(paths);
+                }
             } catch (error) {
                 toast({
                     title: "Erreur de mise à jour",
@@ -750,7 +1028,7 @@ export default function Traduction() {
                 dispatch({ type: 'SET_LOADING_BUTTON', id: null });
             }
         },
-        [toast, paths, CheckTranslationsState, isAdmin, defaultLanguage],
+        [toast, paths, CheckTranslationsState, isAdmin, translationsSelected, customSourceByUrl, defaultLanguage, markVersionAsReady],
     );
 
     const handleSettingsToggle = useCallback(
@@ -820,6 +1098,8 @@ export default function Traduction() {
                             ...translationsSelected[version as keyof TranslationsChoosen],
                             link: newLink,
                             settingsEN: settingsEN,
+                            lang: defaultLanguage,
+                            custom: false,
                         },
                     };
 
@@ -923,6 +1203,8 @@ export default function Traduction() {
                         ...translationsSelected[version as keyof TranslationsChoosen],
                         link: newLink,
                         settingsEN: settingsEN,
+                        lang: defaultLanguage,
+                        custom: false,
                     },
                 };
 
@@ -1130,9 +1412,28 @@ export default function Traduction() {
                     <CardHeader className="relative space-y-2 pb-1.5 pt-3">
                         <div className="flex flex-wrap items-start justify-between gap-2">
                             <div className="min-w-0 flex-1 space-y-1.5">
-                                <CardTitle className="flex items-center gap-2 text-base tracking-tight">
-                                    <Globe2 className="h-5 w-5 text-primary" />
-                                    {key}
+                                <CardTitle className="flex flex-wrap items-center gap-2 text-base tracking-tight">
+                                    <span className="flex min-w-0 items-center gap-2">
+                                        <Globe2 className="h-5 w-5 text-primary" />
+                                        {key}
+                                    </span>
+                                    {(value.release_version || value.game_version) && (
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Badge variant="outline" className="h-5 rounded-md border-cyan-500/25 bg-cyan-500/10 px-1.5 text-[10px] font-medium text-cyan-500">
+                                                    {value.release_version || value.game_version}
+                                                </Badge>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <div className="space-y-1 text-xs">
+                                                    {value.release_version && <p>Version launcher : {value.release_version}</p>}
+                                                    {value.game_version && <p>Version : {value.game_version}</p>}
+                                                    {value.build_number && <p>Build P4 : {value.build_number}</p>}
+                                                    {value.branch && <p>Branche : {value.branch}</p>}
+                                                </div>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    )}
                                 </CardTitle>
                                 {translationsSelected[key as keyof TranslationsChoosen]?.link &&
                                  lastUpdatedDates[translationsSelected[key as keyof TranslationsChoosen]!.link!] && (
@@ -1217,7 +1518,7 @@ export default function Traduction() {
                                 )}
                             </label>
                             {/* Sélecteur en ligne (prioritaire) */}
-                            {translations && translations.fr && translations.fr.links && translations.fr.links.length > 0 ? (
+                            {availableTranslationLinks.length > 0 ? (
                                 <Select
                                     value={translationsSelected[key as keyof TranslationsChoosen]?.link || ""}
                                     onValueChange={(val) => handleTranslationSelect(key, val)}
@@ -1227,11 +1528,16 @@ export default function Traduction() {
                                         <SelectValue placeholder="Choisir une traduction" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {translations.fr.links.map((link: Link) => (
+                                        {availableTranslationLinks.map((link: Link) => (
                                             <SelectItem key={link.id} value={link.url}>
                                                 <div className="flex items-center justify-between w-full gap-2">
                                                     <span>{link.name}</span>
-                                                    {lastUpdatedDates[link.url] && (
+                                                    {customSourceByUrl[link.url] && (
+                                                        <span className="text-xs text-primary">
+                                                            {getCustomLanguageLabel(customSourceByUrl[link.url].language)}
+                                                        </span>
+                                                    )}
+                                                    {!customSourceByUrl[link.url] && lastUpdatedDates[link.url] && (
                                                         <span className="text-xs text-muted-foreground">
                                                             • {formatRelativeDate(lastUpdatedDates[link.url])}
                                                         </span>
@@ -1272,6 +1578,8 @@ export default function Traduction() {
                                             [key]: {
                                                 link: val,
                                                 settingsEN: translationsSelected[key as keyof TranslationsChoosen]?.settingsEN ?? false,
+                                                lang: defaultLanguage,
+                                                custom: false,
                                             },
                                         };
                                         dispatch({ type: 'SET_TRANSLATIONS_SELECTED', selected: updatedTranslations });
@@ -1374,7 +1682,11 @@ export default function Traduction() {
                                     <Switch
                                         checked={translationsSelected[key as keyof TranslationsChoosen]?.settingsEN === true}
                                         onCheckedChange={(checked) => handleSettingsToggle(key, checked)}
-                                        disabled={loadingButtonId !== null || !translationsSelected[key as keyof TranslationsChoosen]?.link}
+                                        disabled={
+                                            loadingButtonId !== null ||
+                                            !translationsSelected[key as keyof TranslationsChoosen]?.link ||
+                                            Boolean(customSourceByUrl[translationsSelected[key as keyof TranslationsChoosen]?.link || ""])
+                                        }
                                     />
                                 )}
                                 <span className={`text-xs ${translationsSelected[key as keyof TranslationsChoosen]?.settingsEN ? 'text-primary font-medium' : 'text-muted-foreground'}`}>
@@ -1455,6 +1767,8 @@ export default function Traduction() {
         paths,
         translationsSelected,
         translations,
+        availableTranslationLinks,
+        customSourceByUrl,
         loadingButtonId,
         lastUpdatedDates,
         handleSettingsToggle,
@@ -1474,6 +1788,131 @@ export default function Traduction() {
             transition={{ duration: 0.4, ease: "easeOut" }}
             className="flex h-full w-full flex-col overflow-hidden px-1 pb-1 pt-0"
         >
+            <Dialog open={customSourceDialogOpen} onOpenChange={setCustomSourceDialogOpen}>
+                <DialogContent className="max-h-[86vh] w-[calc(100vw-1.5rem)] max-w-2xl overflow-hidden p-0">
+                    <DialogHeader className="border-b border-border/25 px-5 pb-4 pt-5">
+                        <div className="flex items-start gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/25 bg-primary/10">
+                                <Link2 className="h-4 w-4 text-primary" />
+                            </div>
+                            <div>
+                                <DialogTitle>Source de traduction personnalisÃ©e</DialogTitle>
+                                <DialogDescription className="mt-1">
+                                    Ajoute un lien direct vers un fichier global.ini. Les sources officielles restent intactes.
+                                </DialogDescription>
+                            </div>
+                        </div>
+                    </DialogHeader>
+
+                    <div className="min-w-0 space-y-4 overflow-y-auto px-5 py-4">
+                        <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/10 p-3 text-xs leading-relaxed text-muted-foreground">
+                            Le lien doit pointer vers un fichier <span className="font-semibold text-foreground">global.ini</span>.
+                            Une fois sÃ©lectionnÃ© dans une version, il utilise les mÃªmes boutons installer / mettre Ã  jour et le mÃªme service de mise Ã  jour automatique.
+                        </div>
+
+                        <div className="grid min-w-0 gap-3 lg:grid-cols-[0.75fr_0.85fr_1.4fr]">
+                            <div className="min-w-0 space-y-1.5">
+                                <label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                                    Nom affichÃ©
+                                </label>
+                                <Input
+                                    value={customSourceName}
+                                    onChange={(event) => setCustomSourceName(event.target.value)}
+                                    placeholder="Ex: Projet perso"
+                                    className="h-10 rounded-lg border-border/60 bg-background/40"
+                                />
+                            </div>
+                            <div className="min-w-0 space-y-1.5">
+                                <label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                                    Langue cible
+                                </label>
+                                <Select value={customSourceLanguage} onValueChange={setCustomSourceLanguage}>
+                                    <SelectTrigger className="h-10 w-full rounded-lg border-border/60 bg-background/40">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {CUSTOM_TRANSLATION_LANGUAGES.map((language) => (
+                                            <SelectItem key={language.value} value={language.value}>
+                                                {language.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="min-w-0 space-y-1.5">
+                                <label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                                    Lien global.ini
+                                </label>
+                                <Input
+                                    value={customSourceUrl}
+                                    onChange={(event) => setCustomSourceUrl(event.target.value)}
+                                    onKeyDown={(event) => {
+                                        if (event.key === "Enter") {
+                                            event.preventDefault();
+                                            addCustomTranslationSource();
+                                        }
+                                    }}
+                                    placeholder="https://.../global.ini"
+                                    className="h-10 rounded-lg border-border/60 bg-background/40"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="min-w-0 space-y-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                                Sources personnalisÃ©es
+                            </p>
+                            {customTranslationSources.length > 0 ? (
+                                <div className="max-h-52 min-w-0 space-y-2 overflow-y-auto pr-1">
+                                    {customTranslationSources.map((source) => (
+                                        <div key={source.id} className="flex min-w-0 flex-col gap-3 rounded-xl border border-border/35 bg-background/25 p-3 sm:flex-row sm:items-center sm:justify-between">
+                                            <div className="min-w-0 flex-1">
+                                                <p className="truncate text-sm font-semibold">{source.name}</p>
+                                                <p className="text-xs font-medium text-primary/90">{getCustomLanguageLabel(source.language)}</p>
+                                                <p className="min-w-0 truncate break-all text-xs text-muted-foreground">{source.url}</p>
+                                            </div>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-8 w-full shrink-0 gap-1 rounded-lg border-red-500/20 bg-red-500/10 px-2 text-[11px] text-red-500 hover:bg-red-500/15 sm:w-auto"
+                                                onClick={() => removeCustomTranslationSource(source.id)}
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                                Retirer
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="rounded-xl border border-dashed border-border/45 bg-background/15 p-4 text-sm text-muted-foreground">
+                                    Aucune source perso pour le moment.
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <DialogFooter className="gap-2 border-t border-border/25 bg-background/20 px-5 py-4 sm:justify-end">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="h-9 w-full rounded-lg sm:w-auto"
+                            onClick={() => setCustomSourceDialogOpen(false)}
+                        >
+                            Fermer
+                        </Button>
+                        <Button
+                            type="button"
+                            className="h-9 w-full gap-2 rounded-lg sm:w-auto"
+                            onClick={addCustomTranslationSource}
+                        >
+                            <Plus className="h-4 w-4" />
+                            Ajouter la source
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             {paths && totalVersions > 0 ? (
                 <div className="flex h-full flex-col gap-3.5 overflow-y-auto pr-2">
                     {/* Header */}
@@ -1493,16 +1932,28 @@ export default function Traduction() {
                                     <p className="mt-1 text-sm text-muted-foreground/90">Installez et gérez la traduction de Star Citizen</p>
                                 </div>
                             </div>
-                            {translations?.fr?.links?.length ? (
-                                <Badge variant="outline" className="h-6 rounded-md border-emerald-500/25 bg-emerald-500/10 px-2 text-[11px] text-emerald-500">
-                                    Serveurs actifs
-                                </Badge>
-                            ) : (
-                                <Badge variant="outline" className="h-6 gap-1 rounded-md border-orange-500/25 bg-orange-500/10 px-2 text-[11px] text-orange-500">
-                                    <WifiOff className="h-3 w-3" />
-                                    Hors-ligne
-                                </Badge>
-                            )}
+                            <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 gap-1.5 rounded-md border-primary/25 bg-primary/10 px-2 text-[11px] text-primary hover:bg-primary/15"
+                                    onClick={() => setCustomSourceDialogOpen(true)}
+                                >
+                                    <Link2 className="h-3.5 w-3.5" />
+                                    Source perso
+                                </Button>
+                                {translations?.fr?.links?.length ? (
+                                    <Badge variant="outline" className="h-6 rounded-md border-emerald-500/25 bg-emerald-500/10 px-2 text-[11px] text-emerald-500">
+                                        Serveurs actifs
+                                    </Badge>
+                                ) : (
+                                    <Badge variant="outline" className="h-6 gap-1 rounded-md border-orange-500/25 bg-orange-500/10 px-2 text-[11px] text-orange-500">
+                                        <WifiOff className="h-3 w-3" />
+                                        Hors-ligne
+                                    </Badge>
+                                )}
+                            </div>
                         </div>
                         <div className="mt-3 h-px w-full bg-gradient-to-r from-primary/25 via-border/40 to-transparent" />
                     </section>

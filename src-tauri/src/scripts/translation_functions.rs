@@ -9,13 +9,35 @@ use super::offline_cache::cache_translation_internal;
 
 pub fn get_language_folder(lang: &str) -> Option<&str> {
     match lang.to_lowercase().as_str() {
-        "fr" => Some("french_(france)"),
-        // Vous pouvez ajouter d'autres langues ici
+        "zh_cn" | "chinese_(simplified)" => Some("chinese_(simplified)"),
+        "zh_tw" | "chinese_(traditional)" => Some("chinese_(traditional)"),
+        "en" | "english" => Some("english"),
+        "fr" | "french_(france)" => Some("french_(france)"),
+        "de" | "german_(germany)" => Some("german_(germany)"),
+        "it" | "italian_(italy)" => Some("italian_(italy)"),
+        "ja" | "japanese_(japan)" => Some("japanese_(japan)"),
+        "ko" | "korean_(south_korea)" => Some("korean_(south_korea)"),
+        "pl" | "polish_(poland)" => Some("polish_(poland)"),
+        "pt_br" | "portuguese_(brazil)" => Some("portuguese_(brazil)"),
+        "es_419" | "spanish_(latin_america)" => Some("spanish_(latin_america)"),
+        "es" | "spanish_(spain)" => Some("spanish_(spain)"),
         _ => None,
     }
 }
 
 const UTF8_BOM: &[u8] = &[0xEF, 0xBB, 0xBF];
+
+fn write_user_cfg(base_path: &Path, lang_folder_name: &str) -> Result<(), String> {
+    let user_cfg_path = base_path.join("user.cfg");
+    let mut file = File::create(&user_cfg_path)
+        .map_err(|e| format!("Erreur lors de la crÃ©ation de 'user.cfg': {}", e))?;
+    let cfg_content = format!(
+        "Con_Restricted = 0\ng_language = {}\ng_languageAudio = english\n",
+        lang_folder_name
+    );
+    file.write_all(cfg_content.as_bytes())
+        .map_err(|e| format!("Erreur lors de l'Ã©criture dans 'user.cfg': {}", e))
+}
 
 /// Applique le branding StarTrad FR directement sur le contenu (sans vérifier le lien)
 fn apply_startrad_branding_direct(content: &str) -> String {
@@ -25,7 +47,7 @@ fn apply_startrad_branding_direct(content: &str) -> String {
     // Remplacer les mentions Discord SCEFRA par le contact StarTrad FR
     let result = result.replace(
         "Discord SCEFRA (SCEFRA sur StarTrad FR)",
-        "Discord pseudo drrakendu78 ou sur discord.startrad.link"
+        "Discord pseudo drrakendu78 ou sur discord.startrad.link",
     );
 
     // Branding Circuspes (commentaire en haut du fichier)
@@ -37,7 +59,7 @@ fn apply_startrad_branding_direct(content: &str) -> String {
     // Branding Circuspes (texte dans le jeu)
     let result = result.replace(
         "Initiative de traduction communautaire francophone",
-        "Téléchargé via StarTrad FR (Traduction Circuspes) - Besoin d'aide ? Discord: drrakendu78"
+        "Téléchargé via StarTrad FR (Traduction Circuspes) - Besoin d'aide ? Discord: drrakendu78",
     );
 
     // Supprimer le lien Circuspes dans le texte du jeu
@@ -59,8 +81,8 @@ fn needs_branding(content: &str) -> bool {
 pub fn apply_branding_to_local_file(path: String, lang: String) -> Result<bool, String> {
     let base_path = Path::new(&path);
 
-    let lang_folder_name = get_language_folder(&lang)
-        .ok_or_else(|| "Langue non prise en charge".to_string())?;
+    let lang_folder_name =
+        get_language_folder(&lang).ok_or_else(|| "Langue non prise en charge".to_string())?;
 
     let global_ini_path = base_path
         .join("data")
@@ -73,28 +95,26 @@ pub fn apply_branding_to_local_file(path: String, lang: String) -> Result<bool, 
     }
 
     // Lire le fichier
-    let mut content_bytes = fs::read(&global_ini_path)
-        .map_err(|e| format!("Erreur lecture: {}", e))?;
+    let mut content_bytes =
+        fs::read(&global_ini_path).map_err(|e| format!("Erreur lecture: {}", e))?;
 
     // Retirer le BOM si présent
     if content_bytes.starts_with(UTF8_BOM) {
         content_bytes = content_bytes[UTF8_BOM.len()..].to_vec();
     }
 
-    let content = String::from_utf8(content_bytes)
-        .map_err(|e| format!("Erreur UTF-8: {}", e))?;
+    let content = String::from_utf8(content_bytes).map_err(|e| format!("Erreur UTF-8: {}", e))?;
 
     // Vérifier si le branding est nécessaire
     if !needs_branding(&content) {
-            return Ok(false);
+        return Ok(false);
     }
 
     // Appliquer le branding
     let new_content = apply_startrad_branding_direct(&content);
 
     // Réécrire le fichier avec BOM
-    let mut file = File::create(&global_ini_path)
-        .map_err(|e| format!("Erreur création: {}", e))?;
+    let mut file = File::create(&global_ini_path).map_err(|e| format!("Erreur création: {}", e))?;
     file.write_all(UTF8_BOM)
         .and_then(|_| file.write_all(new_content.as_bytes()))
         .map_err(|e| format!("Erreur écriture: {}", e))?;
@@ -104,7 +124,8 @@ pub fn apply_branding_to_local_file(path: String, lang: String) -> Result<bool, 
 
 /// Applique le branding StarTrad FR selon la source de traduction
 fn apply_startrad_branding(content: &str, translation_link: &str) -> String {
-    let is_scefra = translation_link.to_lowercase().contains("scefra") || translation_link.contains("SPEED0U");
+    let is_scefra =
+        translation_link.to_lowercase().contains("scefra") || translation_link.contains("SPEED0U");
     let is_circuspes = translation_link.to_lowercase().contains("circuspes");
 
     let mut result = content.to_string();
@@ -115,7 +136,7 @@ fn apply_startrad_branding(content: &str, translation_link: &str) -> String {
         // Remplacer les mentions Discord SCEFRA par le contact StarTrad FR
         result = result.replace(
             "Discord SCEFRA (SCEFRA sur StarTrad FR)",
-            "Discord pseudo drrakendu78 ou sur discord.startrad.link"
+            "Discord pseudo drrakendu78 ou sur discord.startrad.link",
         );
     }
 
@@ -237,7 +258,7 @@ pub fn init_translation_files(
     let mut file = File::create(&user_cfg_path)
         .map_err(|e| format!("Erreur lors de la création de 'user.cfg': {}", e))?;
     let cfg_content = format!(
-        "g_language = {}\ng_languageAudio = english\n",
+        "Con_Restricted = 0\ng_language = {}\ng_languageAudio = english\n",
         lang_folder_name
     );
     file.write_all(cfg_content.as_bytes())
@@ -359,6 +380,8 @@ pub fn update_translation(
         .and_then(|_| file.write_all(content.as_bytes()))
         .map_err(|e| format!("Erreur lors de l'écriture de 'global.ini': {}", e))?;
 
+    write_user_cfg(base_path, lang_folder_name)?;
+
     // Mettre en cache pour le mode hors-ligne (si game_version fourni)
     if let Some(version) = game_version {
         let _ = cache_translation_internal(&version, &translation_link, &content);
@@ -393,7 +416,11 @@ pub fn uninstall_translation(path: String) -> Result<(), String> {
 // ============================================================================
 
 /// Version async de is_translation_up_to_date pour le background service
-pub async fn is_translation_up_to_date_async(path: String, translation_link: String, lang: String) -> bool {
+pub async fn is_translation_up_to_date_async(
+    path: String,
+    translation_link: String,
+    lang: String,
+) -> bool {
     let base_path = Path::new(&path);
 
     // Obtenir le nom du dossier de langue
@@ -501,6 +528,8 @@ pub async fn update_translation_async(
         .and_then(|_| file.write_all(content.as_bytes()))
         .map_err(|e| format!("Erreur lors de l'écriture de 'global.ini': {}", e))?;
 
+    write_user_cfg(base_path, lang_folder_name)?;
+
     Ok(())
 }
 
@@ -555,7 +584,7 @@ pub fn install_translation_from_cache(
     let mut file = File::create(&user_cfg_path)
         .map_err(|e| format!("Erreur lors de la création de 'user.cfg': {}", e))?;
     let cfg_content = format!(
-        "g_language = {}\ng_languageAudio = english\n",
+        "Con_Restricted = 0\ng_language = {}\ng_languageAudio = english\n",
         lang_folder_name
     );
     file.write_all(cfg_content.as_bytes())

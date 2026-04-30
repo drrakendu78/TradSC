@@ -10,9 +10,11 @@ import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
-import { Monitor, Settings2, Loader2, Cpu, Zap, Sparkles, Film, Gauge, Eye, Mountain, RefreshCw, Globe2 } from "lucide-react";
+import { Monitor, Settings2, Loader2, Cpu, Zap, Sparkles, Film, Gauge, Eye, Mountain, RefreshCw, Globe2, Keyboard } from "lucide-react";
 import { GamePaths, isGamePaths } from "@/types/translation";
+import { BindingsEditor } from "@/components/custom/bindings/bindings-editor";
 
 const PREDEFINED_RESOLUTIONS = [
     { label: "1920x1080 (Full HD)", width: 1920, height: 1080 },
@@ -68,6 +70,10 @@ const defaultAdvancedSettings: UserCfgSettings = {
 
 export default function GraphicsSettings() {
     const { toast } = useToast();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const initialTab = ["general", "presets", "bindings"].includes(searchParams.get("tab") ?? "")
+        ? searchParams.get("tab")!
+        : "general";
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [gamePaths, setGamePaths] = useState<GamePaths | null>(null);
@@ -79,7 +85,19 @@ export default function GraphicsSettings() {
     const [height, setHeight] = useState("1080");
     const [selectedResolution, setSelectedResolution] = useState(CUSTOM_VALUE);
     const [advancedSettings, setAdvancedSettings] = useState<UserCfgSettings>(defaultAdvancedSettings);
-    const [activeTab, setActiveTab] = useState("general");
+    const [activeTab, setActiveTab] = useState(initialTab);
+
+    useEffect(() => {
+        const queryTab = searchParams.get("tab");
+        if (queryTab && ["general", "presets", "bindings"].includes(queryTab) && queryTab !== activeTab) {
+            setActiveTab(queryTab);
+        }
+    }, [activeTab, searchParams]);
+
+    const handleTabChange = (value: string) => {
+        setActiveTab(value);
+        setSearchParams(value === "general" ? {} : { tab: value }, { replace: true });
+    };
 
     const loadGameVersions = async () => {
         try {
@@ -313,6 +331,11 @@ export default function GraphicsSettings() {
     }
 
     const totalVersions = Object.keys(gamePaths.versions).length;
+    const compactControls = activeTab === "bindings";
+    const tabTriggerClass = [
+        "group flex h-auto items-center justify-between gap-2 rounded-lg border border-transparent text-left transition-all duration-200 hover:border-primary/35 hover:bg-primary/10 data-[state=active]:-translate-y-[1px] data-[state=active]:border-primary/45 data-[state=active]:bg-[linear-gradient(140deg,hsl(var(--primary)/0.16),hsl(var(--background)/0.36))] data-[state=active]:text-foreground data-[state=active]:shadow-[0_0_0_1px_hsl(var(--primary)/0.30),0_10px_24px_hsl(var(--primary)/0.16)]",
+        compactControls ? "min-h-[42px] px-2 py-2" : "min-h-[52px] px-2.5 py-2.5",
+    ].join(" ");
 
     return (
         <m.div
@@ -321,24 +344,28 @@ export default function GraphicsSettings() {
             transition={{ duration: 0.4, ease: "easeOut" }}
             className="flex h-full w-full flex-col overflow-hidden px-1 pb-1 pt-0"
         >
-            <div className="flex h-full flex-col gap-3.5 overflow-y-auto pr-2">
+            <div className={compactControls ? "flex h-full flex-col gap-2 overflow-y-auto pr-2" : "flex h-full flex-col gap-3.5 overflow-y-auto pr-2"}>
                 {/* Header */}
-                <section className="relative px-1 pt-1.5">
+                <section className={compactControls ? "relative px-1 pt-0" : "relative px-1 pt-1.5"}>
                     <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex items-start gap-3">
-                            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-primary/30 bg-primary/10">
+                            <div className={compactControls ? "mt-0.5 hidden h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-primary/30 bg-primary/10 sm:flex" : "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-primary/30 bg-primary/10"}>
                                 <Monitor className="h-4 w-4 text-primary" />
                             </div>
                             <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <h1 className="text-[1.28rem] font-semibold leading-none tracking-tight">Paramètres Graphiques</h1>
+                                    <h1 className={compactControls ? "text-lg font-semibold leading-none tracking-tight" : "text-[1.28rem] font-semibold leading-none tracking-tight"}>
+                                        {compactControls ? "Controles" : "Paramètres généraux"}
+                                    </h1>
                                     {totalVersions > 0 && (
                                         <Badge variant="outline" className="h-5 rounded-md border-border/40 bg-background/20 px-1.5 text-[10px]">
                                             {totalVersions} version{totalVersions > 1 ? "s" : ""}
                                         </Badge>
                                     )}
                                 </div>
-                                <p className="mt-1 text-sm text-muted-foreground/90">Configurez le rendu, la résolution et les effets visuels</p>
+                                <p className={compactControls ? "mt-0.5 text-xs text-muted-foreground/90" : "mt-1 text-sm text-muted-foreground/90"}>
+                                    {compactControls ? "Modifiez les liaisons, peripheriques et courbes depuis les profils Star Citizen." : "Configurez le rendu, la résolution et les effets visuels"}
+                                </p>
                             </div>
                         </div>
                         {totalVersions > 0 && (
@@ -356,7 +383,7 @@ export default function GraphicsSettings() {
                             </Select>
                         )}
                     </div>
-                    <div className="mt-3 h-px w-full bg-gradient-to-r from-primary/25 via-border/40 to-transparent" />
+                    <div className={compactControls ? "mt-2 h-px w-full bg-gradient-to-r from-primary/25 via-border/40 to-transparent" : "mt-3 h-px w-full bg-gradient-to-r from-primary/25 via-border/40 to-transparent"} />
                 </section>
 
                 {isLoading ? (
@@ -365,11 +392,11 @@ export default function GraphicsSettings() {
                         <p className="text-muted-foreground">Chargement des paramètres...</p>
                     </div>
                 ) : (
-                    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                        <TabsList className="grid h-auto w-full grid-cols-2 gap-1.5 rounded-2xl border border-border/55 bg-[hsl(var(--background)/0.26)] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)]">
+                    <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+                        <TabsList className={compactControls ? "grid h-auto w-full grid-cols-1 gap-1 rounded-xl border border-border/55 bg-[hsl(var(--background)/0.26)] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] md:grid-cols-3" : "grid h-auto w-full grid-cols-1 gap-1.5 rounded-2xl border border-border/55 bg-[hsl(var(--background)/0.26)] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] md:grid-cols-3"}>
                             <TabsTrigger
                                 value="general"
-                                className="group flex h-auto min-h-[52px] items-center justify-between gap-2 rounded-lg border border-transparent px-2.5 py-2.5 text-left transition-all duration-200 hover:border-primary/35 hover:bg-primary/10 data-[state=active]:-translate-y-[1px] data-[state=active]:border-primary/45 data-[state=active]:bg-[linear-gradient(140deg,hsl(var(--primary)/0.16),hsl(var(--background)/0.36))] data-[state=active]:text-foreground data-[state=active]:shadow-[0_0_0_1px_hsl(var(--primary)/0.30),0_10px_24px_hsl(var(--primary)/0.16)]"
+                                className={tabTriggerClass}
                             >
                                 <span className="flex items-center gap-2">
                                     <Settings2 className="h-4 w-4 text-primary" />
@@ -381,7 +408,7 @@ export default function GraphicsSettings() {
                             </TabsTrigger>
                             <TabsTrigger
                                 value="presets"
-                                className="group flex h-auto min-h-[52px] items-center justify-between gap-2 rounded-lg border border-transparent px-2.5 py-2.5 text-left transition-all duration-200 hover:border-primary/35 hover:bg-primary/10 data-[state=active]:-translate-y-[1px] data-[state=active]:border-primary/45 data-[state=active]:bg-[linear-gradient(140deg,hsl(var(--primary)/0.16),hsl(var(--background)/0.36))] data-[state=active]:text-foreground data-[state=active]:shadow-[0_0_0_1px_hsl(var(--primary)/0.30),0_10px_24px_hsl(var(--primary)/0.16)]"
+                                className={tabTriggerClass}
                             >
                                 <span className="flex items-center gap-2">
                                     <Sparkles className="h-4 w-4 text-primary" />
@@ -389,6 +416,18 @@ export default function GraphicsSettings() {
                                 </span>
                                 <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
                                     {presets.length}
+                                </span>
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value="bindings"
+                                className={tabTriggerClass}
+                            >
+                                <span className="flex items-center gap-2">
+                                    <Keyboard className="h-4 w-4 text-primary" />
+                                    <span className="text-xs font-semibold uppercase tracking-[0.08em]">Controles</span>
+                                </span>
+                                <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                                    PAK
                                 </span>
                             </TabsTrigger>
                         </TabsList>
@@ -814,6 +853,10 @@ export default function GraphicsSettings() {
                                     </Card>
                                 ))}
                             </div>
+                        </TabsContent>
+
+                        <TabsContent value="bindings" className="mt-2">
+                            <BindingsEditor selectedVersion={selectedVersion} />
                         </TabsContent>
 
                     </Tabs>
