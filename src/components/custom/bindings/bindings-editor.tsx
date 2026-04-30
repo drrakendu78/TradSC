@@ -1010,6 +1010,34 @@ function readBrowserHardwareDevices(): HardwareDevice[] {
         }));
 }
 
+const GAMEPAD_BUTTON_THRESHOLD = 0.6;
+const GAMEPAD_AXIS_THRESHOLD = 0.65;
+
+function readActiveGamepadInputs() {
+    const gamepads = navigator.getGamepads?.();
+    if (!gamepads) return [];
+
+    const inputs: string[] = [];
+    for (const gamepad of Array.from(gamepads)) {
+        if (!gamepad?.connected) continue;
+
+        const slot = gamepad.index + 1;
+        gamepad.buttons.forEach((button, index) => {
+            if (button.pressed || button.value > GAMEPAD_BUTTON_THRESHOLD) {
+                inputs.push(`js${slot}_button${index + 1}`);
+            }
+        });
+        gamepad.axes.forEach((axis, index) => {
+            if (Math.abs(axis) > GAMEPAD_AXIS_THRESHOLD) {
+                const axisName = ["x", "y", "z", "rotx", "roty", "rotz"][index] ?? `axis${index}`;
+                inputs.push(`js${slot}_${axisName}`);
+            }
+        });
+    }
+
+    return inputs;
+}
+
 interface BindingsEditorProps {
     selectedVersion: string;
 }
@@ -1221,8 +1249,13 @@ export function BindingsEditor({ selectedVersion }: BindingsEditorProps) {
 
     useEffect(() => {
         if (!editingRow) return;
-        const setCapturedValue = (value: string) => {
-            setEditValue((current) => current === value ? current : value);
+        const ignoredGamepadInputs = new Set(readActiveGamepadInputs());
+        const warmupUntil = Date.now() + 300;
+        const setCapturedValue = (value: string, replaceExisting = true) => {
+            setEditValue((current) => {
+                if (!replaceExisting && current) return current;
+                return current === value ? current : value;
+            });
         };
 
         const onKeyDown = (event: KeyboardEvent) => {
@@ -1249,23 +1282,23 @@ export function BindingsEditor({ selectedVersion }: BindingsEditorProps) {
         window.addEventListener("wheel", onWheel, { capture: true, passive: false });
 
         const interval = window.setInterval(() => {
-            const gamepads = navigator.getGamepads?.();
-            if (!gamepads) return;
+            const activeInputs = readActiveGamepadInputs();
+            const activeSet = new Set(activeInputs);
 
-            for (const gamepad of Array.from(gamepads)) {
-                if (!gamepad?.connected) continue;
-                const slot = gamepad.index + 1;
-                const pressedIndex = gamepad.buttons.findIndex((button) => button.pressed || button.value > 0.6);
-                if (pressedIndex >= 0) {
-                    setCapturedValue(`js${slot}_button${pressedIndex + 1}`);
-                    return;
+            if (Date.now() < warmupUntil) {
+                activeInputs.forEach((input) => ignoredGamepadInputs.add(input));
+                return;
+            }
+
+            Array.from(ignoredGamepadInputs).forEach((input) => {
+                if (!activeSet.has(input)) {
+                    ignoredGamepadInputs.delete(input);
                 }
-                const axisIndex = gamepad.axes.findIndex((axis) => Math.abs(axis) > 0.65);
-                if (axisIndex >= 0) {
-                    const axisName = ["x", "y", "z", "rotx", "roty", "rotz"][axisIndex] ?? `axis${axisIndex}`;
-                    setCapturedValue(`js${slot}_${axisName}`);
-                    return;
-                }
+            });
+
+            const nextInput = activeInputs.find((input) => !ignoredGamepadInputs.has(input));
+            if (nextInput) {
+                setCapturedValue(nextInput, false);
             }
         }, 120);
 
