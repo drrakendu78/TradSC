@@ -315,8 +315,13 @@ pub struct LauncherActivityStatus {
 
 #[cfg(target_os = "windows")]
 fn is_process_running(process_names: &[&str]) -> bool {
+    use std::os::windows::process::CommandExt;
+
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+
     let output = Command::new("tasklist")
         .args(["/FO", "CSV", "/NH"])
+        .creation_flags(CREATE_NO_WINDOW)
         .output();
 
     let Ok(output) = output else {
