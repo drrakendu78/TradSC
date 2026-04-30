@@ -3,9 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState, useCallback, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { columns } from "@/components/custom/bindings/columns";
 import { DataTable } from "@/components/custom/bindings/data-table";
-import { Plus, Folder, Keyboard, Loader2, RefreshCw, Globe2, Check } from "lucide-react";
+import { Plus, Folder, Keyboard, Loader2, RefreshCw, Globe2, Check, SlidersHorizontal } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { GamePaths, isGamePaths } from "@/types/translation";
@@ -21,6 +22,8 @@ import {
 interface BindingFile {
     name: string;
     path: string;
+    source?: string;
+    editable?: boolean;
 }
 
 export default function Bindings() {
@@ -260,6 +263,18 @@ export default function Bindings() {
                             >
                                 <Plus className="h-3.5 w-3.5" />
                                 Importer
+                            </Button>
+
+                            <Button
+                                asChild
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 gap-2 rounded-lg border border-primary/35 bg-primary/10 px-3 text-xs font-medium text-foreground/90 transition-all hover:border-primary/50 hover:bg-[hsl(var(--primary)/0.16)] hover:text-foreground"
+                            >
+                                <Link to="/graphics-settings?tab=bindings">
+                                    <SlidersHorizontal className="h-3.5 w-3.5" />
+                                    Editeur
+                                </Link>
                             </Button>
 
                             <Button

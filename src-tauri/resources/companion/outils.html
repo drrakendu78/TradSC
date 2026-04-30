@@ -7,13 +7,13 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Outils · StarTrad FR</title>
-  <link rel="manifest" href="/manifest.json?v=3">
-  <link rel="icon" type="image/png" href="/logo.png?v=3">
-  <link rel="apple-touch-icon" href="/logo.png?v=3">
+  <link rel="manifest" href="/manifest.json?v=5">
+  <link rel="icon" type="image/png" href="/logo.png?v=5">
+  <link rel="apple-touch-icon" href="/logo.png?v=5">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/app.css?v=3">
+  <link rel="stylesheet" href="/app.css?v=5">
   <style>
     .tool-card {
       background: var(--surface);
@@ -608,7 +608,7 @@
 
   <div class="toast" id="toast"></div>
 
-  <script src="/companion.js?v=3"></script>
+  <script src="/companion.js?v=5"></script>
   <script>
     (function() {
       var token = new URLSearchParams(location.search).get('token') || '';
@@ -947,7 +947,8 @@
             send({
               type: 'online.preset.download',
               dnaUrl: button.dataset.dna,
-              title: button.dataset.title
+              title: button.dataset.title,
+              downloadKey: key
             });
           });
         });
@@ -1048,22 +1049,24 @@
           renderOnlinePresets();
           return;
         }
-        if (msg.type === 'toast') {
-          var message = String(msg.message || '');
-          if (!msg.isError && message.indexOf('Preset telecharge: ') === 0) {
-            var downloadedTitle = message.replace('Preset telecharge: ', '');
-            Object.keys(state.online.downloading).forEach(function(key) {
-              if (key === downloadedTitle) delete state.online.downloading[key];
-            });
-            renderOnlinePresets();
-            toast(downloadedTitle + ' telecharge', false);
-            return;
+        if (msg.type === 'online.preset.downloaded') {
+          // Reset déterministe du spinner : la bridge nous renvoie la downloadKey
+          // qu'on lui a passée (= item.id), donc plus de risque de mismatch entre
+          // la clé de stockage et le titre du toast.
+          var dlKey = String(msg.downloadKey || msg.title || '');
+          if (dlKey && state.online.downloading[dlKey]) {
+            delete state.online.downloading[dlKey];
           }
-          if (msg.isError && message.indexOf('Telechargement preset: ') === 0) {
+          if (!msg.success) {
+            // Sécurité : on vide tous les spinners en cas d'erreur pour éviter
+            // qu'un autre bouton reste figé si l'id ne match plus rien.
             state.online.downloading = {};
-            renderOnlinePresets();
           }
-          toast(message, !!msg.isError);
+          renderOnlinePresets();
+          return;
+        }
+        if (msg.type === 'toast') {
+          toast(String(msg.message || ''), !!msg.isError);
           return;
         }
       }

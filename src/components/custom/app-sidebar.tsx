@@ -10,10 +10,11 @@ import {
     PinOff
 } from 'lucide-react';
 import { IconHome, IconBrandDiscord, IconCloud, IconBrandGithub, IconLanguage, IconUsers, IconNews, IconKeyboard, IconCalculator, IconMap2, IconSearch, IconSwords, IconPackage, IconHammer, IconBook, IconDatabase } from "@tabler/icons-react";
-import { BrushCleaning, Download, Power, PowerOff, Loader2, RotateCcw, Monitor, Route, BarChart3, Calendar, Languages, Trash2, Save, Users } from "lucide-react";
+import { BrushCleaning, Download, Power, PowerOff, Loader2, RotateCcw, Monitor, Route, BarChart3, Calendar, Languages, Trash2, Save, Users, Pickaxe, ShieldCheck } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { ColorPicker } from "@/components/custom/color-picker";
-import openExternal, { openExternalCustom } from "@/utils/external";
+import openExternal, { isAllowedUrl, openExternalCustom } from "@/utils/external";
+import { SC_EXTERNAL_TOOLS, SC_IFRAME_TOOLS, type ScTool, type ScToolIcon } from "@/data/sc-tools";
 import { useCustomLinksStore } from "@/stores/custom-links-store";
 import CustomLinkDialog, { getIconByName } from "./custom-link-dialog";
 import { Plus, Pencil } from "lucide-react";
@@ -110,10 +111,10 @@ const menuItems: NavigationItem[] = [
     },
     {
         id: "graphics-settings",
-        name: "Paramètres Graphiques",
+        name: "Paramètres généraux",
         icon: <Monitor size={18} />,
         href: "/graphics-settings",
-        tooltip: "Paramètres graphiques"
+        tooltip: "Paramètres généraux"
     },
     {
         id: "patchnotes",
@@ -158,6 +159,25 @@ const socialLinks: NavigationItem[] = [
 
 // Services externes (liens personnalisés uniquement maintenant)
 const externalServices: NavigationItem[] = [];
+
+const renderScToolIcon = (icon: ScToolIcon, size = 18) => {
+    switch (icon) {
+        case "server":
+            return <Monitor size={size} />;
+        case "package":
+            return <IconPackage size={size} />;
+        case "database":
+            return <IconDatabase size={size} />;
+        case "hammer":
+            return <IconHammer size={size} />;
+        case "route":
+            return <Route size={size} />;
+        case "pickaxe":
+            return <Pickaxe size={size} />;
+        case "shield":
+            return <ShieldCheck size={size} />;
+    }
+};
 
 // Composant profil utilisateur pour la sidebar
 function SidebarUserProfile({ isCollapsed, onMenuOpenChange }: { isCollapsed: boolean; onMenuOpenChange?: (open: boolean) => void }) {
@@ -491,6 +511,8 @@ export function AppSidebar() {
 
         if (currentPath === '/cargo') return 'cargo';
         if (currentPath === '/scmdb') return 'scmdb';
+        const scTool = SC_IFRAME_TOOLS.find((tool) => tool.route === currentPath);
+        if (scTool) return scTool.id;
         return '';
     }, [location.pathname]);
 
@@ -553,6 +575,25 @@ export function AppSidebar() {
         if (isExternal) {
             openExternal(href);
         }
+    };
+
+    const openScWebviewTool = (tool: ScTool) => {
+        if (!isLocked || !isDesktopViewport) {
+            setIsOpen(false);
+        }
+
+        if (!isAllowedUrl(tool.url)) {
+            console.warn(`URL non autorisee: ${tool.url}`);
+            return;
+        }
+
+        invoke('open_webview_overlay', {
+            id: tool.webviewId ?? tool.id,
+            url: tool.url,
+            width: tool.webviewWidth ?? 1200.0,
+            height: tool.webviewHeight ?? 780.0,
+            opacity: tool.webviewOpacity ?? 1.0,
+        }).catch(console.error);
     };
 
     const getFilteredMenuItems = () => {
@@ -1036,6 +1077,37 @@ export function AppSidebar() {
                                         {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">Routes de trading (UEX Corp)</div>}
                                     </button>
                                 </li>
+                                {SC_EXTERNAL_TOOLS.map((tool) => (
+                                    <li key={tool.id}>
+                                        {tool.mode === "iframe" ? (
+                                            <Link
+                                                to={tool.route}
+                                                onClick={() => handleItemClick(tool.id, tool.route)}
+                                                className={`flex items-center gap-3 rounded-lg group relative transition-all duration-200 ease-out ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"} ${activeItem === tool.id ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}`}
+                                                title={isCollapsed ? tool.label : undefined}
+                                            >
+                                                {activeItem === tool.id && !isCollapsed && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />}
+                                                <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === tool.id ? '' : 'group-hover:scale-110'}`}>
+                                                    {renderScToolIcon(tool.icon)}
+                                                </div>
+                                                {!isCollapsed && <span className={`text-sm ${activeItem === tool.id ? "font-medium" : "font-normal"}`}>{tool.label}</span>}
+                                                {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">{tool.label}</div>}
+                                            </Link>
+                                        ) : (
+                                            <button
+                                                onClick={() => openScWebviewTool(tool)}
+                                                className={`flex items-center gap-3 rounded-lg text-left group relative transition-all duration-200 ease-out ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"} text-muted-foreground hover:bg-white/5 hover:text-foreground`}
+                                                title={isCollapsed ? tool.label : undefined}
+                                            >
+                                                <div className="flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110">
+                                                    {renderScToolIcon(tool.icon)}
+                                                </div>
+                                                {!isCollapsed && <span className="text-sm font-normal">{tool.label}</span>}
+                                                {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">{tool.label}</div>}
+                                            </button>
+                                        )}
+                                    </li>
+                                ))}
                             </ul>
                         )}
                     </div>

@@ -20,6 +20,11 @@ const OVERLAY_ROUTES = new Set([
     '/overlay-hub',
 ]);
 
+const ROUTE_LABELS: Record<string, string> = {
+    '/graphics-settings': 'Paramètres généraux',
+    '/bindings': 'Bindings',
+};
+
 const toRouteLabel = (value: string): string =>
     value
         .split('-')
@@ -97,7 +102,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     }
 
     const isHomeRoute = location.pathname === '/';
-    const routeLabel = path ? toRouteLabel(path) : '';
+    const routeLabel = ROUTE_LABELS[location.pathname] ?? (path ? toRouteLabel(path) : '');
     const routeTitle = routeLabel || 'Accueil';
 
     return (

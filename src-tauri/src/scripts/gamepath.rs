@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use regex::Regex;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -7,7 +8,6 @@ use std::path::Path;
 use std::process::Command;
 use std::time::SystemTime;
 use tauri::command;
-use chrono::{DateTime, Utc};
 
 fn get_log_file_path() -> Option<String> {
     if cfg!(target_os = "windows") {
@@ -51,7 +51,7 @@ fn check_and_add_path(path: &str, check_exists: bool, sc_install_paths: &mut Vec
     }
 }
 
-fn get_game_install_path(list_data: Vec<String>, check_exists: bool) -> Vec<String> {
+fn get_game_install_path(list_data: &[String], check_exists: bool) -> Vec<String> {
     let mut sc_install_paths = Vec::new();
 
     // Expression régulière pour détecter les chemins avec des versions dynamiques
@@ -84,7 +84,7 @@ fn get_game_channel_id(install_path: &str) -> String {
             return "UNKNOWN".to_string();
         }
     };
-    
+
     if let Some(cap) = re.captures(install_path) {
         if let Some(version) = cap.get(1) {
             let version_str = version.as_str();
@@ -94,11 +94,76 @@ fn get_game_channel_id(install_path: &str) -> String {
     }
     "UNKNOWN".to_string()
 }
+
+fn read_build_manifest_info(
+    install_path: &str,
+) -> (Option<String>, Option<String>, Option<String>) {
+    let manifest_path = Path::new(install_path).join("build_manifest.id");
+    let Ok(contents) = fs::read_to_string(manifest_path) else {
+        return (None, None, None);
+    };
+
+    let Ok(json) = serde_json::from_str::<serde_json::Value>(&contents) else {
+        return (None, None, None);
+    };
+
+    let data = json.get("Data").unwrap_or(&json);
+    let clean = |value: Option<&serde_json::Value>| {
+        value
+            .and_then(|v| v.as_str())
+            .map(str::trim)
+            .filter(|v| !v.is_empty() && !v.eq_ignore_ascii_case("none"))
+            .map(ToOwned::to_owned)
+    };
+
+    let build_number =
+        clean(data.get("RequestedP4ChangeNum")).or_else(|| clean(data.get("BuildId")));
+    let game_version = clean(data.get("Version"));
+    let branch = clean(data.get("Branch"));
+
+    (build_number, game_version, branch)
+}
+
+fn get_launcher_release_version(log_lines: &[String], channel: &str) -> Option<String> {
+    let escaped_channel = regex::escape(channel);
+    let version_pattern = r"([0-9]+(?:\.[0-9]+)+(?:[-.][A-Za-z0-9]+)*)";
+    let patterns = [
+        format!(r"(?i)\bSC\s+{}\s+{}", escaped_channel, version_pattern),
+        format!(
+            r"(?i)\bStar Citizen\s+{}\s+{}",
+            escaped_channel, version_pattern
+        ),
+    ];
+    let regexes: Vec<Regex> = patterns
+        .iter()
+        .filter_map(|pattern| Regex::new(pattern).ok())
+        .collect();
+
+    for line in log_lines.iter().rev() {
+        for re in &regexes {
+            if let Some(cap) = re.captures(line) {
+                if let Some(version) = cap.get(1) {
+                    let version = version.as_str().trim();
+                    if !version.is_empty() {
+                        return Some(version.to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    None
+}
+
 #[derive(Serialize)]
 pub struct VersionInfo {
     pub path: String,
     pub translated: bool,
     pub up_to_date: bool,
+    pub release_version: Option<String>,
+    pub build_number: Option<String>,
+    pub game_version: Option<String>,
+    pub branch: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -109,7 +174,7 @@ pub struct VersionPaths {
 #[command]
 pub fn get_star_citizen_versions() -> VersionPaths {
     let log_lines = get_launcher_log_list();
-    let sc_install_paths = get_game_install_path(log_lines, true);
+    let sc_install_paths = get_game_install_path(&log_lines, true);
 
     let mut versions = HashMap::new();
     for path in &sc_install_paths {
@@ -118,12 +183,18 @@ pub fn get_star_citizen_versions() -> VersionPaths {
         let version = get_game_channel_id(&normalized_path);
 
         if version != "UNKNOWN" && !versions.contains_key(&version) {
+            let (build_number, game_version, branch) = read_build_manifest_info(&normalized_path);
+            let release_version = get_launcher_release_version(&log_lines, &version);
             versions.insert(
                 version,
                 VersionInfo {
                     path: normalized_path,
                     translated: false,
                     up_to_date: false,
+                    release_version,
+                    build_number,
+                    game_version,
+                    branch,
                 },
             );
         }
@@ -159,7 +230,8 @@ fn find_rsi_launcher_path() -> Option<String> {
     // 2. Chemins standards par défaut
     let possible_paths = vec![
         "C:\\Program Files\\Roberts Space Industries\\RSI Launcher\\RSI Launcher.exe".to_string(),
-        "C:\\Program Files (x86)\\Roberts Space Industries\\RSI Launcher\\RSI Launcher.exe".to_string(),
+        "C:\\Program Files (x86)\\Roberts Space Industries\\RSI Launcher\\RSI Launcher.exe"
+            .to_string(),
     ];
 
     for path in &possible_paths {
@@ -182,8 +254,13 @@ fn find_rsi_launcher_path() -> Option<String> {
                 if let Ok(subkey) = hklm.open_subkey(&key_name) {
                     if let Ok(display_name) = subkey.get_value::<String, _>("DisplayName") {
                         if display_name.contains("RSI Launcher") {
-                            if let Ok(install_location) = subkey.get_value::<String, _>("InstallLocation") {
-                                let launcher_path = format!("{}\\RSI Launcher.exe", install_location.trim_end_matches('\\'));
+                            if let Ok(install_location) =
+                                subkey.get_value::<String, _>("InstallLocation")
+                            {
+                                let launcher_path = format!(
+                                    "{}\\RSI Launcher.exe",
+                                    install_location.trim_end_matches('\\')
+                                );
                                 if Path::new(&launcher_path).exists() {
                                     return Some(launcher_path);
                                 }
@@ -202,8 +279,13 @@ fn find_rsi_launcher_path() -> Option<String> {
                 if let Ok(subkey) = hkcu.open_subkey(&key_name) {
                     if let Ok(display_name) = subkey.get_value::<String, _>("DisplayName") {
                         if display_name.contains("RSI Launcher") {
-                            if let Ok(install_location) = subkey.get_value::<String, _>("InstallLocation") {
-                                let launcher_path = format!("{}\\RSI Launcher.exe", install_location.trim_end_matches('\\'));
+                            if let Ok(install_location) =
+                                subkey.get_value::<String, _>("InstallLocation")
+                            {
+                                let launcher_path = format!(
+                                    "{}\\RSI Launcher.exe",
+                                    install_location.trim_end_matches('\\')
+                                );
                                 if Path::new(&launcher_path).exists() {
                                     return Some(launcher_path);
                                 }
@@ -224,7 +306,39 @@ pub struct LauncherStatus {
     pub path: Option<String>,
 }
 
-/// Vérifie si le RSI Launcher est installé et retourne son chemin
+/// Etat runtime du launcher RSI et de Star Citizen.
+#[derive(Serialize)]
+pub struct LauncherActivityStatus {
+    pub launcher_running: bool,
+    pub game_running: bool,
+}
+
+#[cfg(target_os = "windows")]
+fn is_process_running(process_names: &[&str]) -> bool {
+    let output = Command::new("tasklist")
+        .args(["/FO", "CSV", "/NH"])
+        .output();
+
+    let Ok(output) = output else {
+        return false;
+    };
+
+    if !output.status.success() {
+        return false;
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_ascii_lowercase();
+    process_names.iter().any(|process_name| {
+        let process_name = process_name.to_ascii_lowercase();
+        stdout.lines().any(|line| line.contains(&process_name))
+    })
+}
+
+#[cfg(not(target_os = "windows"))]
+fn is_process_running(_process_names: &[&str]) -> bool {
+    false
+}
+
 #[command]
 pub fn check_rsi_launcher() -> LauncherStatus {
     match find_rsi_launcher_path() {
@@ -236,6 +350,14 @@ pub fn check_rsi_launcher() -> LauncherStatus {
             installed: false,
             path: None,
         },
+    }
+}
+
+#[command]
+pub fn get_launcher_activity_status() -> LauncherActivityStatus {
+    LauncherActivityStatus {
+        launcher_running: is_process_running(&["RSI Launcher.exe"]),
+        game_running: is_process_running(&["StarCitizen.exe"]),
     }
 }
 

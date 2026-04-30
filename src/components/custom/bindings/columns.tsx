@@ -16,6 +16,8 @@ import {
 type Binding = {
     name: string;
     path: string;
+    source?: string;
+    editable?: boolean;
 };
 
 interface BindingActionsCellProps {
@@ -26,6 +28,7 @@ interface BindingActionsCellProps {
 
 function BindingActionsCell({ binding, toast, updateBindings }: BindingActionsCellProps) {
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const isProtected = binding.editable === false || binding.source === "Base Data.pak";
 
     const handleDelete = async () => {
         const deleted = await invokeDeleteWithToast(
@@ -43,14 +46,20 @@ function BindingActionsCell({ binding, toast, updateBindings }: BindingActionsCe
 
     return (
         <div className="flex items-center gap-1.5">
-            <button
-                onClick={() => setDeleteModalOpen(true)}
-                className="inline-flex h-7 items-center gap-1.5 rounded-md border border-red-500/30 bg-red-500/8 px-2 text-xs text-red-600 transition-colors hover:border-red-500/45 hover:bg-red-500/16 hover:text-red-700 dark:text-red-300 dark:hover:text-red-200"
-                aria-label="Supprimer le fichier"
-            >
-                <Trash2 className="h-3.5 w-3.5" />
-                <span>Supprimer</span>
-            </button>
+            {isProtected ? (
+                <span className="inline-flex h-7 items-center rounded-md border border-primary/25 bg-primary/8 px-2 text-xs text-primary/90">
+                    Base protegee
+                </span>
+            ) : (
+                <button
+                    onClick={() => setDeleteModalOpen(true)}
+                    className="inline-flex h-7 items-center gap-1.5 rounded-md border border-red-500/30 bg-red-500/8 px-2 text-xs text-red-600 transition-colors hover:border-red-500/45 hover:bg-red-500/16 hover:text-red-700 dark:text-red-300 dark:hover:text-red-200"
+                    aria-label="Supprimer le fichier"
+                >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>Supprimer</span>
+                </button>
+            )}
 
             <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
                 <DialogContent className="max-w-[560px] overflow-hidden border-red-500/35 p-0">
