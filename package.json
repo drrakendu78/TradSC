@@ -1,7 +1,7 @@
 {
     "name": "startradfr",
     "private": true,
-    "version": "4.1.0",
+    "version": "4.1.1",
     "type": "module",
     "proxy": "https://multitool.onivoid.fr",
     "scripts": {
@@ -70,4 +70,3 @@
         "vite": "^7.2.6"
     }
 }
-

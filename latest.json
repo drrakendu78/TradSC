@@ -1,11 +1,11 @@
 {
-    "version":  "4.1.0",
-    "notes":  "v4.1.0 - Outils SC integres, hub overlay et companion enrichis, editeur de bindings, sources de traduction personnalisees et lancement d\u0027applications tierces avec RSI.",
-    "pub_date":  "2026-04-30T17:36:39.240Z",
+    "version":  "4.1.1",
+    "notes":  "v4.1.1 - Correctifs editeur de bindings: ignore les entrees joystick deja maintenues, garde la capture active et met a jour Browserslist.",
+    "pub_date":  "2026-04-30T22:46:29.630Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRb1BzLzdHaFk1RlRub204UE1zci9qcVhLQjdXc212MHdqR3MvZ01DZ1JNanUyZ2todFgyc1MrQjAzRkdGQ1NzQk9Hb3FlZm82WGdsNEFPOWRDb3FTVWwzdlBoK1VkUkE4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc3NTcwMzQ5CWZpbGU6U3RhclRyYWQgRlJfNC4xLjBfeDY0LXNldHVwLmV4ZQpJQ0U1bFlmcksrcVZyQ2xBUzBibzBsU1NzZ0t0ZTE5SGpaKzRtSkl5OVZHSnVicy9SbTBldmpEWloyNUpXeXNBdjh6ZVVRV0lWdFBQZ2lCc0V0NFlDdz09Cg==",
-                                             "url":  "https://github.com/drrakendu78/TradSC/releases/download/v4.1.0/StarTrad.FR_4.1.0_x64-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRb1BzLzdHaFk1RlVUUkh6cGxQb1Q4M1hWZXJQSmk0TFgzZ2NKYmtEZFNWYkV3RUIxdFhSNW9SWkxKSEpPd0lBbm9ERjkyemFBQlF2VjJsZ2wxYnYxZmlYZEJpcVkwNUFvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc3NTg5MTUzCWZpbGU6U3RhclRyYWQgRlJfNC4xLjFfeDY0LXNldHVwLmV4ZQpWOEVSZU1SYmFQZ1c2cjJ5QjVIaC9lU3BEZDFGcUtORjZyVEpJMjJkUzVjWWVMWFY0eVRwalVEUzdlNWJZUlRvRXZiMXIyR0dkMEVHWmt4UHZHMkdDQT09Cg==",
+                                             "url":  "https://github.com/drrakendu78/TradSC/releases/download/v4.1.1/StarTrad.FR_4.1.1_x64-setup.exe"
                                          }
                   }
 }
