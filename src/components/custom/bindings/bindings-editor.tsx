@@ -1251,9 +1251,8 @@ export function BindingsEditor({ selectedVersion }: BindingsEditorProps) {
         if (!editingRow) return;
         const ignoredGamepadInputs = new Set(readActiveGamepadInputs());
         const warmupUntil = Date.now() + 300;
-        const setCapturedValue = (value: string, replaceExisting = true) => {
+        const setCapturedValue = (value: string) => {
             setEditValue((current) => {
-                if (!replaceExisting && current) return current;
                 return current === value ? current : value;
             });
         };
@@ -1298,7 +1297,8 @@ export function BindingsEditor({ selectedVersion }: BindingsEditorProps) {
 
             const nextInput = activeInputs.find((input) => !ignoredGamepadInputs.has(input));
             if (nextInput) {
-                setCapturedValue(nextInput, false);
+                setCapturedValue(nextInput);
+                ignoredGamepadInputs.add(nextInput);
             }
         }, 120);
 
@@ -2063,7 +2063,7 @@ export function BindingsEditor({ selectedVersion }: BindingsEditorProps) {
                             <div className="rounded-2xl border border-primary/25 bg-primary/8 p-4">
                                 <div className="flex min-h-24 items-center justify-center rounded-xl border border-border/35 bg-[hsl(var(--background)/0.48)] px-4 text-center">
                                     <span className={cn("text-base font-medium", editValue ? "text-foreground" : "text-muted-foreground")}>
-                                        {editValue ? formatBindingInput(editValue) : "Appuyez pour rebind"}
+                                        {editValue ? formatBindingInput(editValue) : "En ecoute..."}
                                     </span>
                                 </div>
                                 {editValue ? (
