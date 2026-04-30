@@ -1,10 +1,10 @@
 {
     "version":  "4.1.0",
     "notes":  "v4.1.0 - Outils SC integres, hub overlay et companion enrichis, editeur de bindings, sources de traduction personnalisees et lancement d\u0027applications tierces avec RSI.",
-    "pub_date":  "2026-04-30T17:05:50.411Z",
+    "pub_date":  "2026-04-30T17:36:39.240Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRb1BzLzdHaFk1RmZ5NS80enR1NEZNL1c1NzAvZ2Y2QjE1a3FjdW9IZGRMWWxsRDVWdFd5M3k4L3NvRWRRQmI4Sy9OditHeXNEdjNKdDI1ak9PNllwOUJ1R1J4eTlER3dJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc3NTY4NjkwCWZpbGU6U3RhclRyYWQgRlJfNC4xLjBfeDY0LXNldHVwLmV4ZQpTYTZkbWdvaWhSYlo3dG5NRWU3aHRsZmd6SnIrQ3FZc0JiTWM5UWxCd2pCVTRvRHViTFBIZVhUdEhtdUVjSkVLdmM3TGZzT0VNRWNVajdoTkRLNVlBQT09Cg==",
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRb1BzLzdHaFk1RlRub204UE1zci9qcVhLQjdXc212MHdqR3MvZ01DZ1JNanUyZ2todFgyc1MrQjAzRkdGQ1NzQk9Hb3FlZm82WGdsNEFPOWRDb3FTVWwzdlBoK1VkUkE4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc3NTcwMzQ5CWZpbGU6U3RhclRyYWQgRlJfNC4xLjBfeDY0LXNldHVwLmV4ZQpJQ0U1bFlmcksrcVZyQ2xBUzBibzBsU1NzZ0t0ZTE5SGpaKzRtSkl5OVZHSnVicy9SbTBldmpEWloyNUpXeXNBdjh6ZVVRV0lWdFBQZ2lCc0V0NFlDdz09Cg==",
                                              "url":  "https://github.com/drrakendu78/TradSC/releases/download/v4.1.0/StarTrad.FR_4.1.0_x64-setup.exe"
                                          }
                   }
