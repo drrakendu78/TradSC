@@ -78,6 +78,13 @@ type HardwareDevice = {
     axes: number;
 };
 
+type CapturedGamepadInput = {
+    input: string;
+    deviceId: string;
+    deviceName: string;
+    deviceKind: DeviceKind;
+};
+
 type BindingInput = {
     input: string;
     deviceId: string;
@@ -559,6 +566,84 @@ function linkedHardwareForVirtualDevice(
     return physicalHardwareForVirtualDevice(device, hardwareDevices);
 }
 
+function linkedHardwareForProfileDevice(
+    device: Pick<DeviceInfo, "id" | "name" | "kind">,
+    hardwareDevices: HardwareDevice[],
+    hardwareLinks: Record<string, string>
+) {
+    const linkedHardwareId = hardwareLinks[device.id];
+    if (linkedHardwareId && linkedHardwareId !== AUTO_HARDWARE_LINK) {
+        return hardwareDevices.find((hardware) => hardware.id === linkedHardwareId && isLinkablePhysicalHardware(hardware)) ?? null;
+    }
+
+    return hardwareForProfileDevice(device, hardwareDevices)
+        ?? physicalHardwareForVirtualDevice(device, hardwareDevices);
+}
+
+function hardwareMatchesCapturedGamepad(
+    hardware: HardwareDevice | null | undefined,
+    captured: Pick<CapturedGamepadInput, "deviceId" | "deviceName" | "deviceKind">
+) {
+    if (!hardware) return false;
+    if (hardware.source === "browser" && hardware.id === captured.deviceId) return true;
+    if (hardware.kind !== "unknown" && captured.deviceKind !== "unknown" && hardware.kind !== captured.deviceKind) return false;
+
+    const hardwareSide = hardwareSideFromName(hardware.name);
+    const capturedSide = hardwareSideFromName(captured.deviceName);
+    if (hardwareSide && capturedSide) return hardwareSide === capturedSide;
+
+    return hardwareNamesMatch(hardware.name, captured.deviceName);
+}
+
+function capturedGamepadInputKey(captured: CapturedGamepadInput) {
+    return `${captured.deviceId}:${captured.input}`;
+}
+
+function gamepadInputSuffix(input: string) {
+    return input.replace(/^js\d+_/i, "").replace(/^(?:xi|xinput|gamepad)\d*[_-]/i, "");
+}
+
+function inputForProfileDevice(device: Pick<DeviceInfo, "id" | "kind">, capturedInput: string) {
+    const [, instance = "1"] = device.id.split(":");
+    const suffix = gamepadInputSuffix(capturedInput);
+    if (!suffix) return capturedInput;
+    if (device.kind === "gamepad") return `gamepad${instance}_${suffix}`;
+    return `js${instance}_${suffix}`;
+}
+
+function resolveCapturedGamepadInput(
+    captured: CapturedGamepadInput,
+    profileDevices: DeviceInfo[],
+    hardwareDevices: HardwareDevice[],
+    hardwareLinks: Record<string, string>,
+    editingRow: BindingRow | null,
+    selectedDeviceId: string
+) {
+    const candidates = profileDevices.filter((device) => device.kind === "joystick" || device.kind === "gamepad");
+    const linkedDevice = candidates.find((device) => {
+        const linkedHardware = linkedHardwareForProfileDevice(device, hardwareDevices, hardwareLinks);
+        return hardwareMatchesCapturedGamepad(linkedHardware, captured);
+    });
+    if (linkedDevice) return inputForProfileDevice(linkedDevice, captured.input);
+
+    const selectedDevice = selectedDeviceId !== ALL_DEVICES && selectedDeviceId !== NO_DEVICE
+        ? candidates.find((device) => device.id === selectedDeviceId)
+        : null;
+    if (selectedDevice) return inputForProfileDevice(selectedDevice, captured.input);
+
+    const rowDevice = editingRow && (editingRow.deviceKind === "joystick" || editingRow.deviceKind === "gamepad")
+        ? candidates.find((device) => device.id === editingRow.deviceId) ?? {
+            id: editingRow.deviceId,
+            name: deviceNameFromId(editingRow.deviceId, editingRow.deviceKind),
+            kind: editingRow.deviceKind,
+            bindingCount: 0,
+        }
+        : null;
+    if (rowDevice) return inputForProfileDevice(rowDevice, captured.input);
+
+    return captured.input;
+}
+
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string) {
     return new Promise<T>((resolve, reject) => {
         const timeout = window.setTimeout(() => reject(new Error(message)), timeoutMs);
@@ -1013,24 +1098,37 @@ function readBrowserHardwareDevices(): HardwareDevice[] {
 const GAMEPAD_BUTTON_THRESHOLD = 0.6;
 const GAMEPAD_AXIS_THRESHOLD = 0.65;
 
-function readActiveGamepadInputs() {
+function readActiveGamepadInputs(): CapturedGamepadInput[] {
     const gamepads = navigator.getGamepads?.();
     if (!gamepads) return [];
 
-    const inputs: string[] = [];
+    const inputs: CapturedGamepadInput[] = [];
     for (const gamepad of Array.from(gamepads)) {
         if (!gamepad?.connected) continue;
 
         const slot = gamepad.index + 1;
+        const deviceName = compactHardwareName(gamepad.id || `Joystick ${slot}`);
+        const deviceKind = inferHardwareKindFromName(deviceName);
+        const deviceId = `browser:${gamepad.index}:${gamepad.id}`;
         gamepad.buttons.forEach((button, index) => {
             if (button.pressed || button.value > GAMEPAD_BUTTON_THRESHOLD) {
-                inputs.push(`js${slot}_button${index + 1}`);
+                inputs.push({
+                    input: `js${slot}_button${index + 1}`,
+                    deviceId,
+                    deviceName,
+                    deviceKind,
+                });
             }
         });
         gamepad.axes.forEach((axis, index) => {
             if (Math.abs(axis) > GAMEPAD_AXIS_THRESHOLD) {
                 const axisName = ["x", "y", "z", "rotx", "roty", "rotz"][index] ?? `axis${index}`;
-                inputs.push(`js${slot}_${axisName}`);
+                inputs.push({
+                    input: `js${slot}_${axisName}`,
+                    deviceId,
+                    deviceName,
+                    deviceKind,
+                });
             }
         });
     }
@@ -1249,7 +1347,7 @@ export function BindingsEditor({ selectedVersion }: BindingsEditorProps) {
 
     useEffect(() => {
         if (!editingRow) return;
-        const ignoredGamepadInputs = new Set(readActiveGamepadInputs());
+        const ignoredGamepadInputs = new Set(readActiveGamepadInputs().map(capturedGamepadInputKey));
         const warmupUntil = Date.now() + 300;
         const setCapturedValue = (value: string) => {
             setEditValue((current) => {
@@ -1282,10 +1380,10 @@ export function BindingsEditor({ selectedVersion }: BindingsEditorProps) {
 
         const interval = window.setInterval(() => {
             const activeInputs = readActiveGamepadInputs();
-            const activeSet = new Set(activeInputs);
+            const activeSet = new Set(activeInputs.map(capturedGamepadInputKey));
 
             if (Date.now() < warmupUntil) {
-                activeInputs.forEach((input) => ignoredGamepadInputs.add(input));
+                activeInputs.forEach((input) => ignoredGamepadInputs.add(capturedGamepadInputKey(input)));
                 return;
             }
 
@@ -1295,10 +1393,17 @@ export function BindingsEditor({ selectedVersion }: BindingsEditorProps) {
                 }
             });
 
-            const nextInput = activeInputs.find((input) => !ignoredGamepadInputs.has(input));
+            const nextInput = activeInputs.find((input) => !ignoredGamepadInputs.has(capturedGamepadInputKey(input)));
             if (nextInput) {
-                setCapturedValue(nextInput);
-                ignoredGamepadInputs.add(nextInput);
+                setCapturedValue(resolveCapturedGamepadInput(
+                    nextInput,
+                    parsed?.devices ?? [],
+                    hardwareDevices,
+                    hardwareLinks,
+                    editingRow,
+                    selectedDeviceId,
+                ));
+                ignoredGamepadInputs.add(capturedGamepadInputKey(nextInput));
             }
         }, 120);
 
@@ -1308,7 +1413,7 @@ export function BindingsEditor({ selectedVersion }: BindingsEditorProps) {
             window.removeEventListener("wheel", onWheel, true);
             window.clearInterval(interval);
         };
-    }, [editingRow]);
+    }, [editingRow, hardwareDevices, hardwareLinks, parsed?.devices, selectedDeviceId]);
 
     useEffect(() => {
         if (localStorage.getItem("startrad-bindings-debug") === "1") {
