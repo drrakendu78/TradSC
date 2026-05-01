@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { shouldShowSecurityWarning } from '@/utils/buildInfo';
 import {
     Dialog,
     DialogContent,
@@ -39,7 +40,6 @@ export function SecurityWarning({ onContinue }: SecurityWarningProps) {
     useEffect(() => {
         const init = async () => {
             try {
-                const { shouldShowSecurityWarning } = await import('@/utils/buildInfo');
                 const show = await shouldShowSecurityWarning();
                 const hasSeenWarning = localStorage.getItem('security-warning-seen');
                 setState((s) => ({ ...s, shouldShow: show, open: show && !hasSeenWarning }));

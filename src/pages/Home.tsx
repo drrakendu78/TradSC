@@ -62,6 +62,7 @@ import { AnnouncementDialog } from '@/components/custom/announcement-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { isTauri } from '@/utils/tauri-helpers';
 import { invoke as tauriInvoke } from '@tauri-apps/api/core';
+import { save as saveDialog, open as openDialog } from '@tauri-apps/plugin-dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ProjectorShadow, type ProjectorShadowSettings } from '@/utils/ambilight/projector-shadow';
 
@@ -715,11 +716,8 @@ function Home() {
             const json = JSON.stringify(prefs, null, 2);
 
             if (isInTauri) {
-                // Utiliser le dialogue natif Tauri
-                const { save } = await import('@tauri-apps/plugin-dialog');
-
                 console.log('[Export] Ouverture du dialogue de sauvegarde...');
-                const filePath = await save({
+                const filePath = await saveDialog({
                     title: 'Exporter les préférences',
                     defaultPath: `startradfr_preferences_${new Date().toISOString().split('T')[0]}.json`,
                     filters: [{
@@ -773,13 +771,7 @@ function Home() {
     const handleImportLocal = async () => {
         try {
             if (isInTauri) {
-                // Utiliser le dialogue natif Tauri
-                const [{ open }, { invoke }] = await Promise.all([
-                    import('@tauri-apps/plugin-dialog'),
-                    import('@tauri-apps/api/core'),
-                ]);
-
-                const filePath = await open({
+                const filePath = await openDialog({
                     filters: [{
                         name: 'JSON',
                         extensions: ['json']
@@ -788,7 +780,7 @@ function Home() {
                 });
 
                 if (filePath && typeof filePath === 'string') {
-                    const content = await invoke<string>('read_text_file', { path: filePath });
+                    const content = await tauriInvoke<string>('read_text_file', { path: filePath });
                     const prefs = JSON.parse(content) as ExportedPreferences;
 
                     if (!prefs.version || !prefs.sidebar || !prefs.theme || !prefs.stats) {
@@ -996,8 +988,7 @@ function Home() {
         if (!isInTauri) return;
 
         try {
-            const { open } = await import('@tauri-apps/plugin-dialog');
-            const selected = await open({
+            const selected = await openDialog({
                 filters: [
                     {
                         name: 'Applications',
