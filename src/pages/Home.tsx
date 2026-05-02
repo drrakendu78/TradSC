@@ -1347,7 +1347,7 @@ function Home() {
                                             </Button>
                                         ) : null
                                 )}
-                                {isInTauri && (
+                                {isInTauri && (!IS_MICROSOFT_STORE || launcherStatus.installed) && (
                                     <Button
                                         size="default"
                                         variant="outline"
