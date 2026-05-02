@@ -65,6 +65,9 @@ import { invoke as tauriInvoke } from '@tauri-apps/api/core';
 import { save as saveDialog, open as openDialog } from '@tauri-apps/plugin-dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ProjectorShadow, type ProjectorShadowSettings } from '@/utils/ambilight/projector-shadow';
+import { detectDistribution } from '@/utils/buildInfo';
+
+const IS_MICROSOFT_STORE = detectDistribution() === 'microsoft-store';
 
 interface LauncherStatus {
     installed: boolean;
@@ -1331,7 +1334,7 @@ function Home() {
                                                 )}
                                                 {launcherButtonLabel}
                                             </Button>
-                                        ) : (
+                                        ) : !IS_MICROSOFT_STORE ? (
                                             <Button
                                                 size="default"
                                                 variant="outline"
@@ -1342,7 +1345,7 @@ function Home() {
                                                 Telecharger le Launcher
                                                 <ExternalLink className="h-4 w-4" />
                                             </Button>
-                                    )
+                                        ) : null
                                 )}
                                 {isInTauri && (
                                     <Button
