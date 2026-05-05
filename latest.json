@@ -1,10 +1,10 @@
 {
     "version":  "4.1.3",
-    "notes":  "v4.1.3 - Nouveau toggle de nettoyage automatique des caches Star Citizen obsolètes (désactivé par défaut, dans Paramètres → Services). Renommage de l'onglet \"Cache\" → \"Trad hors-ligne\". Fix: l'updater lance désormais l'installeur en mode silencieux pour éviter le prompt UAC sur certaines configs Windows.",
-    "pub_date":  "2026-05-05T21:22:20.295Z",
+    "notes":  "v4.1.3 - Nouveau toggle de nettoyage automatique des caches Star Citizen obsolètes (désactivé par défaut, dans Paramètres → Services). Renommage de l'onglet \"Cache\" → \"Trad hors-ligne\". Note: l'auto-update peut afficher un prompt UAC, c'est normal — cliquez Oui.",
+    "pub_date":  "2026-05-05T21:27:29.614Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRb1BzLzdHaFk1RlpITDBzOGJ6enN6bldMV2pwcTNpNkphVkc2TTQvY1BmbkZ4ZnU0bjhGaldxVjVGWEkrVjJ0L2JaM3daNXlZVW03Vk9uMUx4U2xXQ3dBL00vaytFMkFZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4MDA4OTMxCWZpbGU6U3RhclRyYWQgRlJfNC4xLjNfeDY0LXNldHVwLmV4ZQpYdVpuTjVBTnJQd0xCck9CZkVGeWdUOTNhdkpFSktkL0x2ajhTR1JPSjcycllMK2c0RWl1VlkxNktyN250NEorR1ZPeVFIYkFocUJKSEJ2UW9OSjdCZz09Cg==",
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRb1BzLzdHaFk1RmJwT1BlMzBlUXMxbWs5ZFJHZ2RWbmRXNzNQMHVaSlVXUElaY252MkNBN0hsSFQ0d3RSdXpvZFFLRTV3VXoxSTdNNi9OWmlaWVc4Y3lER0loZVdkNmd3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4MDA5MjQwCWZpbGU6U3RhclRyYWQgRlJfNC4xLjNfeDY0LXNldHVwLmV4ZQprWk84dWNidmF2UW95UW5qeGMwOEk1WWRBMWtCRzVpQkR6UUpzYzNmd1k3UitYb3FKMXM1NDB0SGRKZHNtTzJvOXdteldhdnRGWjQrdk1LKzVjYVhEdz09Cg==",
                                              "url":  "https://github.com/drrakendu78/TradSC/releases/download/v4.1.3/StarTrad.FR_4.1.3_x64-setup.exe"
                                          }
                   }
