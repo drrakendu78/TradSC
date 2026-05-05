@@ -164,6 +164,7 @@ export default function OnboardingWizard({ onClose }: OnboardingWizardProps) {
                 discordEnabled: discordOk,
                 companionEnabled: savedCompanionEnabled || !!companionInfo?.running,
                 companionPersistentToken: !!companionInfo?.persistentToken,
+                autoCleanObsoleteCaches: s.autoCleanObsoleteCaches,
             }));
         } catch (e) {
             console.error("[Onboarding] preload services", e);
