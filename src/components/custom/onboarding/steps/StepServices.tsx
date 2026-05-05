@@ -17,6 +17,7 @@ import { invoke } from "@tauri-apps/api/core";
 import QRCode from "qrcode";
 import {
     Bell,
+    BrushCleaning,
     Check,
     Copy,
     Disc3,
@@ -30,6 +31,7 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { AUTO_CLEAN_OBSOLETE_CACHES_KEY } from "@/hooks/useShaderCacheAutoClean";
 import type { ServicesConfig } from "../types";
 
 interface StepServicesProps {
@@ -116,6 +118,17 @@ export function StepServices({ services, onChange }: StepServicesProps) {
                 description: `${e}`,
                 variant: "destructive",
             });
+        }
+    };
+
+    // ─── Auto-clean caches obsolètes : live (juste localStorage) ────────
+    const handleAutoCleanCachesToggle = (on: boolean) => {
+        const next = { ...services, autoCleanObsoleteCaches: on };
+        onChange(next);
+        try {
+            localStorage.setItem(AUTO_CLEAN_OBSOLETE_CACHES_KEY, String(on));
+        } catch {
+            /* ignore */
         }
     };
 
@@ -208,13 +221,21 @@ export function StepServices({ services, onChange }: StepServicesProps) {
                     checked={services.autoStartup}
                     onCheckedChange={(on) => void handleAutoStartupToggle(on)}
                 />
+                <ServiceRow
+                    icon={<BrushCleaning className="h-5 w-5" />}
+                    accent="amber"
+                    title="Nettoyage automatique des caches obsolètes"
+                    desc="Supprime les caches Star Citizen qui ne correspondent plus à une version installée (ex : cache 4.7.0 supprimé après passage à 4.8.0). Lancé au démarrage et avant chaque ouverture du RSI Launcher."
+                    checked={services.autoCleanObsoleteCaches}
+                    onCheckedChange={handleAutoCleanCachesToggle}
+                />
                 <CompanionRow services={services} onChange={onChange} />
             </div>
         </div>
     );
 }
 
-type Accent = "primary" | "indigo" | "emerald" | "sky";
+type Accent = "primary" | "indigo" | "emerald" | "sky" | "amber";
 
 const accentClasses: Record<Accent, { iconBox: string; iconColor: string }> = {
     primary: {
@@ -232,6 +253,10 @@ const accentClasses: Record<Accent, { iconBox: string; iconColor: string }> = {
     sky: {
         iconBox: "border-sky-500/30 bg-sky-500/10",
         iconColor: "text-sky-500",
+    },
+    amber: {
+        iconBox: "border-amber-500/30 bg-amber-500/10",
+        iconColor: "text-amber-500",
     },
 };
 

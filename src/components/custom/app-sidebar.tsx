@@ -56,6 +56,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { CompanionCard } from "@/components/custom/CompanionCard";
+import { AUTO_CLEAN_OBSOLETE_CACHES_KEY, runShaderCacheAutoClean } from "@/hooks/useShaderCacheAutoClean";
 
 interface NavigationItem {
     id: string;
@@ -1374,6 +1375,56 @@ function SettingsContent() {
         const saved = localStorage.getItem(OVERLAY_HUB_PRESET_STORAGE_KEY);
         return isOverlayHubPreset(saved) ? saved : 'free';
     });
+    const [autoCleanCachesEnabled, setAutoCleanCachesEnabled] = useState<boolean>(() => {
+        try {
+            return localStorage.getItem(AUTO_CLEAN_OBSOLETE_CACHES_KEY) === 'true';
+        } catch {
+            return false;
+        }
+    });
+    const [autoCleanRunning, setAutoCleanRunning] = useState(false);
+
+    const handleAutoCleanCachesToggle = async (checked: boolean) => {
+        setAutoCleanCachesEnabled(checked);
+        try {
+            localStorage.setItem(AUTO_CLEAN_OBSOLETE_CACHES_KEY, String(checked));
+        } catch {}
+        if (!checked) {
+            toast({
+                title: 'Nettoyage automatique désactivé',
+                description: 'Les caches obsolètes ne seront plus supprimés automatiquement.',
+            });
+            return;
+        }
+        toast({
+            title: 'Nettoyage automatique activé',
+            description: 'Recherche des caches obsolètes en cours...',
+        });
+        setAutoCleanRunning(true);
+        try {
+            const result = await runShaderCacheAutoClean();
+            if (result.cleared.length > 0) {
+                toast({
+                    title: 'Caches obsolètes nettoyés',
+                    description: `${result.cleared.length} cache(s) supprimé(s) (versions ${result.cleared.join(', ')}) — ${result.freedMb.toFixed(0)} Mo libérés.`,
+                });
+            } else {
+                toast({
+                    title: 'Aucun cache obsolète',
+                    description: 'Tous les caches correspondent à une version Star Citizen installée.',
+                });
+            }
+        } catch (error) {
+            console.error('Erreur lors du nettoyage manuel des caches:', error);
+            toast({
+                title: 'Erreur',
+                description: "Impossible de scanner les caches Star Citizen.",
+                variant: 'destructive',
+            });
+        } finally {
+            setAutoCleanRunning(false);
+        }
+    };
 
     // Charger la configuration au montage
     useEffect(() => {
@@ -1728,7 +1779,7 @@ function SettingsContent() {
                     <TabsTrigger value="cache" className={tabTriggerClass}>
                         <span className="flex items-center gap-2">
                             <Save className="h-4 w-4 text-green-400" />
-                            <span className="text-xs font-semibold uppercase tracking-[0.08em] sm:text-[11px]">Cache</span>
+                            <span className="text-xs font-semibold uppercase tracking-[0.08em] sm:text-[11px]">Trad hors-ligne</span>
                         </span>
                         <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] font-semibold text-foreground/90">
                             {cacheFilesCount}
@@ -1965,6 +2016,25 @@ function SettingsContent() {
                                 <RotateCcw className="h-4 w-4" />
                                 Reinitialiser
                             </Button>
+                        </div>
+
+                        <div className={settingRowClass}>
+                            <div className={settingInfoClass}>
+                                <span className="text-sm font-medium">Nettoyage automatique des caches obsolètes</span>
+                                <p className="text-sm text-muted-foreground">
+                                    Supprime les caches Star Citizen qui ne correspondent plus à une version installée (ex : cache 4.7.0 supprimé après passage à 4.8.0). Lancé au démarrage et avant chaque ouverture du RSI Launcher.
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {autoCleanRunning && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                                <Switch
+                                    id="auto-clean-caches"
+                                    aria-label="Nettoyage automatique des caches obsolètes"
+                                    checked={autoCleanCachesEnabled}
+                                    onCheckedChange={handleAutoCleanCachesToggle}
+                                    disabled={autoCleanRunning}
+                                />
+                            </div>
                         </div>
                     </section>
 

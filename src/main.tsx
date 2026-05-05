@@ -11,6 +11,7 @@ import { ErrorBoundary } from "@/components/custom/ErrorBoundary";
 import { SplashScreen } from "@/components/custom/SplashScreen";
 import OnboardingWizard from "@/components/custom/onboarding/OnboardingWizard";
 import { useCompanionBridge } from "@/hooks/useCompanionBridge";
+import { useShaderCacheAutoCleanOnBoot } from "@/hooks/useShaderCacheAutoClean";
 import { isTauri } from "@/utils/tauri-helpers";
 
 const COMPANION_ENABLED_KEY = "companionServerEnabled";
@@ -62,6 +63,7 @@ function App() {
     window.location.hash.includes("/overlay-hub");
 
   useCompanionBridge(!isOverlay);
+  useShaderCacheAutoCleanOnBoot();
 
   useEffect(() => {
     if (isOverlay || !isTauri()) return;

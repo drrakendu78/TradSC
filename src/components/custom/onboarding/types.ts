@@ -19,6 +19,9 @@ export interface ServicesConfig {
     /** Si vrai, on conserve le token courant entre les redémarrages
      *  (le QR code reste valide) ; sinon nouveau token à chaque démarrage. */
     companionPersistentToken: boolean;
+    /** Auto-clean des caches Star Citizen obsolètes (versions plus installées).
+     *  Persistance via localStorage `startradfr_auto_clear_obsolete_caches`. */
+    autoCleanObsoleteCaches: boolean;
 }
 
 export interface OnboardingState {

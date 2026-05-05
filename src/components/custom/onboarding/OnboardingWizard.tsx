@@ -60,13 +60,22 @@ export default function OnboardingWizard({ onClose }: OnboardingWizardProps) {
     // source par version pour la persistance et le récap.
     const [perVersion, setPerVersion] = useState<Record<string, VersionSelection>>({});
 
-    const [services, setServices] = useState<ServicesConfig>({
-        backgroundEnabled: false,
-        backgroundIntervalMin: 5,
-        discordEnabled: false,
-        autoStartup: false,
-        companionEnabled: false,
-        companionPersistentToken: false,
+    const [services, setServices] = useState<ServicesConfig>(() => {
+        let autoCleanInit = false;
+        try {
+            autoCleanInit = localStorage.getItem('startradfr_auto_clear_obsolete_caches') === 'true';
+        } catch {
+            /* ignore */
+        }
+        return {
+            backgroundEnabled: false,
+            backgroundIntervalMin: 5,
+            discordEnabled: false,
+            autoStartup: false,
+            companionEnabled: false,
+            companionPersistentToken: false,
+            autoCleanObsoleteCaches: autoCleanInit,
+        };
     });
 
     const [authDialogOpen, setAuthDialogOpen] = useState(false);
