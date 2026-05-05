@@ -63,7 +63,10 @@
                                                   }
                                   },
                     "updater":  {
-                                    "pubkey":  "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE1MzkxNjFBRkJDRjNFMjgKUldRb1BzLzdHaFk1RlFSNWlMeWhua00yL3hlM0FWOHpkRzQxQkpWNkwvbGxvaWZsNU5tVlhGelYK"
+                                    "pubkey":  "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE1MzkxNjFBRkJDRjNFMjgKUldRb1BzLzdHaFk1RlFSNWlMeWhua00yL3hlM0FWOHpkRzQxQkpWNkwvbGxvaWZsNU5tVlhGelYK",
+                                    "windows":  {
+                                                    "installMode":  "quiet"
+                                                }
                                 }
                 }
 }
