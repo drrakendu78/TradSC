@@ -62,6 +62,7 @@ import { AnnouncementDialog } from '@/components/custom/announcement-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { isTauri } from '@/utils/tauri-helpers';
 import { invoke as tauriInvoke } from '@tauri-apps/api/core';
+import { isAutoCleanEnabled, runShaderCacheAutoClean } from '@/hooks/useShaderCacheAutoClean';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ProjectorShadow, type ProjectorShadowSettings } from '@/utils/ambilight/projector-shadow';
 
@@ -1165,6 +1166,19 @@ function Home() {
         if (!isInTauri) return;
         setLaunchingLauncher(true);
         try {
+            if (isAutoCleanEnabled()) {
+                try {
+                    const result = await runShaderCacheAutoClean();
+                    if (result.cleared.length > 0) {
+                        toast({
+                            title: 'Caches obsolètes nettoyés',
+                            description: `${result.cleared.length} cache(s) supprimé(s) (versions ${result.cleared.join(', ')}) — ${result.freedMb.toFixed(0)} Mo libérés.`,
+                        });
+                    }
+                } catch (cleanError) {
+                    console.error('Erreur nettoyage caches obsolètes:', cleanError);
+                }
+            }
             await tauriInvoke('launch_rsi_launcher');
             setLauncherActivity((status) => ({ ...status, launcher_running: true }));
             void refreshLauncherActivity().catch(() => {});

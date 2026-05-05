@@ -5,6 +5,7 @@
 import { useMemo } from "react";
 import {
     Bell,
+    BrushCleaning,
     CheckCircle2,
     Cloud,
     Disc3,
@@ -82,6 +83,7 @@ export function StepRecap({ versions, perVersion, services, connected }: StepRec
                             services.discordEnabled,
                             services.autoStartup,
                             services.companionEnabled,
+                            services.autoCleanObsoleteCaches,
                         ].filter(Boolean).length} activé(s)`}
                         accent="primary"
                     />
@@ -135,6 +137,12 @@ export function StepRecap({ versions, perVersion, services, connected }: StepRec
                                     : "Désactivé"
                             }
                             on={services.companionEnabled}
+                        />
+                        <DetailRow
+                            icon={<BrushCleaning className="h-4 w-4" />}
+                            label="Auto-clean caches"
+                            value={services.autoCleanObsoleteCaches ? "Activé" : "Désactivé"}
+                            on={services.autoCleanObsoleteCaches}
                         />
                     </CardContent>
                 </Card>
