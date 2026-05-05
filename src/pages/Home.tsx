@@ -29,7 +29,6 @@ import {
     Map,
     Eye,
     EyeOff,
-    ExternalLink,
     Play,
     Clock,
     FileDown,
@@ -1195,16 +1194,6 @@ function Home() {
         }
     };
 
-    // Ouvrir un lien externe
-    const handleOpenExternal = async (url: string) => {
-        if (isInTauri) {
-            const { open } = await import('@tauri-apps/plugin-shell');
-            await open(url);
-        } else {
-            window.open(url, '_blank');
-        }
-    };
-
     const enabledThirdPartyAppCount = thirdPartyApps.filter((app) => app.enabled).length;
     const thirdPartyAppDraftIsValid =
         thirdPartyAppDraft.name.trim().length > 0 && thirdPartyAppDraft.path.trim().length > 0;
@@ -1333,17 +1322,6 @@ function Home() {
                                                     <Play className="h-4 w-4" />
                                                 )}
                                                 {launcherButtonLabel}
-                                            </Button>
-                                        ) : !IS_MICROSOFT_STORE ? (
-                                            <Button
-                                                size="default"
-                                                variant="outline"
-                                                className="h-9 gap-2 px-4 text-sm"
-                                                onClick={() => handleOpenExternal('https://install.robertsspaceindustries.com/rel/2/RSI%20Launcher-Setup-2.11.0.exe')}
-                                            >
-                                                <Download className="h-4 w-4" />
-                                                Telecharger le Launcher
-                                                <ExternalLink className="h-4 w-4" />
                                             </Button>
                                         ) : null
                                 )}
