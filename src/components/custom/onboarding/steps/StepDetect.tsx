@@ -15,11 +15,9 @@ import {
     Globe2,
     Info,
     Loader2,
-    Rocket,
     Sparkles,
     XCircle,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { VersionInfo } from "../types";
@@ -133,18 +131,9 @@ export function StepDetect({ versions, versionsLoaded }: StepDetectProps) {
                         <div>
                             <p className="font-semibold">Aucune version Star Citizen détectée</p>
                             <p className="mt-1 text-sm text-muted-foreground">
-                                Lance le launcher RSI pour installer ou détecter une version, puis
-                                reviens ici.
+                                Une fois Star Citizen installé sur ton ordinateur, relance StarTrad FR pour rafraîchir la détection.
                             </p>
                         </div>
-                        <Button
-                            variant="default"
-                            onClick={() => void invoke("launch_rsi_launcher").catch(console.error)}
-                            className="mt-2 h-10 gap-2 rounded-lg"
-                        >
-                            <Rocket className="h-4 w-4" />
-                            Lancer le launcher RSI
-                        </Button>
                     </CardContent>
                 </Card>
             ) : (
@@ -182,17 +171,6 @@ export function StepDetect({ versions, versionsLoaded }: StepDetectProps) {
                                     <Sparkles className="h-4 w-4 text-primary" />
                                     Branches Star Citizen disponibles
                                 </h3>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                        void invoke("launch_rsi_launcher").catch(console.error)
-                                    }
-                                    className="h-8 gap-1.5 rounded-lg border-border/60 bg-background/40 text-[12px]"
-                                >
-                                    <Rocket className="h-3.5 w-3.5" />
-                                    Lancer RSI launcher
-                                </Button>
                             </div>
                             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                                 {KNOWN_BRANCHES.map((b) => {
@@ -210,8 +188,7 @@ export function StepDetect({ versions, versionsLoaded }: StepDetectProps) {
                             </div>
                             <p className="mt-3 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                                 <Info className="h-3 w-3" />
-                                Installer d'autres branches via le launcher RSI les rendra
-                                disponibles dans le wizard et la page Traduction.
+                                Les autres branches apparaîtront ici dès qu'elles seront installées sur ton ordinateur.
                             </p>
                         </section>
                     )}

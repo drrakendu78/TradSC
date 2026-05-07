@@ -2,7 +2,7 @@
 // DA alignée sur la page Paramètres : glassmorphism + radial gradients
 // primary, badges arrondis et bordures border/35.
 
-import { BadgeCheck, Code, Github, Heart, Shield, Sparkles, Store } from "lucide-react";
+import { BadgeCheck, Code, Heart, Shield, Sparkles, Store, Cog } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -21,7 +21,7 @@ export function StepWelcome() {
                             Bienvenue dans StarTrad FR
                         </h1>
                         <p className="text-sm text-muted-foreground">
-                            Application open-source gratuite avec un modèle de sécurité transparent. Avant de commencer, voici ce que tu dois savoir.
+                            Application gratuite avec un modèle de sécurité transparent. Avant de commencer, voici ce que tu dois savoir.
                         </p>
                     </div>
                 </div>
@@ -67,13 +67,13 @@ export function StepWelcome() {
                     <CardContent className="relative space-y-2 pt-0">
                         <GuaranteeRow
                             icon={<Code className="h-4 w-4 text-emerald-500" />}
-                            title="Code source ouvert"
-                            desc="Entièrement auditable sur GitHub."
+                            title="Transparence totale"
+                            desc="Architecture auditable et documentée."
                         />
                         <GuaranteeRow
-                            icon={<Github className="h-4 w-4 text-emerald-500" />}
-                            title="Build reproductible"
-                            desc="Workflow GitHub Actions public."
+                            icon={<Cog className="h-4 w-4 text-emerald-500" />}
+                            title="Build vérifié"
+                            desc="Pipeline de build automatisé et reproductible."
                         />
                         <GuaranteeRow
                             icon={<Heart className="h-4 w-4 text-emerald-500" />}
@@ -96,8 +96,8 @@ export function StepWelcome() {
                     variant="outline"
                     className="h-6 gap-1.5 rounded-md border border-blue-500/30 bg-blue-500/10 text-[11px] text-blue-600 dark:text-blue-400"
                 >
-                    <Github className="h-3 w-3" />
-                    Open-source
+                    <Shield className="h-3 w-3" />
+                    Sécurisée
                 </Badge>
             </div>
         </div>
