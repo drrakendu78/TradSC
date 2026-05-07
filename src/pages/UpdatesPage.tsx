@@ -37,7 +37,7 @@ export default function UpdatesPage() {
     const currentVersion = formatVersion(getAppVersionSync());
 
     const handleOpenStore = () => {
-        openExternal('ms-windows-store://pdp/?productid=9P29DL68WBZ');
+        openExternal('https://apps.microsoft.com/detail/9P29JDL68WBZ');
     };
 
     const getDistributionInfo = (): DistInfo => {
