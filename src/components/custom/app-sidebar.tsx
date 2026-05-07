@@ -137,10 +137,10 @@ const menuItems: NavigationItem[] = [
 const socialLinks: NavigationItem[] = [
     {
         id: "discord",
-        name: "Discord",
+        name: "Support",
         icon: <IconBrandDiscord size={18} />,
         href: "https://discord.startrad.link/",
-        tooltip: "Discord"
+        tooltip: "Support"
     },
     {
         id: "site",
