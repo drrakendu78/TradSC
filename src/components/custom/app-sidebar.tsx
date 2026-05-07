@@ -10,7 +10,7 @@ import {
     PinOff
 } from 'lucide-react';
 import { IconHome, IconBrandDiscord, IconCloud, IconBrandGithub, IconLanguage, IconUsers, IconNews, IconKeyboard, IconCalculator, IconMap2, IconSearch, IconSwords, IconPackage, IconHammer, IconBook, IconDatabase } from "@tabler/icons-react";
-import { BrushCleaning, Download, Power, PowerOff, Loader2, RotateCcw, Monitor, Route, BarChart3, Calendar, Languages, Trash2, Save, Users, Pickaxe, ShieldCheck } from "lucide-react";
+import { BrushCleaning, Download, Power, PowerOff, Loader2, RotateCcw, Monitor, Route, BarChart3, Calendar, Languages, Trash2, Save, Users, Pickaxe, ShieldCheck, MessagesSquare } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { ColorPicker } from "@/components/custom/color-picker";
 import openExternal, { isAllowedUrl, openExternalCustom } from "@/utils/external";
@@ -138,7 +138,7 @@ const socialLinks: NavigationItem[] = [
     {
         id: "discord",
         name: "Support",
-        icon: <IconBrandDiscord size={18} />,
+        icon: <MessagesSquare size={18} />,
         href: "https://discord.startrad.link/",
         tooltip: "Support"
     },
