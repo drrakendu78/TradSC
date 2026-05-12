@@ -16,19 +16,11 @@ import {
 } from '@/components/ui/dialog';
 import {
     Globe2,
-    Brush,
-    Users,
-    Download,
     FileText,
     Newspaper,
-    Keyboard,
-    Monitor,
     Rocket,
     ArrowRight,
     Sparkles,
-    Map,
-    Eye,
-    EyeOff,
     Play,
     Clock,
     FileDown,
@@ -270,7 +262,7 @@ function writeThirdPartyApplications(apps: ThirdPartyApplication[]) {
 }
 
 function Home() {
-    const [showContent, setShowContent] = useState(true);
+    const [showContent] = useState(true);
     const [isInTauri] = useState(() => isTauri());
     const [launcherStatus, setLauncherStatus] = useState<LauncherStatus>(() => getCachedLauncherStatus());
     const [launcherActivity, setLauncherActivity] = useState<LauncherActivityStatus>(DEFAULT_LAUNCHER_ACTIVITY);
@@ -1255,7 +1247,7 @@ function Home() {
                     </div>
                 </div>
             )}
-            
+
             {/* Popup d'annonce - uniquement sur la page d'accueil */}
             {ANNOUNCEMENT_CONFIG.showAnnouncement && (
                 <AnnouncementDialog
@@ -1377,7 +1369,7 @@ function Home() {
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
-                className="relative lg:col-span-2 overflow-hidden rounded-xl isolate"
+                className="relative lg:col-span-2"
             >
                 <Card ref={heroCardRef} className={`relative z-10 overflow-hidden ${isBackgroundVideoEnabled ? 'border-white/8 bg-background/68' : 'border-border/35 bg-background/80'}`}>
                     <div className="absolute top-0 right-0 h-64 w-64 -translate-y-1/2 translate-x-1/2 rounded-full bg-primary/10 blur-3xl" />
@@ -1570,80 +1562,6 @@ function Home() {
                     </button>
                 )}
             </div>
-            </div>
-
-            {/* Actions rapides */}
-            <div className="relative z-10">
-                <div className="flex items-center justify-between px-1 mb-3">
-                    {showContent && (
-                        <m.h2 
-                            className="text-lg font-semibold flex items-center gap-2"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ duration: 0.2 }}
-                        >
-                            <Sparkles className="h-4 w-4 text-primary" />
-                            Actions rapides
-                        </m.h2>
-                    )}
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowContent(!showContent)}
-                        className="gap-2 text-muted-foreground hover:text-foreground ml-auto"
-                    >
-                        {showContent ? (
-                            <>
-                                <EyeOff className="h-4 w-4" />
-                                <span className="hidden sm:inline">Masquer le contenu</span>
-                            </>
-                        ) : (
-                            <>
-                                <Eye className="h-4 w-4" />
-                                <span className="hidden sm:inline">Afficher le contenu</span>
-                            </>
-                        )}
-                    </Button>
-                </div>
-                
-                {showContent && (
-                    <m.div 
-                        className="space-y-3"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 0.2 }}
-                    >
-                    
-                    <m.div
-                        className="flex flex-wrap gap-1.5"
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.2 }}
-                    >
-                        {[
-                            { to: '/cache', icon: <Brush className="h-3.5 w-3.5" />, label: 'Cache', color: 'text-orange-500' },
-                            { to: '/presets-local', icon: <Users className="h-3.5 w-3.5" />, label: 'Persos', color: 'text-blue-500' },
-                            { to: '/presets-remote', icon: <Download className="h-3.5 w-3.5" />, label: 'En ligne', color: 'text-green-500' },
-                            { to: '/bindings', icon: <Keyboard className="h-3.5 w-3.5" />, label: 'Bindings', color: 'text-purple-500' },
-                            { to: '/graphics-settings', icon: <Monitor className="h-3.5 w-3.5" />, label: 'Paramètres', color: 'text-pink-500' },
-                            { to: '/ship-maps', icon: <Map className="h-3.5 w-3.5" />, label: 'Vaisseaux', color: 'text-cyan-500' },
-                            { to: '/updates', icon: <Download className="h-3.5 w-3.5" />, label: 'MAJ', color: 'text-primary' },
-                        ].map((item) => (
-                            <Link
-                                key={item.to}
-                                to={item.to}
-                                className="group flex items-center gap-1.5 rounded-full border border-border/45 bg-background/50 px-2.5 py-1.5 backdrop-blur-md transition-colors hover:border-primary/50 hover:bg-background/70"
-                            >
-                                <span className={item.color}>{item.icon}</span>
-                                <span className="text-[11.5px] font-medium leading-none group-hover:text-primary transition-colors">
-                                    {item.label}
-                                </span>
-                            </Link>
-                        ))}
-                    </m.div>
-                    </m.div>
-                )}
             </div>
 
             {/* Préférences app - barre compacte */}
