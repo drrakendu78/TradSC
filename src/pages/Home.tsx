@@ -361,6 +361,11 @@ function Home() {
         isSyncing
     } = usePreferencesSyncStore();
     const [userId, setUserId] = useState<string | null>(null);
+    const [userDisplayName, setUserDisplayName] = useState<string | null>(null);
+    const [cacheTotalMb, setCacheTotalMb] = useState<number | null>(null);
+    const [cacheFolderCount, setCacheFolderCount] = useState<number | null>(null);
+    const [bindingsProfileCount, setBindingsProfileCount] = useState<number | null>(null);
+    const [scLiveVersion, setScLiveVersion] = useState<string | null>(null);
     const [prefsSaving, setPrefsSaving] = useState(false);
     const [prefsDeleting, setPrefsDeleting] = useState(false);
     const [showCloudPrefsDialog, setShowCloudPrefsDialog] = useState(false);
@@ -400,6 +405,31 @@ function Home() {
         tauriInvoke<PlaytimeStats>('get_playtime').then((stats) => {
             try { localStorage.setItem(PLAYTIME_CACHE_KEY, JSON.stringify(stats)); } catch {}
             setPlaytime(stats);
+        }).catch(() => {});
+
+        // Cache info (taille totale)
+        tauriInvoke<string>('get_cache_informations').then((raw) => {
+            try {
+                const parsed = JSON.parse(raw) as { folders?: { weight?: string }[] };
+                const folders = parsed.folders ?? [];
+                const totalMb = folders.reduce((sum, f) => {
+                    const m = (f.weight ?? '').match(/(\d+(?:\.\d+)?)/);
+                    return sum + (m ? parseFloat(m[1]) : 0);
+                }, 0);
+                setCacheTotalMb(totalMb);
+                setCacheFolderCount(folders.length);
+            } catch {}
+        }).catch(() => {});
+
+        // Bindings profiles count
+        tauriInvoke<unknown[]>('list_control_profiles').then((profiles) => {
+            setBindingsProfileCount(Array.isArray(profiles) ? profiles.length : 0);
+        }).catch(() => {});
+
+        // SC LIVE version
+        tauriInvoke<Record<string, { release_version?: string | null }>>('get_star_citizen_versions').then((versions) => {
+            const live = versions?.LIVE?.release_version;
+            if (live) setScLiveVersion(live);
         }).catch(() => {});
     }, []);
 
@@ -693,10 +723,23 @@ function Home() {
 
     // Vérifier si l'utilisateur est connecté
     useEffect(() => {
+        const extractDisplayName = (user: any): string | null => {
+            if (!user) return null;
+            const md = user.user_metadata ?? {};
+            return (
+                md.preferred_username ||
+                md.username ||
+                md.full_name ||
+                md.name ||
+                (user.email ? user.email.split('@')[0] : null)
+            );
+        };
+
         const checkUser = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.user) {
                 setUserId(session.user.id);
+                setUserDisplayName(extractDisplayName(session.user));
             }
         };
         checkUser();
@@ -704,6 +747,7 @@ function Home() {
         // Écouter les changements de session
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
             setUserId(session?.user?.id || null);
+            setUserDisplayName(extractDisplayName(session?.user));
         });
 
         return () => subscription.unsubscribe();
@@ -1282,12 +1326,116 @@ function Home() {
                 />
             )}
             
-            {/* Hero Section - Action principale */}
+            {/* Greeting */}
+            <m.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="relative z-10 px-1"
+            >
+                <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
+                    Bonjour, {userDisplayName || 'Citizen'}.
+                </h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                    {launcherActivity.game_running
+                        ? `Star Citizen en cours${scLiveVersion ? ` (${scLiveVersion})` : ''}.`
+                        : launcherActivity.launcher_running
+                            ? 'RSI Launcher actif. Prêt à décoller.'
+                            : scLiveVersion
+                                ? `Tout est prêt pour décoller. Star Citizen ${scLiveVersion} LIVE détecté.`
+                                : launcherStatus.installed
+                                    ? 'Tout est prêt pour décoller. Lancez le RSI Launcher pour démarrer.'
+                                    : 'Bienvenue sur StarTrad FR.'}
+                </p>
+            </m.div>
+
+            {/* 4 stat tiles */}
+            <m.div
+                className="relative z-10 grid grid-cols-2 lg:grid-cols-4 gap-3"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3, delay: 0.05 }}
+            >
+                <Card className="border-border/40 bg-background/45 backdrop-blur-md">
+                    <CardContent className="p-3">
+                        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Traduction</span>
+                        <p className="mt-1.5 text-xl font-semibold">{scLiveVersion ? 'À jour' : '—'}</p>
+                        <div className="mt-1.5 h-0.5 rounded-full bg-emerald-500/35" />
+                        <p className="mt-1.5 text-[11px] text-muted-foreground">
+                            SCEFRA{scLiveVersion ? ` · LIVE ${scLiveVersion}` : ''}
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <Card className="border-border/40 bg-background/45 backdrop-blur-md">
+                    <CardContent className="p-3">
+                        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Cache</span>
+                        <p className="mt-1.5 text-xl font-semibold">
+                            {cacheTotalMb !== null
+                                ? cacheTotalMb >= 1024
+                                    ? `${(cacheTotalMb / 1024).toFixed(2)} Go`
+                                    : `${cacheTotalMb.toFixed(0)} Mo`
+                                : '—'}
+                        </p>
+                        <div className="mt-1.5 h-0.5 rounded-full bg-amber-500/35" />
+                        <p className="mt-1.5 text-[11px] text-muted-foreground">
+                            {cacheFolderCount !== null
+                                ? `${cacheFolderCount} dossier${cacheFolderCount > 1 ? 's' : ''} shaders`
+                                : 'Aucun cache'}
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <Card className="border-border/40 bg-background/45 backdrop-blur-md">
+                    <CardContent className="p-3">
+                        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Temps de jeu</span>
+                        {(() => {
+                            const calculatedHours = playtime?.total_hours || 0;
+                            const totalHours = savedPlaytimeHours + calculatedHours;
+                            const hours = Math.floor(totalHours);
+                            const minutes = Math.round((totalHours - hours) * 60);
+                            const sessionCount = playtime?.session_count || 0;
+                            const showStats = (playtime && playtime.session_count > 0) || savedPlaytimeHours > 0;
+                            return (
+                                <>
+                                    <p className="mt-1.5 text-xl font-semibold">
+                                        {showStats ? `${hours}h ${minutes.toString().padStart(2, '0')}` : '—'}
+                                    </p>
+                                    <div className="mt-1.5 h-0.5 rounded-full bg-violet-500/35" />
+                                    <p className="mt-1.5 text-[11px] text-muted-foreground">
+                                        {showStats
+                                            ? `${sessionCount} session${sessionCount > 1 ? 's' : ''} enregistrée${sessionCount > 1 ? 's' : ''}`
+                                            : 'Aucune session'}
+                                    </p>
+                                </>
+                            );
+                        })()}
+                    </CardContent>
+                </Card>
+
+                <Card className="border-border/40 bg-background/45 backdrop-blur-md">
+                    <CardContent className="p-3">
+                        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Bindings</span>
+                        <p className="mt-1.5 text-xl font-semibold">
+                            {bindingsProfileCount !== null
+                                ? `${bindingsProfileCount} profil${bindingsProfileCount > 1 ? 's' : ''}`
+                                : '—'}
+                        </p>
+                        <div className="mt-1.5 h-0.5 rounded-full bg-rose-500/35" />
+                        <p className="mt-1.5 text-[11px] text-muted-foreground">
+                            {bindingsProfileCount && bindingsProfileCount > 0 ? 'Importés via SC' : 'Aucun profil importé'}
+                        </p>
+                    </CardContent>
+                </Card>
+            </m.div>
+
+            {/* Hero Section (col-span-2) + 3 Quick Actions (col-span-1) */}
+            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-3 gap-3">
             <m.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
-                className="relative -mx-4 px-4 pt-2 pb-3"
+                className="relative lg:col-span-2"
             >
                 <Card ref={heroCardRef} className={`relative z-10 overflow-hidden ${isBackgroundVideoEnabled ? 'border-white/8 bg-background/68' : 'border-border/35 bg-background/80'}`}>
                     <div className="absolute top-0 right-0 h-64 w-64 -translate-y-1/2 translate-x-1/2 rounded-full bg-primary/10 blur-3xl" />
@@ -1449,6 +1597,91 @@ function Home() {
                 </Card>
 
             </m.div>
+
+            {/* 3 Quick Actions (vertical, droite) */}
+            <div className="flex flex-col gap-2">
+                {isInTauri && launcherStatus.installed ? (
+                    <button
+                        type="button"
+                        onClick={handleLaunchLauncher}
+                        disabled={launchingLauncher}
+                        className={`group flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left backdrop-blur-md transition-colors disabled:opacity-60 ${
+                            launcherActivity.game_running || launcherActivity.launcher_running
+                                ? 'border-emerald-500/35 bg-emerald-500/10 hover:bg-emerald-500/15'
+                                : 'border-border/40 bg-background/45 hover:border-primary/40 hover:bg-background/65'
+                        }`}
+                    >
+                        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-500">
+                            {launchingLauncher ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : launcherActivity.game_running ? (
+                                <Gamepad2 className="h-4 w-4" />
+                            ) : launcherActivity.launcher_running ? (
+                                <CircleCheck className="h-4 w-4" />
+                            ) : (
+                                <Play className="h-4 w-4" />
+                            )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold">{launcherButtonLabel}</p>
+                            <p className="text-[11px] text-muted-foreground truncate">
+                                {launcherActivity.game_running
+                                    ? `Star Citizen en cours${scLiveVersion ? ` · ${scLiveVersion}` : ''}`
+                                    : launcherActivity.launcher_running
+                                        ? 'Launcher actif'
+                                        : scLiveVersion
+                                            ? `LIVE · ${scLiveVersion}`
+                                            : 'Prêt à lancer'}
+                            </p>
+                        </div>
+                    </button>
+                ) : null}
+
+                <button
+                    type="button"
+                    onClick={handleOpenCloudManager}
+                    disabled={isSyncing || !userId}
+                    className="group flex items-center gap-3 rounded-xl border border-border/40 bg-background/45 px-3 py-2.5 text-left backdrop-blur-md transition-colors hover:border-primary/40 hover:bg-background/65 disabled:opacity-60"
+                >
+                    <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-sky-500/30 bg-sky-500/10 text-sky-500">
+                        <Cloud className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold">Sauvegarder dans le cloud</p>
+                        <p className="text-[11px] text-muted-foreground truncate">
+                            {userId ? 'Sync de tes préférences app' : 'Connexion requise'}
+                        </p>
+                    </div>
+                </button>
+
+                {isInTauri && (
+                    <button
+                        type="button"
+                        onClick={() => setShowThirdPartyAppsDialog(true)}
+                        className="group flex items-center gap-3 rounded-xl border border-border/40 bg-background/45 px-3 py-2.5 text-left backdrop-blur-md transition-colors hover:border-primary/40 hover:bg-background/65"
+                    >
+                        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-500">
+                            <Settings2 className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold">
+                                Programmes tiers
+                                {enabledThirdPartyAppCount > 0 && (
+                                    <Badge className="ml-2 border-primary/30 bg-primary/15 px-1.5 py-0 text-[10px] text-primary">
+                                        {enabledThirdPartyAppCount}
+                                    </Badge>
+                                )}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground truncate">
+                                {enabledThirdPartyAppCount > 0
+                                    ? `${enabledThirdPartyAppCount} actif${enabledThirdPartyAppCount > 1 ? 's' : ''} avec le launcher`
+                                    : 'Configurer les apps à lancer'}
+                            </p>
+                        </div>
+                    </button>
+                )}
+            </div>
+            </div>
 
             {/* Actions rapides */}
             <div className="relative z-10">
