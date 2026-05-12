@@ -36,6 +36,7 @@ const ALLOWED_DOMAINS = [
     "thespacecoder.space",
     "robertsspaceindustries.com",
     "status.robertsspaceindustries.com",
+    "install.robertsspaceindustries.com",
 ];
 
 // Autorise https, http (si besoin), et schémas ms-windows-store

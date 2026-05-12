@@ -41,8 +41,11 @@ import {
     X,
     Zap,
     CircleCheck,
-    Gamepad2
+    Gamepad2,
+    Download,
+    ExternalLink
 } from 'lucide-react';
+import openExternal from '@/utils/external';
 import { usePreferencesSyncStore, ExportedPreferences } from '@/stores/preferences-sync-store';
 import { useStatsStore } from '@/stores/stats-store';
 import { supabase } from '@/lib/supabase';
@@ -339,6 +342,9 @@ function Home() {
         return null;
     });
     const [scLiveVersion, setScLiveVersion] = useState<string | null>(null);
+    const [rsiLauncherDownloadUrl, setRsiLauncherDownloadUrl] = useState<string>(
+        'https://install.robertsspaceindustries.com/rel/2/RSI%20Launcher-Setup-2.13.3.exe'
+    );
     const translationStatus = useTranslationStatus();
     const [prefsSaving, setPrefsSaving] = useState(false);
     const [prefsDeleting, setPrefsDeleting] = useState(false);
@@ -405,6 +411,13 @@ function Home() {
         tauriInvoke<Record<string, { release_version?: string | null }>>('get_star_citizen_versions').then((versions) => {
             const live = versions?.LIVE?.release_version;
             if (live) setScLiveVersion(live);
+        }).catch(() => {});
+
+        // URL dynamique du RSI Launcher (scrape robertsspaceindustries.com/download)
+        tauriInvoke<string | null>('get_rsi_launcher_download_url').then((url) => {
+            if (url && url.startsWith('https://install.robertsspaceindustries.com/')) {
+                setRsiLauncherDownloadUrl(url);
+            }
         }).catch(() => {});
     }, []);
 
@@ -1695,6 +1708,23 @@ function Home() {
                                             ? `LIVE · ${scLiveVersion}`
                                             : 'Prêt à lancer'}
                             </p>
+                        </div>
+                    </button>
+                ) : isInTauri ? (
+                    <button
+                        type="button"
+                        onClick={() => openExternal(rsiLauncherDownloadUrl)}
+                        className="group flex items-center gap-3 rounded-xl border border-border/40 bg-background/45 px-3 py-2.5 text-left backdrop-blur-md transition-colors hover:border-primary/40 hover:bg-background/65"
+                    >
+                        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-sky-500/30 bg-sky-500/10 text-sky-500">
+                            <Download className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold flex items-center gap-1">
+                                Télécharger le Launcher
+                                <ExternalLink className="h-3 w-3 text-muted-foreground/60" />
+                            </p>
+                            <p className="text-[11px] text-muted-foreground truncate">RSI Launcher non détecté</p>
                         </div>
                     </button>
                 ) : null}

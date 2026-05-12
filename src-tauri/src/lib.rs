@@ -27,7 +27,7 @@ use scripts::cloud_backup::{
 use scripts::oauth_callback::start_oauth_callback_server;
 use scripts::gamepath::{
     check_rsi_launcher, get_folder_creation_date, get_launcher_activity_status,
-    get_star_citizen_versions, launch_rsi_launcher,
+    get_rsi_launcher_download_url, get_star_citizen_versions, launch_rsi_launcher,
 };
 use scripts::graphics_settings::{
     get_graphics_renderer, set_graphics_renderer,
@@ -636,6 +636,7 @@ pub fn run() {
             get_launcher_activity_status,
             launch_rsi_launcher,
             get_folder_creation_date,
+            get_rsi_launcher_download_url,
             get_app_stats,
             get_playtime,
             debug_game_paths,

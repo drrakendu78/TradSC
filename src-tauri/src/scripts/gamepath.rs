@@ -396,6 +396,31 @@ pub fn launch_rsi_launcher() -> Result<(), String> {
     }
 }
 
+/// Récupère l'URL de téléchargement actuelle du RSI Launcher en scrapant
+/// la page download officielle (robertsspaceindustries.com/download).
+/// Retourne None si le scrape échoue (le frontend tombera sur l'URL hardcodée).
+#[command]
+pub async fn get_rsi_launcher_download_url() -> Option<String> {
+    let client = reqwest::Client::builder()
+        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) StarTradFR")
+        .build()
+        .ok()?;
+
+    let html = client
+        .get("https://robertsspaceindustries.com/download")
+        .send()
+        .await
+        .ok()?
+        .text()
+        .await
+        .ok()?;
+
+    // Extraire la première occurrence de l'URL du Launcher installer
+    let re = regex::Regex::new(r#"https?://install\.robertsspaceindustries\.com/rel/2/RSI[%20\- ]Launcher-Setup-[0-9.]+\.exe"#)
+        .ok()?;
+    re.find(&html).map(|m| m.as_str().to_string())
+}
+
 /// Récupère la date de modification du fichier global.ini (traduction)
 #[command]
 pub fn get_folder_creation_date(path: String) -> Option<String> {
