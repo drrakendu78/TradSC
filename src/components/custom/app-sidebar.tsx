@@ -57,6 +57,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { CompanionCard } from "@/components/custom/CompanionCard";
 import { AUTO_CLEAN_OBSOLETE_CACHES_KEY, runShaderCacheAutoClean } from "@/hooks/useShaderCacheAutoClean";
+import { useTranslationStatus } from "@/hooks/useTranslationStatus";
 
 interface NavigationItem {
     id: string;
@@ -500,6 +501,36 @@ export function AppSidebar() {
     const [customLinkDialogOpen, setCustomLinkDialogOpen] = useState(false);
     const [editingLink, setEditingLink] = useState<{ id: string; name: string; url: string; icon?: string } | null>(null);
 
+    // Indicateurs (dot) sur les items du menu
+    const translation = useTranslationStatus();
+    const [appUpdateAvailable, setAppUpdateAvailable] = useState<boolean>(() => {
+        try { return localStorage.getItem('startradfr_app_update_available') === '1'; } catch { return false; }
+    });
+    useEffect(() => {
+        const handler = (e: Event) => {
+            const ev = e as CustomEvent<boolean>;
+            setAppUpdateAvailable(Boolean(ev.detail));
+        };
+        window.addEventListener('appUpdateAvailableChanged', handler as EventListener);
+        return () => window.removeEventListener('appUpdateAvailableChanged', handler as EventListener);
+    }, []);
+
+    const itemIndicator = (id: string): { color: string; pulse: boolean } | null => {
+        if (id === 'traduction') {
+            const s = translation.status;
+            if (s === 'loading' || s === 'no_game') return null;
+            if (s === 'up_to_date') return { color: 'bg-emerald-500', pulse: false };
+            if (s === 'update_available') return { color: 'bg-amber-500', pulse: true };
+            if (s === 'partial') return { color: 'bg-amber-500', pulse: false };
+            if (s === 'not_installed') return { color: 'bg-rose-500', pulse: true };
+            return null;
+        }
+        if (id === 'updates') {
+            return appUpdateAvailable ? { color: 'bg-amber-500', pulse: true } : null;
+        }
+        return null;
+    };
+
     const activeItem = useMemo(() => {
         const currentPath = location.pathname;
         const currentItem = menuItems.find(item => item.href === currentPath);
@@ -722,6 +753,7 @@ export function AppSidebar() {
                             {filteredMenuItems.map((item) => {
                                 const isActive = activeItem === item.id;
                                 const isInternal = item.href.startsWith('/');
+                                const indicator = itemIndicator(item.id);
 
                                 return (
                                     <li key={item.id}>
@@ -744,15 +776,24 @@ export function AppSidebar() {
                                                 {isActive && !isCollapsed && (
                                                     <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />
                                                 )}
-                                            <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${isActive ? '' : 'group-hover:scale-110'}`}>
+                                            <div className={`relative flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${isActive ? '' : 'group-hover:scale-110'}`}>
                                                     {item.icon}
+                                                    {/* Dot en mode collapsed : sur l'icône */}
+                                                    {indicator && isCollapsed && (
+                                                        <span className={`absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full ring-2 ring-background ${indicator.color} ${indicator.pulse ? 'animate-pulse' : ''}`} />
+                                                    )}
                                             </div>
-                                            
+
                                             {!isCollapsed && (
                                                 <span className={`text-sm ${isActive ? "font-medium" : "font-normal"}`}>
                                                 {item.name}
                                             </span>
                                             )}
+
+                                                {/* Dot à droite du label (sidebar étendue) */}
+                                                {indicator && !isCollapsed && (
+                                                    <span className={`ml-auto h-1.5 w-1.5 rounded-full ${indicator.color} ${indicator.pulse ? 'animate-pulse' : ''}`} />
+                                                )}
 
                                                 {/* Tooltip for collapsed state */}
                                                 {isCollapsed && (

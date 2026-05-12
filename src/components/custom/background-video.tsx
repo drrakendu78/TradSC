@@ -126,9 +126,18 @@ export function BackgroundVideo() {
                         event.target.playVideo();
                     },
                     onStateChange: (event: any) => {
-                        // Si la playlist se termine, rejouer
                         if (event.data === window.YT.PlayerState.ENDED) {
                             event.target.playVideo();
+                        }
+                        if (event.data === window.YT.PlayerState.PLAYING || event.data === window.YT.PlayerState.CUED) {
+                            try {
+                                const data = event.target.getVideoData?.();
+                                if (data) {
+                                    window.dispatchEvent(new CustomEvent('videoMetadata', {
+                                        detail: { title: data.title || null, author: data.author || null, videoId: data.video_id || null },
+                                    }));
+                                }
+                            } catch {}
                         }
                     },
                 },
@@ -175,6 +184,17 @@ export function BackgroundVideo() {
             }
         };
         
+        const handleRequestMetadata = () => {
+            try {
+                const data = youtubePlayerRef.current?.getVideoData?.();
+                if (data) {
+                    window.dispatchEvent(new CustomEvent('videoMetadata', {
+                        detail: { title: data.title || null, author: data.author || null, videoId: data.video_id || null },
+                    }));
+                }
+            } catch {}
+        };
+
         const handlePlayPause = (e: CustomEvent) => {
             const playing = e.detail;
             if (playing) {
@@ -209,6 +229,16 @@ export function BackgroundVideo() {
                                     if (event.data === window.YT.PlayerState.ENDED) {
                                         event.target.playVideo();
                                     }
+                                    if (event.data === window.YT.PlayerState.PLAYING || event.data === window.YT.PlayerState.CUED) {
+                                        try {
+                                            const data = event.target.getVideoData?.();
+                                            if (data) {
+                                                window.dispatchEvent(new CustomEvent('videoMetadata', {
+                                                    detail: { title: data.title || null, author: data.author || null, videoId: data.video_id || null },
+                                                }));
+                                            }
+                                        } catch {}
+                                    }
                                 },
                             },
                         });
@@ -236,6 +266,7 @@ export function BackgroundVideo() {
         window.addEventListener('youtubePrevious', handlePrevious);
         window.addEventListener('youtubeNext', handleNext);
         window.addEventListener('youtubePlayPause', handlePlayPause as EventListener);
+        window.addEventListener('requestVideoMetadata', handleRequestMetadata);
 
         return () => {
             window.removeEventListener('videoVolumeChange', handleVolumeChange as EventListener);
@@ -243,6 +274,7 @@ export function BackgroundVideo() {
             window.removeEventListener('youtubePrevious', handlePrevious);
             window.removeEventListener('youtubeNext', handleNext);
             window.removeEventListener('youtubePlayPause', handlePlayPause as EventListener);
+            window.removeEventListener('requestVideoMetadata', handleRequestMetadata);
         };
     }, []);
     

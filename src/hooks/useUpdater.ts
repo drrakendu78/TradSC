@@ -239,7 +239,7 @@ export function useUpdater(config: UseUpdaterConfig = {}) {
                 setState((prev) => ({ ...prev, isChecking: false }));
             }
         },
-        [canUpdate, buildInfo, toast, githubRepo]
+        [buildInfo, toast, githubRepo]
     );
 
     // Installer la mise à jour via l'updater standalone
@@ -257,6 +257,43 @@ export function useUpdater(config: UseUpdaterConfig = {}) {
 
         try {
             const fileName = state.updateInfo.downloadUrl.split('/').pop() || "update.exe";
+
+            // Windows installer-detection heuristic : un .exe nommé "updater" déclenche
+            // une auto-élévation par Windows. Si l'app n'est pas admin, lancer
+            // startrad-updater.exe via Command::new() → ERROR_ELEVATION_REQUIRED (740).
+            // Solution : si pas admin, persister l'update info et relancer en admin —
+            // au prochain boot le flag sera lu et l'install se déclenchera automatiquement.
+            const isAdmin = await invoke<boolean>('is_running_as_admin').catch(() => true);
+
+            if (!isAdmin) {
+                try {
+                    localStorage.setItem('startradfr_pending_install', JSON.stringify({
+                        url: state.updateInfo.downloadUrl,
+                        sigUrl: state.updateInfo.sigUrl || '',
+                        name: fileName,
+                        version: state.updateInfo.version,
+                    }));
+                } catch {}
+                toast({
+                    title: 'Redémarrage en administrateur',
+                    description: `L'application va redémarrer en admin pour installer la mise à jour ${state.updateInfo.version}.`,
+                });
+                try {
+                    await invoke('restart_as_admin');
+                    // L'app va se fermer après cet appel
+                } catch (e) {
+                    // Échec de l'élévation : on retire le flag pour pas laisser un état zombie
+                    try { localStorage.removeItem('startradfr_pending_install'); } catch {}
+                    setState((prev) => ({ ...prev, isInstalling: false }));
+                    toast({
+                        title: 'Erreur',
+                        description: `Impossible de relancer en admin: ${e}`,
+                        variant: 'destructive',
+                    });
+                }
+                return;
+            }
+
             await invoke("launch_updater", {
                 url: state.updateInfo.downloadUrl,
                 sigUrl: state.updateInfo.sigUrl || "",

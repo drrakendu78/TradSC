@@ -16,21 +16,12 @@ import {
 } from '@/components/ui/dialog';
 import {
     Globe2,
-    Brush,
-    Users,
-    Download,
     FileText,
     Newspaper,
-    Keyboard,
-    Monitor,
     Rocket,
     ArrowRight,
     Sparkles,
-    Map,
-    Eye,
-    EyeOff,
     Play,
-    Clock,
     FileDown,
     FileUp,
     Cloud,
@@ -62,12 +53,14 @@ import { useToast } from '@/hooks/use-toast';
 import { isTauri } from '@/utils/tauri-helpers';
 import { invoke as tauriInvoke } from '@tauri-apps/api/core';
 import { isAutoCleanEnabled, runShaderCacheAutoClean } from '@/hooks/useShaderCacheAutoClean';
-import { save as saveDialog, open as openDialog } from '@tauri-apps/plugin-dialog';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ProjectorShadow, type ProjectorShadowSettings } from '@/utils/ambilight/projector-shadow';
+import { useTranslationStatus } from '@/hooks/useTranslationStatus';
+import MiniPlayer from '@/components/custom/mini-player';
+import HomeStatusCard from '@/components/custom/home-status-card';
 import { detectDistribution } from '@/utils/buildInfo';
 
 const IS_MICROSOFT_STORE = detectDistribution() === 'microsoft-store';
+import { ProjectorShadow, type ProjectorShadowSettings } from '@/utils/ambilight/projector-shadow';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 
 interface LauncherStatus {
     installed: boolean;
@@ -123,53 +116,6 @@ const ANNOUNCEMENT_CONFIG = {
     delay: 500,
 };
 // ============================================
-
-// Animation variants pour les cartes
-const cardVariants = {
-    hidden: { opacity: 1, y: 0 },
-    visible: { opacity: 1, y: 0 },
-};
-
-// Bouton d'action rapide
-interface QuickActionProps {
-    to: string;
-    icon: React.ReactNode;
-    title: string;
-    description: string;
-    color: string;
-    index: number;
-}
-
-function QuickAction({ to, icon, title, description, color, index }: QuickActionProps) {
-    return (
-        <m.div
-            custom={index}
-            initial="hidden"
-            animate="visible"
-            variants={cardVariants}
-        >
-            <Link to={to} className="block group">
-                <div className="relative overflow-hidden rounded-xl border border-border/30 bg-background/60 transition-all duration-200 hover:border-primary/35 hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)]">
-                    <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-                    <div className="flex items-center gap-3 p-3.5">
-                        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${color}`}>
-                            {icon}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                            <h3 className="text-[12.5px] font-semibold leading-none transition-colors group-hover:text-primary">
-                                {title}
-                            </h3>
-                            <p className="mt-1 truncate text-[11px] text-foreground/70 dark:text-muted-foreground/65">
-                                {description}
-                            </p>
-                        </div>
-                        <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40 transition-all group-hover:translate-x-0.5 group-hover:text-primary" />
-                    </div>
-                </div>
-            </Link>
-        </m.div>
-    );
-}
 
 const LAUNCHER_CACHE_KEY = 'startradfr_launcher_status';
 const PLAYTIME_CACHE_KEY = 'startradfr_playtime_cache';
@@ -321,7 +267,7 @@ function writeThirdPartyApplications(apps: ThirdPartyApplication[]) {
 }
 
 function Home() {
-    const [showContent, setShowContent] = useState(true);
+    const [showContent] = useState(true);
     const [isInTauri] = useState(() => isTauri());
     const [launcherStatus, setLauncherStatus] = useState<LauncherStatus>(() => getCachedLauncherStatus());
     const [launcherActivity, setLauncherActivity] = useState<LauncherActivityStatus>(DEFAULT_LAUNCHER_ACTIVITY);
@@ -364,6 +310,39 @@ function Home() {
         isSyncing
     } = usePreferencesSyncStore();
     const [userId, setUserId] = useState<string | null>(null);
+    const [userDisplayName, setUserDisplayName] = useState<string | null>(null);
+    const [cacheTotalMb, setCacheTotalMb] = useState<number | null>(() => {
+        try {
+            const raw = localStorage.getItem('startradfr_cache_info_cache');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (typeof parsed.totalMb === 'number') return parsed.totalMb;
+            }
+        } catch {}
+        return null;
+    });
+    const [cacheFolderCount, setCacheFolderCount] = useState<number | null>(() => {
+        try {
+            const raw = localStorage.getItem('startradfr_cache_info_cache');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (typeof parsed.folderCount === 'number') return parsed.folderCount;
+            }
+        } catch {}
+        return null;
+    });
+    const [bindingsProfileCount, setBindingsProfileCount] = useState<number | null>(() => {
+        try {
+            const cached = localStorage.getItem('startradfr_bindings_count_cache');
+            if (cached !== null) {
+                const n = parseInt(cached, 10);
+                if (Number.isFinite(n) && n >= 0) return n;
+            }
+        } catch {}
+        return null;
+    });
+    const [scLiveVersion, setScLiveVersion] = useState<string | null>(null);
+    const translationStatus = useTranslationStatus();
     const [prefsSaving, setPrefsSaving] = useState(false);
     const [prefsDeleting, setPrefsDeleting] = useState(false);
     const [showCloudPrefsDialog, setShowCloudPrefsDialog] = useState(false);
@@ -381,6 +360,9 @@ function Home() {
     const heroAmbilightShadowRef = useRef<HTMLCanvasElement>(null);
     const heroAmbilightProjectorRefs = useRef<(HTMLCanvasElement | null)[]>([]);
     const heroAmbilightRafRef = useRef<number | null>(null);
+    const prevLauncherRunningRef = useRef<boolean | null>(null);
+    const skipNextAutoCompanionLaunchRef = useRef<boolean>(false);
+    const companionsActiveRef = useRef<boolean>(false);
 
     const refreshLauncherActivity = async () => {
         if (!isInTauri) return DEFAULT_LAUNCHER_ACTIVITY;
@@ -403,6 +385,29 @@ function Home() {
         tauriInvoke<PlaytimeStats>('get_playtime').then((stats) => {
             try { localStorage.setItem(PLAYTIME_CACHE_KEY, JSON.stringify(stats)); } catch {}
             setPlaytime(stats);
+        }).catch(() => {});
+
+        // Cache info (taille totale)
+        tauriInvoke<string>('get_cache_informations').then((raw) => {
+            try {
+                const parsed = JSON.parse(raw) as { folders?: { weight?: string }[] };
+                const folders = parsed.folders ?? [];
+                const totalMb = folders.reduce((sum, f) => {
+                    const m = (f.weight ?? '').match(/(\d+(?:\.\d+)?)/);
+                    return sum + (m ? parseFloat(m[1]) : 0);
+                }, 0);
+                setCacheTotalMb(totalMb);
+                setCacheFolderCount(folders.length);
+                try {
+                    localStorage.setItem('startradfr_cache_info_cache', JSON.stringify({ totalMb, folderCount: folders.length }));
+                } catch {}
+            } catch {}
+        }).catch(() => {});
+
+        // SC LIVE version (juste pour le label dans les sous-titres)
+        tauriInvoke<Record<string, { release_version?: string | null }>>('get_star_citizen_versions').then((versions) => {
+            const live = versions?.LIVE?.release_version;
+            if (live) setScLiveVersion(live);
         }).catch(() => {});
     }, []);
 
@@ -427,6 +432,100 @@ function Home() {
             window.clearInterval(interval);
         };
     }, [isInTauri]);
+
+    // Compter les bindings : appels en parallèle pour chaque version détectée
+    useEffect(() => {
+        if (!isInTauri) return;
+        const versions = translationStatus.versions;
+        if (versions.length === 0) return;
+
+        let cancelled = false;
+        (async () => {
+            const results = await Promise.all(
+                versions.map(async (v) => {
+                    try {
+                        const profiles = await tauriInvoke<Array<{ name?: string; source?: string }>>('list_control_profiles', { version: v.version });
+                        if (!Array.isArray(profiles)) return 0;
+                        return profiles.filter((p) => {
+                            const name = p?.name ?? '';
+                            const source = p?.source ?? '';
+                            return !name.toLowerCase().startsWith('startrad_base_') && source !== 'Base Data.pak';
+                        }).length;
+                    } catch (e) {
+                        console.error(`list_control_profiles(${v.version}):`, e);
+                        return 0;
+                    }
+                })
+            );
+            if (cancelled) return;
+            const total = results.reduce((a, b) => a + b, 0);
+            setBindingsProfileCount(total);
+            try { localStorage.setItem('startradfr_bindings_count_cache', String(total)); } catch {}
+        })();
+
+        return () => { cancelled = true; };
+    }, [isInTauri, translationStatus.versions]);
+
+    // Auto-lancer les programmes tiers quand le RSI Launcher est démarré manuellement (hors de l'app)
+    useEffect(() => {
+        if (!isInTauri) return;
+        const current = launcherActivity.launcher_running;
+
+        // Premier observe : initialiser la ref, ne rien déclencher (même si launcher déjà ouvert au démarrage)
+        if (prevLauncherRunningRef.current === null) {
+            prevLauncherRunningRef.current = current;
+            return;
+        }
+
+        const wasRunning = prevLauncherRunningRef.current;
+        prevLauncherRunningRef.current = current;
+
+        // Transition false → true : auto-lancer les programmes tiers (si pas déjà fait par le bouton)
+        if (!wasRunning && current) {
+            if (skipNextAutoCompanionLaunchRef.current) {
+                skipNextAutoCompanionLaunchRef.current = false;
+                return;
+            }
+            (async () => {
+                try {
+                    const result = await launchEnabledThirdPartyApplications();
+                    if (result.launched > 0 || result.failed.length > 0) {
+                        toast({
+                            title: result.failed.length > 0 ? 'Programmes tiers partiels' : 'Programmes tiers lancés',
+                            description:
+                                result.failed.length > 0
+                                    ? `${result.launched} lancé(s). Échec: ${result.failed.join(', ')}`
+                                    : `${result.launched} programme(s) lancé(s) avec le RSI Launcher.`,
+                            variant: result.failed.length > 0 ? 'warning' : 'success',
+                        });
+                    }
+                } catch (e) {
+                    console.error('Erreur auto-lancement programmes tiers:', e);
+                }
+            })();
+            return;
+        }
+
+        // Transition true → false : fermer les programmes tiers qu'on avait démarrés
+        if (wasRunning && !current) {
+            if (!companionsActiveRef.current) return;
+            companionsActiveRef.current = false;
+            (async () => {
+                try {
+                    const result = await closeEnabledThirdPartyApplications();
+                    if (result.closed > 0) {
+                        toast({
+                            title: 'Programmes tiers fermés',
+                            description: `${result.closed} programme(s) fermé(s) avec le RSI Launcher.`,
+                            variant: 'success',
+                        });
+                    }
+                } catch (e) {
+                    console.error('Erreur fermeture programmes tiers:', e);
+                }
+            })();
+        }
+    }, [launcherActivity.launcher_running, isInTauri]);
 
     useEffect(() => {
         const handleVideoToggle = (event: Event) => {
@@ -696,10 +795,23 @@ function Home() {
 
     // Vérifier si l'utilisateur est connecté
     useEffect(() => {
+        const extractDisplayName = (user: any): string | null => {
+            if (!user) return null;
+            const md = user.user_metadata ?? {};
+            return (
+                md.preferred_username ||
+                md.username ||
+                md.full_name ||
+                md.name ||
+                (user.email ? user.email.split('@')[0] : null)
+            );
+        };
+
         const checkUser = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.user) {
                 setUserId(session.user.id);
+                setUserDisplayName(extractDisplayName(session.user));
             }
         };
         checkUser();
@@ -707,6 +819,7 @@ function Home() {
         // Écouter les changements de session
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
             setUserId(session?.user?.id || null);
+            setUserDisplayName(extractDisplayName(session?.user));
         });
 
         return () => subscription.unsubscribe();
@@ -719,8 +832,11 @@ function Home() {
             const json = JSON.stringify(prefs, null, 2);
 
             if (isInTauri) {
+                // Utiliser le dialogue natif Tauri
+                const { save } = await import('@tauri-apps/plugin-dialog');
+
                 console.log('[Export] Ouverture du dialogue de sauvegarde...');
-                const filePath = await saveDialog({
+                const filePath = await save({
                     title: 'Exporter les préférences',
                     defaultPath: `startradfr_preferences_${new Date().toISOString().split('T')[0]}.json`,
                     filters: [{
@@ -774,7 +890,13 @@ function Home() {
     const handleImportLocal = async () => {
         try {
             if (isInTauri) {
-                const filePath = await openDialog({
+                // Utiliser le dialogue natif Tauri
+                const [{ open }, { invoke }] = await Promise.all([
+                    import('@tauri-apps/plugin-dialog'),
+                    import('@tauri-apps/api/core'),
+                ]);
+
+                const filePath = await open({
                     filters: [{
                         name: 'JSON',
                         extensions: ['json']
@@ -783,7 +905,7 @@ function Home() {
                 });
 
                 if (filePath && typeof filePath === 'string') {
-                    const content = await tauriInvoke<string>('read_text_file', { path: filePath });
+                    const content = await invoke<string>('read_text_file', { path: filePath });
                     const prefs = JSON.parse(content) as ExportedPreferences;
 
                     if (!prefs.version || !prefs.sidebar || !prefs.theme || !prefs.stats) {
@@ -991,7 +1113,8 @@ function Home() {
         if (!isInTauri) return;
 
         try {
-            const selected = await openDialog({
+            const { open } = await import('@tauri-apps/plugin-dialog');
+            const selected = await open({
                 filters: [
                     {
                         name: 'Applications',
@@ -1148,9 +1271,35 @@ function Home() {
             }))
         );
 
+        const launched = results.filter((result) => result.ok).length;
+        if (launched > 0) {
+            companionsActiveRef.current = true;
+        }
         return {
-            launched: results.filter((result) => result.ok).length,
+            launched,
             failed: results.filter((result) => !result.ok).map((result) => result.name),
+        };
+    };
+
+    const closeEnabledThirdPartyApplications = async () => {
+        const enabledApps = thirdPartyApps.filter((app) => app.enabled);
+        if (enabledApps.length === 0) {
+            return { closed: 0, failed: [] as string[] };
+        }
+        const results = await Promise.all(
+            enabledApps.map(async (app) => {
+                try {
+                    const killed = await tauriInvoke<number>('kill_third_party_application', { path: app.path });
+                    return { name: app.name, ok: killed > 0, found: killed > 0 };
+                } catch (e) {
+                    console.error('kill_third_party_application:', app.name, e);
+                    return { name: app.name, ok: false, found: false };
+                }
+            })
+        );
+        return {
+            closed: results.filter((r) => r.ok).length,
+            failed: results.filter((r) => !r.ok && r.found).map((r) => r.name),
         };
     };
 
@@ -1158,6 +1307,8 @@ function Home() {
     const handleLaunchLauncher = async () => {
         if (!isInTauri) return;
         setLaunchingLauncher(true);
+        // On va lancer le launcher manuellement → ignorer la prochaine transition false→true détectée
+        skipNextAutoCompanionLaunchRef.current = true;
         try {
             if (isAutoCleanEnabled()) {
                 try {
@@ -1252,7 +1403,7 @@ function Home() {
                     </div>
                 </div>
             )}
-            
+
             {/* Popup d'annonce - uniquement sur la page d'accueil */}
             {ANNOUNCEMENT_CONFIG.showAnnouncement && (
                 <AnnouncementDialog
@@ -1265,12 +1416,145 @@ function Home() {
                 />
             )}
             
-            {/* Hero Section - Action principale */}
+            {/* Greeting */}
+            <m.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="relative z-10 px-1"
+            >
+                <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
+                    Bonjour, {userDisplayName || 'Citizen'}.
+                </h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                    {launcherActivity.game_running
+                        ? `Star Citizen en cours${scLiveVersion ? ` (${scLiveVersion})` : ''}.`
+                        : launcherActivity.launcher_running
+                            ? 'RSI Launcher actif. Prêt à décoller.'
+                            : scLiveVersion
+                                ? `Tout est prêt pour décoller. Star Citizen ${scLiveVersion} LIVE détecté.`
+                                : launcherStatus.installed
+                                    ? 'Tout est prêt pour décoller. Lancez le RSI Launcher pour démarrer.'
+                                    : 'Bienvenue sur StarTrad FR.'}
+                </p>
+            </m.div>
+
+            {/* 4 stat tiles */}
+            <m.div
+                className="relative z-10 grid grid-cols-2 lg:grid-cols-4 gap-3"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3, delay: 0.05 }}
+            >
+                <Link to="/traduction" className="block">
+                    <Card className="border-border/40 bg-background/45 backdrop-blur-md transition-colors hover:border-emerald-500/40 hover:bg-background/60 cursor-pointer">
+                        <CardContent className="p-3">
+                            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Traduction</span>
+                            {(() => {
+                                const { status, sourceLabel } = translationStatus;
+                                const label =
+                                    status === 'loading' ? '...' :
+                                    status === 'no_game' ? '—' :
+                                    status === 'not_installed' ? 'Non installée' :
+                                    status === 'update_available' ? 'Maj dispo' :
+                                    status === 'partial' ? 'Partielle' :
+                                    'À jour';
+                                const tone =
+                                    status === 'up_to_date' ? 'bg-emerald-500/35' :
+                                    status === 'update_available' ? 'bg-amber-500/45' :
+                                    status === 'not_installed' ? 'bg-rose-500/35' :
+                                    status === 'partial' ? 'bg-amber-500/35' :
+                                    'bg-muted/40';
+                                const sub = status === 'no_game'
+                                    ? 'Aucune version détectée'
+                                    : status === 'not_installed'
+                                        ? scLiveVersion ? `LIVE ${scLiveVersion} en attente` : 'À installer'
+                                        : `${sourceLabel ?? 'SCEFRA'}${scLiveVersion ? ` · LIVE ${scLiveVersion}` : ''}`;
+                                return (
+                                    <>
+                                        <p className="mt-1.5 text-xl font-semibold">{label}</p>
+                                        <div className={`mt-1.5 h-0.5 rounded-full ${tone}`} />
+                                        <p className="mt-1.5 text-[11px] text-muted-foreground">{sub}</p>
+                                    </>
+                                );
+                            })()}
+                        </CardContent>
+                    </Card>
+                </Link>
+
+                <Link to="/cache" className="block">
+                    <Card className="border-border/40 bg-background/45 backdrop-blur-md transition-colors hover:border-amber-500/40 hover:bg-background/60 cursor-pointer">
+                        <CardContent className="p-3">
+                            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Cache</span>
+                            <p className="mt-1.5 text-xl font-semibold">
+                                {cacheTotalMb !== null
+                                    ? cacheTotalMb >= 1024
+                                        ? `${(cacheTotalMb / 1024).toFixed(2)} Go`
+                                        : `${cacheTotalMb.toFixed(0)} Mo`
+                                    : '—'}
+                            </p>
+                            <div className="mt-1.5 h-0.5 rounded-full bg-amber-500/35" />
+                            <p className="mt-1.5 text-[11px] text-muted-foreground">
+                                {cacheFolderCount !== null
+                                    ? `${cacheFolderCount} dossier${cacheFolderCount > 1 ? 's' : ''} shaders`
+                                    : 'Aucun cache'}
+                            </p>
+                        </CardContent>
+                    </Card>
+                </Link>
+
+                <Card className="border-border/40 bg-background/45 backdrop-blur-md">
+                    <CardContent className="p-3">
+                        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Temps de jeu</span>
+                        {(() => {
+                            const calculatedHours = playtime?.total_hours || 0;
+                            const totalHours = savedPlaytimeHours + calculatedHours;
+                            const hours = Math.floor(totalHours);
+                            const minutes = Math.round((totalHours - hours) * 60);
+                            const sessionCount = playtime?.session_count || 0;
+                            const showStats = (playtime && playtime.session_count > 0) || savedPlaytimeHours > 0;
+                            return (
+                                <>
+                                    <p className="mt-1.5 text-xl font-semibold">
+                                        {showStats ? `${hours}h ${minutes.toString().padStart(2, '0')}` : '—'}
+                                    </p>
+                                    <div className="mt-1.5 h-0.5 rounded-full bg-violet-500/35" />
+                                    <p className="mt-1.5 text-[11px] text-muted-foreground">
+                                        {showStats
+                                            ? `${sessionCount} session${sessionCount > 1 ? 's' : ''} enregistrée${sessionCount > 1 ? 's' : ''}`
+                                            : 'Aucune session'}
+                                    </p>
+                                </>
+                            );
+                        })()}
+                    </CardContent>
+                </Card>
+
+                <Link to="/bindings" className="block">
+                    <Card className="border-border/40 bg-background/45 backdrop-blur-md transition-colors hover:border-rose-500/40 hover:bg-background/60 cursor-pointer">
+                        <CardContent className="p-3">
+                            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Bindings</span>
+                            <p className="mt-1.5 text-xl font-semibold">
+                                {bindingsProfileCount !== null
+                                    ? `${bindingsProfileCount} profil${bindingsProfileCount > 1 ? 's' : ''}`
+                                    : '—'}
+                            </p>
+                            <div className="mt-1.5 h-0.5 rounded-full bg-rose-500/35" />
+                            <p className="mt-1.5 text-[11px] text-muted-foreground">
+                                {bindingsProfileCount && bindingsProfileCount > 0 ? 'Importés via SC' : 'Aucun profil importé'}
+                            </p>
+                        </CardContent>
+                    </Card>
+                </Link>
+            </m.div>
+
+            {/* Hero Section (col-span-2) + 3 Quick Actions (col-span-1) */}
+            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-3 gap-3">
             <m.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
-                className="relative -mx-4 px-4 pt-2 pb-3"
+                className="relative lg:col-span-2 lg:row-start-1"
             >
                 <Card ref={heroCardRef} className={`relative z-10 overflow-hidden ${isBackgroundVideoEnabled ? 'border-white/8 bg-background/68' : 'border-border/35 bg-background/80'}`}>
                     <div className="absolute top-0 right-0 h-64 w-64 -translate-y-1/2 translate-x-1/2 rounded-full bg-primary/10 blur-3xl" />
@@ -1301,60 +1585,43 @@ function Home() {
                                     <h1 className={`text-xl font-bold md:text-2xl${isBackgroundVideoEnabled ? ' text-white' : ''}`}>Bienvenue, Citizen !</h1>
                                 </div>
                                 <p className={`max-w-md text-sm md:text-base ${isBackgroundVideoEnabled ? 'text-white/75' : 'text-muted-foreground'}`}>
-                                    Pret a jouer en francais ? Installez la traduction en un clic.
+                                    {(() => {
+                                        const { status } = translationStatus;
+                                        if (status === 'up_to_date') return 'Traduction française installée et à jour. Bon vol, Citizen !';
+                                        if (status === 'update_available') return 'Une mise à jour de la traduction est disponible.';
+                                        if (status === 'partial') return 'Certaines versions du jeu attendent encore leur traduction.';
+                                        if (status === 'no_game') return 'Aucune version de Star Citizen détectée pour le moment.';
+                                        return 'Prêt à jouer en français ? Installez la traduction en un clic.';
+                                    })()}
                                 </p>
                             </div>
 
                             <div className="flex flex-wrap items-center gap-2">
-                                <Link to="/traduction">
-                                        <Button size="default" className="h-9 gap-2 px-4 text-sm shadow-lg transition-shadow hover:shadow-primary/25">
-                                            <Globe2 className="h-4 w-4" />
-                                            Installer la traduction
-                                            <Sparkles className="h-4 w-4" />
-                                        </Button>
-                                    </Link>
-                                    {isInTauri && (
-                                        launcherStatus.installed ? (
-                                            <Button
-                                                size="default"
-                                                variant="outline"
-                                                className={`h-9 gap-2 px-4 text-sm ${
-                                                    launcherActivity.game_running || launcherActivity.launcher_running
-                                                        ? 'border-green-500/35 bg-green-500/10 text-green-500 hover:bg-green-500/15 hover:text-green-400'
-                                                        : ''
-                                                }`}
-                                                onClick={handleLaunchLauncher}
-                                                disabled={launchingLauncher}
-                                            >
-                                                {launchingLauncher ? (
-                                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                                ) : launcherActivity.game_running ? (
-                                                    <Gamepad2 className="h-4 w-4" />
-                                                ) : launcherActivity.launcher_running ? (
-                                                    <CircleCheck className="h-4 w-4" />
-                                                ) : (
-                                                    <Play className="h-4 w-4" />
-                                                )}
-                                                {launcherButtonLabel}
+                                {(() => {
+                                    const { status } = translationStatus;
+                                    const ctaLabel =
+                                        status === 'loading' ? 'Chargement...' :
+                                        status === 'no_game' ? 'Installer la traduction' :
+                                        status === 'not_installed' ? 'Installer la traduction' :
+                                        status === 'update_available' ? 'Mettre à jour la traduction' :
+                                        status === 'partial' ? 'Compléter la traduction' :
+                                        'Traduction à jour';
+                                    const Icon = status === 'up_to_date' ? CircleCheck : Globe2;
+                                    const isUpToDate = status === 'up_to_date';
+                                    const variant = isUpToDate ? 'outline' as const : 'default' as const;
+                                    const btnClass = isUpToDate
+                                        ? 'h-9 gap-2 px-4 text-sm border-emerald-500/40 bg-emerald-500/15 text-emerald-400 backdrop-blur-md hover:bg-emerald-500/25'
+                                        : 'h-9 gap-2 px-4 text-sm shadow-lg transition-shadow hover:shadow-primary/25';
+                                    return (
+                                        <Link to="/traduction">
+                                            <Button size="default" variant={variant} className={btnClass} disabled={status === 'loading'}>
+                                                <Icon className="h-4 w-4" />
+                                                {ctaLabel}
+                                                {!isUpToDate && <Sparkles className="h-4 w-4" />}
                                             </Button>
-                                        ) : null
-                                )}
-                                {isInTauri && (!IS_MICROSOFT_STORE || launcherStatus.installed) && (
-                                    <Button
-                                        size="default"
-                                        variant="outline"
-                                        className="h-9 gap-2 px-4 text-sm"
-                                        onClick={() => setShowThirdPartyAppsDialog(true)}
-                                    >
-                                        <Settings2 className="h-4 w-4" />
-                                        Programmes tiers
-                                        {enabledThirdPartyAppCount > 0 && (
-                                            <Badge className="ml-0.5 border-primary/30 bg-primary/15 px-1.5 py-0 text-[10px] text-primary">
-                                                {enabledThirdPartyAppCount}
-                                            </Badge>
-                                        )}
-                                    </Button>
-                                )}
+                                        </Link>
+                                    );
+                                })()}
                             </div>
 
                             {isInTauri && launcherStatus.installed && (
@@ -1380,185 +1647,161 @@ function Home() {
                                 </div>
                             )}
 
-                            {isInTauri && ((playtime && playtime.session_count > 0) || savedPlaytimeHours > 0) && (() => {
-                                const calculatedHours = playtime?.total_hours || 0;
-                                const totalHours = savedPlaytimeHours + calculatedHours;
-                                const hours = Math.floor(totalHours);
-                                const minutes = Math.round((totalHours - hours) * 60);
-                                const sessionCount = playtime?.session_count || 0;
-
-                                return (
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <div className="inline-flex cursor-help items-center gap-2.5 rounded-full border border-primary/35 bg-black/45 px-2.5 py-1.5 shadow-[0_0_20px_rgba(20,184,255,0.18)] backdrop-blur-sm transition-colors hover:border-primary/55">
-                                                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/20 text-primary">
-                                                        <Clock className="h-3.5 w-3.5" />
-                                                    </span>
-                                                    <div className="flex items-baseline gap-1">
-                                                        <span className="text-sm font-semibold text-white">{hours}h</span>
-                                                        <span className="text-sm font-semibold text-white/90">{minutes}min</span>
-                                                    </div>
-                                                    <span className="h-4 w-px bg-white/20" />
-                                                    <span className="text-[10px] uppercase tracking-wide text-white/75">
-                                                        {sessionCount > 0
-                                                            ? `${sessionCount} session${sessionCount > 1 ? 's' : ''}`
-                                                            : 'Temps de jeu'}
-                                                    </span>
-                                                </div>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="bottom" className="max-w-xs">
-                                                <p className="text-sm">
-                                                    Temps de jeu calcule depuis les logs Star Citizen.
-                                                </p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                );
-                            })()}
                         </div>
                     </CardContent>
                 </Card>
 
             </m.div>
 
-            {/* Actions rapides */}
-            <div className="relative z-10">
-                <div className="flex items-center justify-between px-1 mb-3">
-                    {showContent && (
-                        <m.h2 
-                            className="text-lg font-semibold flex items-center gap-2"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ duration: 0.2 }}
-                        >
-                            <Sparkles className="h-4 w-4 text-primary" />
-                            Actions rapides
-                        </m.h2>
-                    )}
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowContent(!showContent)}
-                        className="gap-2 text-muted-foreground hover:text-foreground ml-auto"
-                    >
-                        {showContent ? (
-                            <>
-                                <EyeOff className="h-4 w-4" />
-                                <span className="hidden sm:inline">Masquer le contenu</span>
-                            </>
-                        ) : (
-                            <>
-                                <Eye className="h-4 w-4" />
-                                <span className="hidden sm:inline">Afficher le contenu</span>
-                            </>
-                        )}
-                    </Button>
-                </div>
-                
-                {showContent && (
-                    <m.div 
-                        className="space-y-3"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 0.2 }}
-                    >
-                    
-                    <m.div 
-                        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.2 }}
-                    >
-                        <QuickAction
-                            to="/cache"
-                            icon={<Brush className="h-4 w-4" />}
-                            title="Gestion du cache"
-                            description="Libérer de l'espace disque"
-                            color="border-orange-500/30 bg-orange-500/10 text-orange-500"
-                            index={0}
-                        />
-                        <QuickAction
-                            to="/presets-local"
-                            icon={<Users className="h-4 w-4" />}
-                            title="Mes personnages"
-                            description="Gérer vos persos locaux"
-                            color="border-blue-500/30 bg-blue-500/10 text-blue-500"
-                            index={1}
-                        />
-                        <QuickAction
-                            to="/presets-remote"
-                            icon={<Download className="h-4 w-4" />}
-                            title="Persos en ligne"
-                            description="Télécharger des presets"
-                            color="border-green-500/30 bg-green-500/10 text-green-500"
-                            index={2}
-                        />
-                        <QuickAction
-                            to="/bindings"
-                            icon={<Keyboard className="h-4 w-4" />}
-                            title="Bindings"
-                            description="Raccourcis clavier"
-                            color="border-purple-500/30 bg-purple-500/10 text-purple-500"
-                            index={3}
-                        />
-                        <QuickAction
-                            to="/graphics-settings"
-                            icon={<Monitor className="h-4 w-4" />}
-                            title="Paramètres généraux"
-                            description="Graphismes et contrôles"
-                            color="border-pink-500/30 bg-pink-500/10 text-pink-500"
-                            index={4}
-                        />
-                        <QuickAction
-                            to="/ship-maps"
-                            icon={<Map className="h-4 w-4" />}
-                            title="Cartes vaisseaux"
-                            description="Plans détaillés"
-                            color="border-cyan-500/30 bg-cyan-500/10 text-cyan-500"
-                            index={5}
-                        />
-                        <QuickAction
-                            to="/updates"
-                            icon={<Download className="h-4 w-4" />}
-                            title="Mises à jour"
-                            description="Gérer les mises à jour"
-                            color="border-primary/30 bg-primary/10 text-primary"
-                            index={6}
-                        />
-                    </m.div>
-                    </m.div>
-                )}
-            </div>
+            {/* Status card (sous le Hero, col-span-2) */}
+            <m.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.1 }}
+                className="relative lg:col-span-2 lg:row-start-2"
+            >
+                <HomeStatusCard />
+            </m.div>
 
-            {/* Préférences app - barre compacte */}
-            {showContent && (
-                <div className="flex items-center gap-2 px-1 py-2 bg-muted/30 rounded-lg border border-border/30">
-                    <span className="text-xs text-muted-foreground ml-2">Sauvegardez vos préférences (thème, sidebar, stats) en local ou dans le cloud</span>
-                    <div className="flex-1" />
-                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={handleExportLocal}>
-                        <FileDown className="h-3 w-3" />
-                        Exporter
-                    </Button>
-                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={handleImportLocal}>
-                        <FileUp className="h-3 w-3" />
-                        Importer
-                    </Button>
-                    <input ref={fileInputRef} type="file" accept=".json" onChange={handleImportLocalFallback} className="hidden" />
-                    <div className="w-px h-5 bg-border" />
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 text-xs gap-1.5"
-                        onClick={handleOpenCloudManager}
-                        disabled={isSyncing || !userId}
+            {/* 3 Quick Actions (vertical, droite) — couvre les 2 rows */}
+            <div className="flex flex-col gap-2 lg:col-start-3 lg:row-start-1 lg:row-span-2">
+                {isInTauri && launcherStatus.installed ? (
+                    <button
+                        type="button"
+                        onClick={handleLaunchLauncher}
+                        disabled={launchingLauncher}
+                        className={`group flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left backdrop-blur-md transition-colors disabled:opacity-60 ${
+                            launcherActivity.game_running || launcherActivity.launcher_running
+                                ? 'border-emerald-500/35 bg-emerald-500/10 hover:bg-emerald-500/15'
+                                : 'border-border/40 bg-background/45 hover:border-primary/40 hover:bg-background/65'
+                        }`}
                     >
-                        <Cloud className="h-3 w-3" />
-                        {userId ? "Cloud" : "Connexion requise"}
-                    </Button>
-                </div>
-            )}
+                        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-500">
+                            {launchingLauncher ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : launcherActivity.game_running ? (
+                                <Gamepad2 className="h-4 w-4" />
+                            ) : launcherActivity.launcher_running ? (
+                                <CircleCheck className="h-4 w-4" />
+                            ) : (
+                                <Play className="h-4 w-4" />
+                            )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold">{launcherButtonLabel}</p>
+                            <p className="text-[11px] text-muted-foreground truncate">
+                                {launcherActivity.game_running
+                                    ? `Star Citizen en cours${scLiveVersion ? ` · ${scLiveVersion}` : ''}`
+                                    : launcherActivity.launcher_running
+                                        ? 'Launcher actif'
+                                        : scLiveVersion
+                                            ? `LIVE · ${scLiveVersion}`
+                                            : 'Prêt à lancer'}
+                            </p>
+                        </div>
+                    </button>
+                ) : null}
+
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <button
+                            type="button"
+                            className="group flex items-center gap-3 rounded-xl border border-border/40 bg-background/45 px-3 py-2.5 text-left backdrop-blur-md transition-colors hover:border-primary/40 hover:bg-background/65"
+                        >
+                            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-sky-500/30 bg-sky-500/10 text-sky-500">
+                                <Cloud className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <p className="text-sm font-semibold">Préférences app</p>
+                                <p className="text-[11px] text-muted-foreground truncate">
+                                    Exporter / Importer / Cloud
+                                </p>
+                            </div>
+                        </button>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" className="w-64 p-2">
+                        <div className="space-y-1">
+                            <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                                Préférences (thème, sidebar, stats)
+                            </p>
+                            <button
+                                type="button"
+                                onClick={handleExportLocal}
+                                className="flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-accent"
+                            >
+                                <FileDown className="h-4 w-4 text-muted-foreground" />
+                                <div className="min-w-0 flex-1">
+                                    <p className="font-medium">Exporter</p>
+                                    <p className="text-[11px] text-muted-foreground">Sauvegarder en JSON local</p>
+                                </div>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleImportLocal}
+                                className="flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-accent"
+                            >
+                                <FileUp className="h-4 w-4 text-muted-foreground" />
+                                <div className="min-w-0 flex-1">
+                                    <p className="font-medium">Importer</p>
+                                    <p className="text-[11px] text-muted-foreground">Charger un JSON local</p>
+                                </div>
+                            </button>
+                            <input ref={fileInputRef} type="file" accept=".json" onChange={handleImportLocalFallback} className="hidden" />
+                            <div className="my-1 h-px bg-border" />
+                            <button
+                                type="button"
+                                onClick={handleOpenCloudManager}
+                                disabled={isSyncing || !userId}
+                                className="flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-accent disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                                <Cloud className="h-4 w-4 text-sky-500" />
+                                <div className="min-w-0 flex-1">
+                                    <p className="font-medium">Cloud</p>
+                                    <p className="text-[11px] text-muted-foreground">
+                                        {userId ? 'Sync online via Supabase' : 'Connexion requise'}
+                                    </p>
+                                </div>
+                            </button>
+                        </div>
+                    </PopoverContent>
+                </Popover>
+
+                {isInTauri && (!IS_MICROSOFT_STORE || launcherStatus.installed) && (
+                    <button
+                        type="button"
+                        onClick={() => setShowThirdPartyAppsDialog(true)}
+                        className="group flex items-center gap-3 rounded-xl border border-border/40 bg-background/45 px-3 py-2.5 text-left backdrop-blur-md transition-colors hover:border-primary/40 hover:bg-background/65"
+                    >
+                        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-500">
+                            <Settings2 className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <p className="flex items-center gap-2 text-sm font-semibold">
+                                <span>Programmes tiers</span>
+                                {enabledThirdPartyAppCount > 0 && (() => {
+                                    const isLive = launcherActivity.launcher_running || launcherActivity.game_running;
+                                    const chipClass = isLive
+                                        ? 'inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-emerald-400/50 bg-gradient-to-br from-emerald-400/30 to-emerald-500/20 px-1.5 text-[10px] font-semibold tracking-wide text-emerald-300 shadow-sm shadow-emerald-500/20 animate-pulse'
+                                        : 'inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-amber-400/40 bg-gradient-to-br from-amber-400/25 to-amber-500/15 px-1.5 text-[10px] font-semibold tracking-wide text-amber-300 shadow-sm shadow-amber-500/10';
+                                    return (
+                                        <span className={chipClass}>{enabledThirdPartyAppCount}</span>
+                                    );
+                                })()}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground truncate">
+                                {enabledThirdPartyAppCount > 0
+                                    ? (launcherActivity.launcher_running || launcherActivity.game_running)
+                                        ? `${enabledThirdPartyAppCount} en cours avec le launcher`
+                                        : `${enabledThirdPartyAppCount} actif${enabledThirdPartyAppCount > 1 ? 's' : ''} avec le launcher`
+                                    : 'Configurer les apps à lancer'}
+                            </p>
+                        </div>
+                    </button>
+                )}
+
+                <MiniPlayer className="mt-auto" />
+            </div>
+            </div>
 
             {/* Section infos */}
             {showContent && (
