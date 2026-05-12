@@ -29,7 +29,6 @@ import {
     Map,
     Eye,
     EyeOff,
-    ExternalLink,
     Play,
     Clock,
     FileDown,
@@ -1259,16 +1258,6 @@ function Home() {
         }
     };
 
-    // Ouvrir un lien externe
-    const handleOpenExternal = async (url: string) => {
-        if (isInTauri) {
-            const { open } = await import('@tauri-apps/plugin-shell');
-            await open(url);
-        } else {
-            window.open(url, '_blank');
-        }
-    };
-
     const enabledThirdPartyAppCount = thirdPartyApps.filter((app) => app.enabled).length;
     const thirdPartyAppDraftIsValid =
         thirdPartyAppDraft.name.trim().length > 0 && thirdPartyAppDraft.path.trim().length > 0;
@@ -1472,65 +1461,12 @@ function Home() {
 
                             <div className="flex flex-wrap items-center gap-2">
                                 <Link to="/traduction">
-                                        <Button size="default" className="h-9 gap-2 px-4 text-sm shadow-lg transition-shadow hover:shadow-primary/25">
-                                            <Globe2 className="h-4 w-4" />
-                                            Installer la traduction
-                                            <Sparkles className="h-4 w-4" />
-                                        </Button>
-                                    </Link>
-                                    {isInTauri && (
-                                        launcherStatus.installed ? (
-                                            <Button
-                                                size="default"
-                                                variant="outline"
-                                                className={`h-9 gap-2 px-4 text-sm ${
-                                                    launcherActivity.game_running || launcherActivity.launcher_running
-                                                        ? 'border-green-500/35 bg-green-500/10 text-green-500 hover:bg-green-500/15 hover:text-green-400'
-                                                        : ''
-                                                }`}
-                                                onClick={handleLaunchLauncher}
-                                                disabled={launchingLauncher}
-                                            >
-                                                {launchingLauncher ? (
-                                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                                ) : launcherActivity.game_running ? (
-                                                    <Gamepad2 className="h-4 w-4" />
-                                                ) : launcherActivity.launcher_running ? (
-                                                    <CircleCheck className="h-4 w-4" />
-                                                ) : (
-                                                    <Play className="h-4 w-4" />
-                                                )}
-                                                {launcherButtonLabel}
-                                            </Button>
-                                        ) : (
-                                            <Button
-                                                size="default"
-                                                variant="outline"
-                                                className="h-9 gap-2 px-4 text-sm"
-                                                onClick={() => handleOpenExternal('https://install.robertsspaceindustries.com/rel/2/RSI%20Launcher-Setup-2.11.0.exe')}
-                                            >
-                                                <Download className="h-4 w-4" />
-                                                Telecharger le Launcher
-                                                <ExternalLink className="h-4 w-4" />
-                                            </Button>
-                                    )
-                                )}
-                                {isInTauri && (
-                                    <Button
-                                        size="default"
-                                        variant="outline"
-                                        className="h-9 gap-2 px-4 text-sm"
-                                        onClick={() => setShowThirdPartyAppsDialog(true)}
-                                    >
-                                        <Settings2 className="h-4 w-4" />
-                                        Programmes tiers
-                                        {enabledThirdPartyAppCount > 0 && (
-                                            <Badge className="ml-0.5 border-primary/30 bg-primary/15 px-1.5 py-0 text-[10px] text-primary">
-                                                {enabledThirdPartyAppCount}
-                                            </Badge>
-                                        )}
+                                    <Button size="default" className="h-9 gap-2 px-4 text-sm shadow-lg transition-shadow hover:shadow-primary/25">
+                                        <Globe2 className="h-4 w-4" />
+                                        Installer la traduction
+                                        <Sparkles className="h-4 w-4" />
                                     </Button>
-                                )}
+                                </Link>
                             </div>
 
                             {isInTauri && launcherStatus.installed && (
