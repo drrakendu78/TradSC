@@ -34,6 +34,8 @@ const ALLOWED_DOMAINS = [
     "scdb.space",
     "sc-craft.tools",
     "thespacecoder.space",
+    "robertsspaceindustries.com",
+    "status.robertsspaceindustries.com",
 ];
 
 // Autorise https, http (si besoin), et schémas ms-windows-store

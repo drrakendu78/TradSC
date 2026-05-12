@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import logger from "@/utils/logger";
 import { Loader2, XCircle, CheckCircle, AlertCircle, HelpCircle, Globe2, Languages, Settings2, WifiOff, FolderOpen, Clock, Link2, Plus, Trash2 } from "lucide-react";
 import { useStatsStore } from "@/stores/stats-store";
+import { notifyTranslationStatusChanged } from "@/hooks/useTranslationStatus";
 import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -339,6 +340,13 @@ export default function Traduction() {
         const adminCheckInterval = setInterval(checkAdminStatus, 5000);
         return () => clearInterval(adminCheckInterval);
     }, []);
+
+    // Notifier le Home quand les paths changent (installation/maj/désinstallation détectée)
+    useEffect(() => {
+        if (paths) {
+            notifyTranslationStatusChanged();
+        }
+    }, [paths]);
 
     // Écouter les changements de connectivité pour rafraîchir les données
     useEffect(() => {

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow, PhysicalSize } from '@tauri-apps/api/window';
 import { useLocation } from 'react-router-dom';
 import { AppSidebar } from '@/components/custom/app-sidebar';
@@ -50,7 +51,48 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         if (updater.updateAvailable && updater.updateInfo) {
             setUpdateDialogOpen(true);
         }
+        // Persister le flag pour la sidebar (dot indicator)
+        try {
+            localStorage.setItem('startradfr_app_update_available', updater.updateAvailable ? '1' : '0');
+        } catch {}
+        window.dispatchEvent(new CustomEvent('appUpdateAvailableChanged', { detail: updater.updateAvailable }));
     }, [updater.updateAvailable, updater.updateInfo]);
+
+    // Reprise auto de l'install après un restart_as_admin : si un flag
+    // pending_install est présent et l'app est maintenant admin, on lance
+    // directement l'updater (l'user n'a pas à cliquer "Installer" une 2e fois).
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            let pending: { url: string; sigUrl: string; name: string; version?: string } | null = null;
+            try {
+                const raw = localStorage.getItem('startradfr_pending_install');
+                if (raw) pending = JSON.parse(raw);
+            } catch { pending = null; }
+            if (!pending?.url) return;
+
+            const isAdmin = await invoke<boolean>('is_running_as_admin').catch(() => false);
+            if (cancelled) return;
+
+            if (isAdmin) {
+                // On efface le flag avant de lancer pour éviter une boucle si l'install échoue
+                try { localStorage.removeItem('startradfr_pending_install'); } catch {}
+                try {
+                    await invoke('launch_updater', {
+                        url: pending.url,
+                        sigUrl: pending.sigUrl || '',
+                        name: pending.name,
+                    });
+                } catch (e) {
+                    console.error('Reprise install échouée:', e);
+                }
+            } else {
+                // Élévation refusée ou échouée : on retire le flag pour repartir clean
+                try { localStorage.removeItem('startradfr_pending_install'); } catch {}
+            }
+        })();
+        return () => { cancelled = true; };
+    }, []);
 
     useEffect(() => {
         const appWindow = getCurrentWindow();
