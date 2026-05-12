@@ -23,12 +23,15 @@ import {
     Newspaper,
     Keyboard,
     Monitor,
+    Rocket,
     ArrowRight,
     Sparkles,
     Map,
     Eye,
     EyeOff,
+    ExternalLink,
     Play,
+    Clock,
     FileDown,
     FileUp,
     Cloud,
@@ -60,6 +63,7 @@ import { useToast } from '@/hooks/use-toast';
 import { isTauri } from '@/utils/tauri-helpers';
 import { invoke as tauriInvoke } from '@tauri-apps/api/core';
 import { isAutoCleanEnabled, runShaderCacheAutoClean } from '@/hooks/useShaderCacheAutoClean';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ProjectorShadow, type ProjectorShadowSettings } from '@/utils/ambilight/projector-shadow';
 
 interface LauncherStatus {
@@ -357,11 +361,6 @@ function Home() {
         isSyncing
     } = usePreferencesSyncStore();
     const [userId, setUserId] = useState<string | null>(null);
-    const [userDisplayName, setUserDisplayName] = useState<string | null>(null);
-    const [cacheTotalMb, setCacheTotalMb] = useState<number | null>(null);
-    const [cacheFolderCount, setCacheFolderCount] = useState<number | null>(null);
-    const [bindingsProfileCount, setBindingsProfileCount] = useState<number | null>(null);
-    const [scLiveVersion, setScLiveVersion] = useState<string | null>(null);
     const [prefsSaving, setPrefsSaving] = useState(false);
     const [prefsDeleting, setPrefsDeleting] = useState(false);
     const [showCloudPrefsDialog, setShowCloudPrefsDialog] = useState(false);
@@ -401,31 +400,6 @@ function Home() {
         tauriInvoke<PlaytimeStats>('get_playtime').then((stats) => {
             try { localStorage.setItem(PLAYTIME_CACHE_KEY, JSON.stringify(stats)); } catch {}
             setPlaytime(stats);
-        }).catch(() => {});
-
-        // Cache info (taille totale)
-        tauriInvoke<string>('get_cache_informations').then((raw) => {
-            try {
-                const parsed = JSON.parse(raw) as { folders?: { weight?: string }[] };
-                const folders = parsed.folders ?? [];
-                const totalMb = folders.reduce((sum, f) => {
-                    const m = (f.weight ?? '').match(/(\d+(?:\.\d+)?)/);
-                    return sum + (m ? parseFloat(m[1]) : 0);
-                }, 0);
-                setCacheTotalMb(totalMb);
-                setCacheFolderCount(folders.length);
-            } catch {}
-        }).catch(() => {});
-
-        // Bindings profiles count
-        tauriInvoke<unknown[]>('list_control_profiles').then((profiles) => {
-            setBindingsProfileCount(Array.isArray(profiles) ? profiles.length : 0);
-        }).catch(() => {});
-
-        // SC LIVE version (release_version)
-        tauriInvoke<Record<string, { release_version?: string | null }>>('get_star_citizen_versions').then((versions) => {
-            const live = versions?.LIVE?.release_version;
-            if (live) setScLiveVersion(live);
         }).catch(() => {});
     }, []);
 
@@ -719,23 +693,10 @@ function Home() {
 
     // Vérifier si l'utilisateur est connecté
     useEffect(() => {
-        const extractDisplayName = (user: any): string | null => {
-            if (!user) return null;
-            const md = user.user_metadata ?? {};
-            return (
-                md.preferred_username ||
-                md.username ||
-                md.full_name ||
-                md.name ||
-                (user.email ? user.email.split('@')[0] : null)
-            );
-        };
-
         const checkUser = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.user) {
                 setUserId(session.user.id);
-                setUserDisplayName(extractDisplayName(session.user));
             }
         };
         checkUser();
@@ -743,7 +704,6 @@ function Home() {
         // Écouter les changements de session
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
             setUserId(session?.user?.id || null);
-            setUserDisplayName(extractDisplayName(session?.user));
         });
 
         return () => subscription.unsubscribe();
@@ -1275,6 +1235,9 @@ function Home() {
           : launcherActivity.launcher_running
             ? 'RSI Launcher actif'
             : 'Demarrer RSI Launcher';
+    const launcherStatusTone = launcherActivity.game_running || launcherActivity.launcher_running
+        ? 'border-green-500/35 bg-green-500/10 text-green-500'
+        : 'border-border/35 bg-background/30 text-muted-foreground';
 
     return (
         <div className="flex w-full h-full flex-col gap-3 p-4 overflow-visible relative justify-between">
@@ -1319,317 +1282,288 @@ function Home() {
                 />
             )}
             
-            {/* Background video optionnel (fixed full-page) */}
-            {isBackgroundVideoEnabled && (
-                <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-                    <video
-                        ref={heroVideoRef}
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                        preload="metadata"
-                        className="absolute inset-0 h-full w-full object-cover object-center opacity-40"
-                    >
-                        <source src="/video-montage-sc.mp4" type="video/mp4" />
-                    </video>
-                    <div className="absolute inset-0 bg-gradient-to-br from-background/85 via-background/70 to-background/85" />
-                </div>
-            )}
-
-            {/* Hero card invisible pour permettre à l'ambilight de mesurer une zone (compat) */}
-            <div ref={heroCardRef} className="absolute -top-1 left-0 h-1 w-1 opacity-0 pointer-events-none" aria-hidden />
-
-            {/* Greeting */}
+            {/* Hero Section - Action principale */}
             <m.div
-                initial={{ opacity: 0, y: -10 }}
+                initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
-                className="relative z-10 px-1"
+                className="relative -mx-4 px-4 pt-2 pb-3"
             >
-                <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
-                    Bonjour, {userDisplayName || 'Citizen'}.
-                </h1>
-                <p className="mt-1 text-sm text-muted-foreground">
-                    {launcherActivity.game_running
-                        ? `Star Citizen en cours${scLiveVersion ? ` (${scLiveVersion})` : ''}.`
-                        : launcherActivity.launcher_running
-                            ? 'RSI Launcher actif. Prêt à décoller.'
-                            : scLiveVersion
-                                ? `Tout est prêt pour décoller. Star Citizen ${scLiveVersion} LIVE détecté.`
-                                : launcherStatus.installed
-                                    ? 'Tout est prêt pour décoller. Lancez le RSI Launcher pour démarrer.'
-                                    : 'Bienvenue sur StarTrad FR.'}
-                </p>
-            </m.div>
+                <Card ref={heroCardRef} className={`relative z-10 overflow-hidden ${isBackgroundVideoEnabled ? 'border-white/8 bg-background/68' : 'border-border/35 bg-background/80'}`}>
+                    <div className="absolute top-0 right-0 h-64 w-64 -translate-y-1/2 translate-x-1/2 rounded-full bg-primary/10 blur-3xl" />
 
-            {/* 4 stat tiles */}
-            <m.div
-                className="relative z-10 grid grid-cols-2 lg:grid-cols-4 gap-3"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.3, delay: 0.05 }}
-            >
-                {/* Traduction */}
-                <Card className="border-border/40 bg-background/45 backdrop-blur-md">
-                    <CardContent className="p-3">
-                        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Traduction</span>
-                        <p className="mt-1.5 text-xl font-semibold">{scLiveVersion ? 'À jour' : '—'}</p>
-                        <div className="mt-1.5 h-0.5 rounded-full bg-emerald-500/35" />
-                        <p className="mt-1.5 text-[11px] text-muted-foreground">
-                            SCEFRA{scLiveVersion ? ` · LIVE ${scLiveVersion}` : ''}
-                        </p>
-                    </CardContent>
-                </Card>
-
-                {/* Cache */}
-                <Card className="border-border/40 bg-background/45 backdrop-blur-md">
-                    <CardContent className="p-3">
-                        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Cache</span>
-                        <p className="mt-1.5 text-xl font-semibold">
-                            {cacheTotalMb !== null
-                                ? cacheTotalMb >= 1024
-                                    ? `${(cacheTotalMb / 1024).toFixed(2)} Go`
-                                    : `${cacheTotalMb.toFixed(0)} Mo`
-                                : '—'}
-                        </p>
-                        <div className="mt-1.5 h-0.5 rounded-full bg-amber-500/35" />
-                        <p className="mt-1.5 text-[11px] text-muted-foreground">
-                            {cacheFolderCount !== null
-                                ? `${cacheFolderCount} dossier${cacheFolderCount > 1 ? 's' : ''} shaders`
-                                : 'Aucun cache'}
-                        </p>
-                    </CardContent>
-                </Card>
-
-                {/* Temps de jeu */}
-                <Card className="border-border/40 bg-background/45 backdrop-blur-md">
-                    <CardContent className="p-3">
-                        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Temps de jeu</span>
-                        {(() => {
-                            const calculatedHours = playtime?.total_hours || 0;
-                            const totalHours = savedPlaytimeHours + calculatedHours;
-                            const hours = Math.floor(totalHours);
-                            const minutes = Math.round((totalHours - hours) * 60);
-                            const sessionCount = playtime?.session_count || 0;
-                            const showStats = (playtime && playtime.session_count > 0) || savedPlaytimeHours > 0;
-                            return (
-                                <>
-                                    <p className="mt-1.5 text-xl font-semibold">
-                                        {showStats ? `${hours}h ${minutes.toString().padStart(2, '0')}` : '—'}
-                                    </p>
-                                    <div className="mt-1.5 h-0.5 rounded-full bg-violet-500/35" />
-                                    <p className="mt-1.5 text-[11px] text-muted-foreground">
-                                        {showStats
-                                            ? `${sessionCount} session${sessionCount > 1 ? 's' : ''} enregistrée${sessionCount > 1 ? 's' : ''}`
-                                            : 'Aucune session'}
-                                    </p>
-                                </>
-                            );
-                        })()}
-                    </CardContent>
-                </Card>
-
-                {/* Bindings */}
-                <Card className="border-border/40 bg-background/45 backdrop-blur-md">
-                    <CardContent className="p-3">
-                        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Bindings</span>
-                        <p className="mt-1.5 text-xl font-semibold">
-                            {bindingsProfileCount !== null
-                                ? `${bindingsProfileCount} profil${bindingsProfileCount > 1 ? 's' : ''}`
-                                : '—'}
-                        </p>
-                        <div className="mt-1.5 h-0.5 rounded-full bg-rose-500/35" />
-                        <p className="mt-1.5 text-[11px] text-muted-foreground">
-                            {bindingsProfileCount && bindingsProfileCount > 0 ? 'Importés via SC' : 'Aucun profil importé'}
-                        </p>
-                    </CardContent>
-                </Card>
-            </m.div>
-
-            {/* Action recommandée + 3 Quick Actions */}
-            <m.div
-                className="relative z-10 grid grid-cols-1 lg:grid-cols-3 gap-3"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.3, delay: 0.1 }}
-            >
-                {/* Action recommandée — Mise à jour traduction */}
-                <Card className="relative overflow-hidden lg:col-span-2 border-primary/35 bg-gradient-to-br from-primary/12 via-background/55 to-background/45 backdrop-blur-md">
-                    <div className="pointer-events-none absolute top-0 right-0 h-48 w-48 -translate-y-1/3 translate-x-1/3 rounded-full bg-primary/15 blur-3xl" />
-                    <CardContent className="relative p-5">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-primary">Action recommandée</p>
-                        <h2 className="mt-2 text-2xl font-semibold tracking-tight">Installer ou mettre à jour la traduction</h2>
-                        <p className="mt-2 max-w-2xl text-sm text-muted-foreground leading-relaxed">
-                            Garde ton Star Citizen à jour avec la dernière traduction française. SCEFRA publie régulièrement de nouvelles chaînes, notamment pour les zones et missions récentes.
-                        </p>
-                        <div className="mt-4 flex flex-wrap gap-2">
-                            <Link to="/traduction">
-                                <Button className="h-9 gap-2 px-4 text-sm shadow-lg transition-shadow hover:shadow-primary/25">
-                                    <Globe2 className="h-4 w-4" />
-                                    Mettre à jour
-                                </Button>
-                            </Link>
-                            <Link to="/patchnotes">
-                                <Button variant="outline" className="h-9 gap-2 px-4 text-sm">
-                                    Voir les changements
-                                </Button>
-                            </Link>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                {/* 3 Quick Actions (vertical droite) */}
-                <div className="flex flex-col gap-2">
-                    {/* Démarrer RSI Launcher */}
-                    {isInTauri && launcherStatus.installed ? (
-                        <button
-                            type="button"
-                            onClick={handleLaunchLauncher}
-                            disabled={launchingLauncher}
-                            className={`group flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left backdrop-blur-md transition-colors disabled:opacity-60 ${
-                                launcherActivity.game_running || launcherActivity.launcher_running
-                                    ? 'border-emerald-500/35 bg-emerald-500/10 hover:bg-emerald-500/15'
-                                    : 'border-border/40 bg-background/45 hover:border-primary/40 hover:bg-background/65'
-                            }`}
-                        >
-                            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-500">
-                                {launchingLauncher ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : launcherActivity.game_running ? (
-                                    <Gamepad2 className="h-4 w-4" />
-                                ) : launcherActivity.launcher_running ? (
-                                    <CircleCheck className="h-4 w-4" />
-                                ) : (
-                                    <Play className="h-4 w-4" />
-                                )}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                                <p className="text-sm font-semibold">{launcherButtonLabel}</p>
-                                <p className="text-[11px] text-muted-foreground truncate">
-                                    {launcherActivity.game_running
-                                        ? `Star Citizen en cours${scLiveVersion ? ` · ${scLiveVersion}` : ''}`
-                                        : launcherActivity.launcher_running
-                                            ? 'Launcher actif'
-                                            : scLiveVersion
-                                                ? `LIVE · ${scLiveVersion}`
-                                                : 'Prêt à lancer'}
-                                </p>
-                            </div>
-                        </button>
-                    ) : isInTauri ? (
-                        <button
-                            type="button"
-                            onClick={() => handleOpenExternal('https://install.robertsspaceindustries.com/rel/2/RSI%20Launcher-Setup-2.11.0.exe')}
-                            className="group flex items-center gap-3 rounded-xl border border-border/40 bg-background/45 px-3 py-2.5 text-left backdrop-blur-md transition-colors hover:border-primary/40 hover:bg-background/65"
-                        >
-                            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-500">
-                                <Download className="h-4 w-4" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                                <p className="text-sm font-semibold">Télécharger le RSI Launcher</p>
-                                <p className="text-[11px] text-muted-foreground truncate">Non installé sur ce PC</p>
-                            </div>
-                        </button>
+                    {isBackgroundVideoEnabled ? (
+                        <>
+                            <video
+                                ref={heroVideoRef}
+                                autoPlay
+                                loop
+                                muted
+                                playsInline
+                                preload="metadata"
+                                className="absolute inset-0 h-full w-full object-cover object-center"
+                            >
+                                <source src="/video-montage-sc.mp4" type="video/mp4" />
+                            </video>
+                            <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/78 via-black/58 to-black/68" />
+                            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/60 to-transparent" />
+                        </>
                     ) : null}
 
-                    {/* Sauvegarder dans le cloud */}
-                    <button
-                        type="button"
-                        onClick={handleOpenCloudManager}
-                        disabled={isSyncing || !userId}
-                        className="group flex items-center gap-3 rounded-xl border border-border/40 bg-background/45 px-3 py-2.5 text-left backdrop-blur-md transition-colors hover:border-primary/40 hover:bg-background/65 disabled:opacity-60"
-                    >
-                        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-sky-500/30 bg-sky-500/10 text-sky-500">
-                            <Cloud className="h-4 w-4" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold">Sauvegarder dans le cloud</p>
-                            <p className="text-[11px] text-muted-foreground truncate">
-                                {userId ? 'Sync de tes préférences app' : 'Connexion requise'}
-                            </p>
-                        </div>
-                    </button>
+                    <CardContent className="relative z-10 p-4 md:p-4">
+                        <div className="max-w-3xl space-y-3">
+                            <div className="space-y-1.5">
+                                <div className="flex items-center gap-2">
+                                    <Rocket className={`h-5 w-5 ${isBackgroundVideoEnabled ? 'text-white/90' : 'text-primary'}`} />
+                                    <h1 className={`text-xl font-bold md:text-2xl${isBackgroundVideoEnabled ? ' text-white' : ''}`}>Bienvenue, Citizen !</h1>
+                                </div>
+                                <p className={`max-w-md text-sm md:text-base ${isBackgroundVideoEnabled ? 'text-white/75' : 'text-muted-foreground'}`}>
+                                    Pret a jouer en francais ? Installez la traduction en un clic.
+                                </p>
+                            </div>
 
-                    {/* Programmes tiers (modal) */}
-                    {isInTauri && (
-                        <button
-                            type="button"
-                            onClick={() => setShowThirdPartyAppsDialog(true)}
-                            className="group flex items-center gap-3 rounded-xl border border-border/40 bg-background/45 px-3 py-2.5 text-left backdrop-blur-md transition-colors hover:border-primary/40 hover:bg-background/65"
-                        >
-                            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-500">
-                                <Settings2 className="h-4 w-4" />
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Link to="/traduction">
+                                        <Button size="default" className="h-9 gap-2 px-4 text-sm shadow-lg transition-shadow hover:shadow-primary/25">
+                                            <Globe2 className="h-4 w-4" />
+                                            Installer la traduction
+                                            <Sparkles className="h-4 w-4" />
+                                        </Button>
+                                    </Link>
+                                    {isInTauri && (
+                                        launcherStatus.installed ? (
+                                            <Button
+                                                size="default"
+                                                variant="outline"
+                                                className={`h-9 gap-2 px-4 text-sm ${
+                                                    launcherActivity.game_running || launcherActivity.launcher_running
+                                                        ? 'border-green-500/35 bg-green-500/10 text-green-500 hover:bg-green-500/15 hover:text-green-400'
+                                                        : ''
+                                                }`}
+                                                onClick={handleLaunchLauncher}
+                                                disabled={launchingLauncher}
+                                            >
+                                                {launchingLauncher ? (
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                ) : launcherActivity.game_running ? (
+                                                    <Gamepad2 className="h-4 w-4" />
+                                                ) : launcherActivity.launcher_running ? (
+                                                    <CircleCheck className="h-4 w-4" />
+                                                ) : (
+                                                    <Play className="h-4 w-4" />
+                                                )}
+                                                {launcherButtonLabel}
+                                            </Button>
+                                        ) : (
+                                            <Button
+                                                size="default"
+                                                variant="outline"
+                                                className="h-9 gap-2 px-4 text-sm"
+                                                onClick={() => handleOpenExternal('https://install.robertsspaceindustries.com/rel/2/RSI%20Launcher-Setup-2.11.0.exe')}
+                                            >
+                                                <Download className="h-4 w-4" />
+                                                Telecharger le Launcher
+                                                <ExternalLink className="h-4 w-4" />
+                                            </Button>
+                                    )
+                                )}
+                                {isInTauri && (
+                                    <Button
+                                        size="default"
+                                        variant="outline"
+                                        className="h-9 gap-2 px-4 text-sm"
+                                        onClick={() => setShowThirdPartyAppsDialog(true)}
+                                    >
+                                        <Settings2 className="h-4 w-4" />
+                                        Programmes tiers
+                                        {enabledThirdPartyAppCount > 0 && (
+                                            <Badge className="ml-0.5 border-primary/30 bg-primary/15 px-1.5 py-0 text-[10px] text-primary">
+                                                {enabledThirdPartyAppCount}
+                                            </Badge>
+                                        )}
+                                    </Button>
+                                )}
                             </div>
-                            <div className="min-w-0 flex-1">
-                                <p className="text-sm font-semibold">
-                                    Programmes tiers
-                                    {enabledThirdPartyAppCount > 0 && (
-                                        <Badge className="ml-2 border-primary/30 bg-primary/15 px-1.5 py-0 text-[10px] text-primary">
-                                            {enabledThirdPartyAppCount}
-                                        </Badge>
-                                    )}
-                                </p>
-                                <p className="text-[11px] text-muted-foreground truncate">
-                                    {enabledThirdPartyAppCount > 0
-                                        ? `${enabledThirdPartyAppCount} actif${enabledThirdPartyAppCount > 1 ? 's' : ''} avec le launcher`
-                                        : 'Configurer les apps à lancer'}
-                                </p>
-                            </div>
-                        </button>
-                    )}
-                </div>
+
+                            {isInTauri && launcherStatus.installed && (
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium ${launcherStatusTone}`}>
+                                        <CircleCheck className="h-3.5 w-3.5" />
+                                        {launcherActivity.launcher_running
+                                            ? "RSI Launcher en cours d'utilisation"
+                                            : 'RSI Launcher pret'}
+                                    </span>
+                                    <span
+                                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium ${
+                                            launcherActivity.game_running
+                                                ? 'border-green-500/35 bg-green-500/10 text-green-500'
+                                                : 'border-border/35 bg-background/30 text-muted-foreground'
+                                        }`}
+                                    >
+                                        <Gamepad2 className="h-3.5 w-3.5" />
+                                        {launcherActivity.game_running
+                                            ? "Star Citizen en cours d'utilisation"
+                                            : 'Star Citizen en attente'}
+                                    </span>
+                                </div>
+                            )}
+
+                            {isInTauri && ((playtime && playtime.session_count > 0) || savedPlaytimeHours > 0) && (() => {
+                                const calculatedHours = playtime?.total_hours || 0;
+                                const totalHours = savedPlaytimeHours + calculatedHours;
+                                const hours = Math.floor(totalHours);
+                                const minutes = Math.round((totalHours - hours) * 60);
+                                const sessionCount = playtime?.session_count || 0;
+
+                                return (
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <div className="inline-flex cursor-help items-center gap-2.5 rounded-full border border-primary/35 bg-black/45 px-2.5 py-1.5 shadow-[0_0_20px_rgba(20,184,255,0.18)] backdrop-blur-sm transition-colors hover:border-primary/55">
+                                                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/20 text-primary">
+                                                        <Clock className="h-3.5 w-3.5" />
+                                                    </span>
+                                                    <div className="flex items-baseline gap-1">
+                                                        <span className="text-sm font-semibold text-white">{hours}h</span>
+                                                        <span className="text-sm font-semibold text-white/90">{minutes}min</span>
+                                                    </div>
+                                                    <span className="h-4 w-px bg-white/20" />
+                                                    <span className="text-[10px] uppercase tracking-wide text-white/75">
+                                                        {sessionCount > 0
+                                                            ? `${sessionCount} session${sessionCount > 1 ? 's' : ''}`
+                                                            : 'Temps de jeu'}
+                                                    </span>
+                                                </div>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="bottom" className="max-w-xs">
+                                                <p className="text-sm">
+                                                    Temps de jeu calcule depuis les logs Star Citizen.
+                                                </p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                );
+                            })()}
+                        </div>
+                    </CardContent>
+                </Card>
+
             </m.div>
 
-            {/* Section "Plus d'actions" — toggle showContent */}
+            {/* Actions rapides */}
             <div className="relative z-10">
-                <div className="flex items-center justify-between px-1 mb-2">
-                    <h2 className="text-sm font-semibold flex items-center gap-2 text-muted-foreground">
-                        <Sparkles className="h-3.5 w-3.5 text-primary" />
-                        Plus d'actions
-                    </h2>
+                <div className="flex items-center justify-between px-1 mb-3">
+                    {showContent && (
+                        <m.h2 
+                            className="text-lg font-semibold flex items-center gap-2"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.2 }}
+                        >
+                            <Sparkles className="h-4 w-4 text-primary" />
+                            Actions rapides
+                        </m.h2>
+                    )}
                     <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => setShowContent(!showContent)}
-                        className="gap-1.5 h-7 text-[11px] text-muted-foreground hover:text-foreground"
+                        className="gap-2 text-muted-foreground hover:text-foreground ml-auto"
                     >
                         {showContent ? (
                             <>
-                                <EyeOff className="h-3 w-3" />
-                                <span className="hidden sm:inline">Masquer</span>
+                                <EyeOff className="h-4 w-4" />
+                                <span className="hidden sm:inline">Masquer le contenu</span>
                             </>
                         ) : (
                             <>
-                                <Eye className="h-3 w-3" />
-                                <span className="hidden sm:inline">Afficher</span>
+                                <Eye className="h-4 w-4" />
+                                <span className="hidden sm:inline">Afficher le contenu</span>
                             </>
                         )}
                     </Button>
                 </div>
-
+                
                 {showContent && (
-                    <m.div
-                        className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2"
+                    <m.div 
+                        className="space-y-3"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ duration: 0.2 }}
                     >
-                        <QuickAction to="/cache" icon={<Brush className="h-4 w-4" />} title="Cache" description="Libérer espace" color="border-orange-500/30 bg-orange-500/10 text-orange-500" index={0} />
-                        <QuickAction to="/presets-local" icon={<Users className="h-4 w-4" />} title="Persos locaux" description="Mes personnages" color="border-blue-500/30 bg-blue-500/10 text-blue-500" index={1} />
-                        <QuickAction to="/presets-remote" icon={<Download className="h-4 w-4" />} title="Persos en ligne" description="Télécharger" color="border-green-500/30 bg-green-500/10 text-green-500" index={2} />
-                        <QuickAction to="/bindings" icon={<Keyboard className="h-4 w-4" />} title="Bindings" description="Contrôles" color="border-purple-500/30 bg-purple-500/10 text-purple-500" index={3} />
-                        <QuickAction to="/graphics-settings" icon={<Monitor className="h-4 w-4" />} title="Paramètres" description="Graphismes" color="border-pink-500/30 bg-pink-500/10 text-pink-500" index={4} />
-                        <QuickAction to="/ship-maps" icon={<Map className="h-4 w-4" />} title="Vaisseaux" description="Plans" color="border-cyan-500/30 bg-cyan-500/10 text-cyan-500" index={5} />
-                        <QuickAction to="/updates" icon={<Download className="h-4 w-4" />} title="Mises à jour" description="Updates" color="border-primary/30 bg-primary/10 text-primary" index={6} />
+                    
+                    <m.div 
+                        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.2 }}
+                    >
+                        <QuickAction
+                            to="/cache"
+                            icon={<Brush className="h-4 w-4" />}
+                            title="Gestion du cache"
+                            description="Libérer de l'espace disque"
+                            color="border-orange-500/30 bg-orange-500/10 text-orange-500"
+                            index={0}
+                        />
+                        <QuickAction
+                            to="/presets-local"
+                            icon={<Users className="h-4 w-4" />}
+                            title="Mes personnages"
+                            description="Gérer vos persos locaux"
+                            color="border-blue-500/30 bg-blue-500/10 text-blue-500"
+                            index={1}
+                        />
+                        <QuickAction
+                            to="/presets-remote"
+                            icon={<Download className="h-4 w-4" />}
+                            title="Persos en ligne"
+                            description="Télécharger des presets"
+                            color="border-green-500/30 bg-green-500/10 text-green-500"
+                            index={2}
+                        />
+                        <QuickAction
+                            to="/bindings"
+                            icon={<Keyboard className="h-4 w-4" />}
+                            title="Bindings"
+                            description="Raccourcis clavier"
+                            color="border-purple-500/30 bg-purple-500/10 text-purple-500"
+                            index={3}
+                        />
+                        <QuickAction
+                            to="/graphics-settings"
+                            icon={<Monitor className="h-4 w-4" />}
+                            title="Paramètres généraux"
+                            description="Graphismes et contrôles"
+                            color="border-pink-500/30 bg-pink-500/10 text-pink-500"
+                            index={4}
+                        />
+                        <QuickAction
+                            to="/ship-maps"
+                            icon={<Map className="h-4 w-4" />}
+                            title="Cartes vaisseaux"
+                            description="Plans détaillés"
+                            color="border-cyan-500/30 bg-cyan-500/10 text-cyan-500"
+                            index={5}
+                        />
+                        <QuickAction
+                            to="/updates"
+                            icon={<Download className="h-4 w-4" />}
+                            title="Mises à jour"
+                            description="Gérer les mises à jour"
+                            color="border-primary/30 bg-primary/10 text-primary"
+                            index={6}
+                        />
+                    </m.div>
                     </m.div>
                 )}
             </div>
 
-            {/* Préférences app */}
+            {/* Préférences app - barre compacte */}
             {showContent && (
-                <div className="relative z-10 flex flex-wrap items-center gap-2 rounded-lg border border-border/35 bg-background/35 px-3 py-2 backdrop-blur-sm">
-                    <span className="text-[11px] text-muted-foreground">Sauvegardez vos préférences (thème, sidebar, stats) en local ou dans le cloud</span>
+                <div className="flex items-center gap-2 px-1 py-2 bg-muted/30 rounded-lg border border-border/30">
+                    <span className="text-xs text-muted-foreground ml-2">Sauvegardez vos préférences (thème, sidebar, stats) en local ou dans le cloud</span>
                     <div className="flex-1" />
                     <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={handleExportLocal}>
                         <FileDown className="h-3 w-3" />
@@ -1640,58 +1574,114 @@ function Home() {
                         Importer
                     </Button>
                     <input ref={fileInputRef} type="file" accept=".json" onChange={handleImportLocalFallback} className="hidden" />
+                    <div className="w-px h-5 bg-border" />
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5"
+                        onClick={handleOpenCloudManager}
+                        disabled={isSyncing || !userId}
+                    >
+                        <Cloud className="h-3 w-3" />
+                        {userId ? "Cloud" : "Connexion requise"}
+                    </Button>
                 </div>
             )}
 
-            {/* 2 colonnes : Actualités + Patchnotes */}
+            {/* Section infos */}
             {showContent && (
-                <m.div
-                    className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-3"
+                <m.div 
+                    className="relative z-10 space-y-3 rounded-2xl border border-border/35 bg-background/30 p-2.5 backdrop-blur-md md:p-3"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    transition={{ duration: 0.3, delay: 0.15 }}
+                    transition={{ duration: 0.2 }}
                 >
-                    <Card className="border-border/40 bg-background/45 backdrop-blur-md">
-                        <CardHeader className="space-y-1 border-b border-border/40 pb-2 pt-2.5">
-                            <div className="flex items-center justify-between gap-2">
-                                <CardTitle className="text-sm flex items-center gap-1.5">
-                                    <Newspaper className="h-4 w-4 text-primary" />
-                                    Actualités Star Citizen
-                                </CardTitle>
-                                <Link to="/actualites">
-                                    <Button variant="ghost" size="sm" className="h-6 gap-1 px-2 text-[11px]">
-                                        Voir tout
-                                        <ArrowRight className="h-3 w-3" />
-                                    </Button>
-                                </Link>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="space-y-2 pb-2.5 pt-2.5">
-                            <RecentActualites max={3} />
-                        </CardContent>
-                    </Card>
+                    <m.div 
+                        className="grid grid-cols-1 gap-3 xl:grid-cols-12"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.2 }}
+                    >
+                        {/* Patchnotes */}
+                        <m.div
+                            className="xl:col-span-4"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.1 }}
+                        >
+                            <Card className="h-full border-border/45 bg-background/38">
+                                <CardHeader className="space-y-1 border-b border-border/40 pb-2 pt-2.5">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <CardTitle className="text-sm flex items-center gap-1.5">
+                                            <FileText className="h-4 w-4 text-primary" />
+                                            Patchnotes StarTrad
+                                        </CardTitle>
+                                        <Link to="/patchnotes" className="md:hidden">
+                                            <Button variant="ghost" size="sm" className="h-6 gap-1 px-2 text-[11px]">
+                                                Voir
+                                                <ArrowRight className="h-3 w-3" />
+                                            </Button>
+                                        </Link>
+                                    </div>
+                                    <p className="text-[11px] text-muted-foreground">
+                                        Dernieres versions, correctifs et changements
+                                    </p>
+                                </CardHeader>
+                                <CardContent className="space-y-2 pb-2.5 pt-2.5">
+                                    <RecentPatchNotes max={3} />
+                                    <Link to="/patchnotes" className="block md:hidden">
+                                        <Button variant="ghost" size="sm" className="w-full text-[11px]">
+                                            Voir tout
+                                            <ArrowRight className="h-3 w-3 ml-1" />
+                                        </Button>
+                                    </Link>
+                                </CardContent>
+                            </Card>
+                        </m.div>
 
-                    <Card className="border-border/40 bg-background/45 backdrop-blur-md">
-                        <CardHeader className="space-y-1 border-b border-border/40 pb-2 pt-2.5">
-                            <div className="flex items-center justify-between gap-2">
-                                <CardTitle className="text-sm flex items-center gap-1.5">
-                                    <FileText className="h-4 w-4 text-primary" />
-                                    Patchnotes StarTrad
-                                </CardTitle>
-                                <Link to="/patchnotes">
-                                    <Button variant="ghost" size="sm" className="h-6 gap-1 px-2 text-[11px]">
-                                        Voir tout
-                                        <ArrowRight className="h-3 w-3" />
-                                    </Button>
-                                </Link>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="space-y-2 pb-2.5 pt-2.5">
-                            <RecentPatchNotes max={3} />
-                        </CardContent>
-                    </Card>
+                        {/* Actualites */}
+                        <m.div
+                            className="xl:col-span-8"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.15 }}
+                        >
+                            <Card className="h-full border-border/45 bg-background/38">
+                                <CardHeader className="space-y-1 border-b border-border/40 pb-2 pt-2.5">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <CardTitle className="text-sm flex items-center gap-1.5">
+                                            <Newspaper className="h-4 w-4 text-primary" />
+                                            Actualites Star Citizen
+                                        </CardTitle>
+                                        <Link to="/actualites">
+                                            <Button variant="outline" size="sm" className="h-6 gap-1 px-2 text-[11px]">
+                                                Ouvrir
+                                                <ArrowRight className="h-3 w-3" />
+                                            </Button>
+                                        </Link>
+                                    </div>
+                                    <p className="text-[11px] text-muted-foreground">
+                                        Flux RSI recent pour rester a jour rapidement
+                                    </p>
+                                </CardHeader>
+                                <CardContent className="space-y-2 pb-2.5 pt-2.5">
+                                    <RecentActualites max={3} />
+                                </CardContent>
+                            </Card>
+                        </m.div>
+                    </m.div>
                 </m.div>
             )}
+            {/* Footer hint */}
+            <m.p
+                className="text-center text-xs text-muted-foreground/60 pb-2 relative z-10 mt-auto"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2 }}
+            >
+                💡 Astuce : Utilisez le menu à gauche pour naviguer rapidement
+            </m.p>
 
             {/* Dialog des programmes tiers */}
             <Dialog
