@@ -1377,7 +1377,7 @@ function Home() {
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
-                className="relative lg:col-span-2"
+                className="relative lg:col-span-2 overflow-hidden rounded-xl isolate"
             >
                 <Card ref={heroCardRef} className={`relative z-10 overflow-hidden ${isBackgroundVideoEnabled ? 'border-white/8 bg-background/68' : 'border-border/35 bg-background/80'}`}>
                     <div className="absolute top-0 right-0 h-64 w-64 -translate-y-1/2 translate-x-1/2 rounded-full bg-primary/10 blur-3xl" />
@@ -1615,30 +1615,28 @@ function Home() {
                     >
                     
                     <m.div
-                        className="grid grid-cols-4 sm:grid-cols-7 gap-2"
+                        className="flex flex-wrap gap-1.5"
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
                         transition={{ duration: 0.2 }}
                     >
                         {[
-                            { to: '/cache', icon: <Brush className="h-4 w-4" />, label: 'Cache', color: 'border-orange-500/30 bg-orange-500/10 text-orange-500' },
-                            { to: '/presets-local', icon: <Users className="h-4 w-4" />, label: 'Persos', color: 'border-blue-500/30 bg-blue-500/10 text-blue-500' },
-                            { to: '/presets-remote', icon: <Download className="h-4 w-4" />, label: 'En ligne', color: 'border-green-500/30 bg-green-500/10 text-green-500' },
-                            { to: '/bindings', icon: <Keyboard className="h-4 w-4" />, label: 'Bindings', color: 'border-purple-500/30 bg-purple-500/10 text-purple-500' },
-                            { to: '/graphics-settings', icon: <Monitor className="h-4 w-4" />, label: 'Paramètres', color: 'border-pink-500/30 bg-pink-500/10 text-pink-500' },
-                            { to: '/ship-maps', icon: <Map className="h-4 w-4" />, label: 'Vaisseaux', color: 'border-cyan-500/30 bg-cyan-500/10 text-cyan-500' },
-                            { to: '/updates', icon: <Download className="h-4 w-4" />, label: 'MAJ', color: 'border-primary/30 bg-primary/10 text-primary' },
+                            { to: '/cache', icon: <Brush className="h-3.5 w-3.5" />, label: 'Cache', color: 'text-orange-500' },
+                            { to: '/presets-local', icon: <Users className="h-3.5 w-3.5" />, label: 'Persos', color: 'text-blue-500' },
+                            { to: '/presets-remote', icon: <Download className="h-3.5 w-3.5" />, label: 'En ligne', color: 'text-green-500' },
+                            { to: '/bindings', icon: <Keyboard className="h-3.5 w-3.5" />, label: 'Bindings', color: 'text-purple-500' },
+                            { to: '/graphics-settings', icon: <Monitor className="h-3.5 w-3.5" />, label: 'Paramètres', color: 'text-pink-500' },
+                            { to: '/ship-maps', icon: <Map className="h-3.5 w-3.5" />, label: 'Vaisseaux', color: 'text-cyan-500' },
+                            { to: '/updates', icon: <Download className="h-3.5 w-3.5" />, label: 'MAJ', color: 'text-primary' },
                         ].map((item) => (
                             <Link
                                 key={item.to}
                                 to={item.to}
-                                className="group flex flex-col items-center gap-1.5 rounded-lg border border-border/40 bg-background/45 px-2 py-2.5 backdrop-blur-md transition-colors hover:border-primary/40 hover:bg-background/65"
+                                className="group flex items-center gap-1.5 rounded-full border border-border/45 bg-background/50 px-2.5 py-1.5 backdrop-blur-md transition-colors hover:border-primary/50 hover:bg-background/70"
                             >
-                                <div className={`flex h-8 w-8 items-center justify-center rounded-lg border ${item.color}`}>
-                                    {item.icon}
-                                </div>
-                                <span className="text-[11px] font-medium leading-tight text-center group-hover:text-primary transition-colors">
+                                <span className={item.color}>{item.icon}</span>
+                                <span className="text-[11.5px] font-medium leading-none group-hover:text-primary transition-colors">
                                     {item.label}
                                 </span>
                             </Link>
