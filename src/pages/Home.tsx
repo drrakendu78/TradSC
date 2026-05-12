@@ -120,53 +120,6 @@ const ANNOUNCEMENT_CONFIG = {
 };
 // ============================================
 
-// Animation variants pour les cartes
-const cardVariants = {
-    hidden: { opacity: 1, y: 0 },
-    visible: { opacity: 1, y: 0 },
-};
-
-// Bouton d'action rapide
-interface QuickActionProps {
-    to: string;
-    icon: React.ReactNode;
-    title: string;
-    description: string;
-    color: string;
-    index: number;
-}
-
-function QuickAction({ to, icon, title, description, color, index }: QuickActionProps) {
-    return (
-        <m.div
-            custom={index}
-            initial="hidden"
-            animate="visible"
-            variants={cardVariants}
-        >
-            <Link to={to} className="block group">
-                <div className="relative overflow-hidden rounded-xl border border-border/30 bg-background/60 transition-all duration-200 hover:border-primary/35 hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)]">
-                    <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-                    <div className="flex items-center gap-3 p-3.5">
-                        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${color}`}>
-                            {icon}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                            <h3 className="text-[12.5px] font-semibold leading-none transition-colors group-hover:text-primary">
-                                {title}
-                            </h3>
-                            <p className="mt-1 truncate text-[11px] text-foreground/70 dark:text-muted-foreground/65">
-                                {description}
-                            </p>
-                        </div>
-                        <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40 transition-all group-hover:translate-x-0.5 group-hover:text-primary" />
-                    </div>
-                </div>
-            </Link>
-        </m.div>
-    );
-}
-
 const LAUNCHER_CACHE_KEY = 'startradfr_launcher_status';
 const PLAYTIME_CACHE_KEY = 'startradfr_playtime_cache';
 const THIRD_PARTY_APPS_STORAGE_KEY = 'startradfr_third_party_apps';
@@ -1661,69 +1614,35 @@ function Home() {
                         transition={{ duration: 0.2 }}
                     >
                     
-                    <m.div 
-                        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"
+                    <m.div
+                        className="grid grid-cols-4 sm:grid-cols-7 gap-2"
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
                         transition={{ duration: 0.2 }}
                     >
-                        <QuickAction
-                            to="/cache"
-                            icon={<Brush className="h-4 w-4" />}
-                            title="Gestion du cache"
-                            description="Libérer de l'espace disque"
-                            color="border-orange-500/30 bg-orange-500/10 text-orange-500"
-                            index={0}
-                        />
-                        <QuickAction
-                            to="/presets-local"
-                            icon={<Users className="h-4 w-4" />}
-                            title="Mes personnages"
-                            description="Gérer vos persos locaux"
-                            color="border-blue-500/30 bg-blue-500/10 text-blue-500"
-                            index={1}
-                        />
-                        <QuickAction
-                            to="/presets-remote"
-                            icon={<Download className="h-4 w-4" />}
-                            title="Persos en ligne"
-                            description="Télécharger des presets"
-                            color="border-green-500/30 bg-green-500/10 text-green-500"
-                            index={2}
-                        />
-                        <QuickAction
-                            to="/bindings"
-                            icon={<Keyboard className="h-4 w-4" />}
-                            title="Bindings"
-                            description="Raccourcis clavier"
-                            color="border-purple-500/30 bg-purple-500/10 text-purple-500"
-                            index={3}
-                        />
-                        <QuickAction
-                            to="/graphics-settings"
-                            icon={<Monitor className="h-4 w-4" />}
-                            title="Paramètres généraux"
-                            description="Graphismes et contrôles"
-                            color="border-pink-500/30 bg-pink-500/10 text-pink-500"
-                            index={4}
-                        />
-                        <QuickAction
-                            to="/ship-maps"
-                            icon={<Map className="h-4 w-4" />}
-                            title="Cartes vaisseaux"
-                            description="Plans détaillés"
-                            color="border-cyan-500/30 bg-cyan-500/10 text-cyan-500"
-                            index={5}
-                        />
-                        <QuickAction
-                            to="/updates"
-                            icon={<Download className="h-4 w-4" />}
-                            title="Mises à jour"
-                            description="Gérer les mises à jour"
-                            color="border-primary/30 bg-primary/10 text-primary"
-                            index={6}
-                        />
+                        {[
+                            { to: '/cache', icon: <Brush className="h-4 w-4" />, label: 'Cache', color: 'border-orange-500/30 bg-orange-500/10 text-orange-500' },
+                            { to: '/presets-local', icon: <Users className="h-4 w-4" />, label: 'Persos', color: 'border-blue-500/30 bg-blue-500/10 text-blue-500' },
+                            { to: '/presets-remote', icon: <Download className="h-4 w-4" />, label: 'En ligne', color: 'border-green-500/30 bg-green-500/10 text-green-500' },
+                            { to: '/bindings', icon: <Keyboard className="h-4 w-4" />, label: 'Bindings', color: 'border-purple-500/30 bg-purple-500/10 text-purple-500' },
+                            { to: '/graphics-settings', icon: <Monitor className="h-4 w-4" />, label: 'Paramètres', color: 'border-pink-500/30 bg-pink-500/10 text-pink-500' },
+                            { to: '/ship-maps', icon: <Map className="h-4 w-4" />, label: 'Vaisseaux', color: 'border-cyan-500/30 bg-cyan-500/10 text-cyan-500' },
+                            { to: '/updates', icon: <Download className="h-4 w-4" />, label: 'MAJ', color: 'border-primary/30 bg-primary/10 text-primary' },
+                        ].map((item) => (
+                            <Link
+                                key={item.to}
+                                to={item.to}
+                                className="group flex flex-col items-center gap-1.5 rounded-lg border border-border/40 bg-background/45 px-2 py-2.5 backdrop-blur-md transition-colors hover:border-primary/40 hover:bg-background/65"
+                            >
+                                <div className={`flex h-8 w-8 items-center justify-center rounded-lg border ${item.color}`}>
+                                    {item.icon}
+                                </div>
+                                <span className="text-[11px] font-medium leading-tight text-center group-hover:text-primary transition-colors">
+                                    {item.label}
+                                </span>
+                            </Link>
+                        ))}
                     </m.div>
                     </m.div>
                 )}
