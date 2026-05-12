@@ -53,6 +53,13 @@ function extractSourceLabel(translations: LocalizationConfig | null, link: strin
 
 const TRANSLATION_STATUS_CACHE_KEY = 'startradfr_translation_status_cache';
 
+// TTL (en ms) pour éviter de re-lancer is_translation_up_to_date (HTTP vers SCEFRA)
+// si le hook a déjà compute récemment dans un autre composant.
+// Le cache localStorage reste la source d'affichage instantané au mount.
+const RECENT_COMPUTE_TTL_MS = 30_000;
+let lastComputeAt = 0;
+let inflightCompute: Promise<void> | null = null;
+
 interface CachedStatus {
     paths: GamePaths | null;
     selected: TranslationsChoosen | null;
@@ -89,11 +96,30 @@ export function useTranslationStatus(): TranslationStatusInfo {
     const [loading, setLoading] = useState(!cached);
     const mountedRef = useRef(true);
 
-    const computeState = useCallback(async () => {
+    const computeState = useCallback(async (force = false) => {
         if (!isTauri()) {
             setLoading(false);
             return;
         }
+
+        // Dédupe inter-composants : si un autre call est en cours, attendre celui-là
+        // au lieu d'en relancer un nouveau (qui ferait les mêmes invokes / HTTP en double).
+        if (inflightCompute) {
+            await inflightCompute;
+            if (mountedRef.current) setLoading(false);
+            return;
+        }
+
+        // TTL : si on a compute il y a moins de RECENT_COMPUTE_TTL_MS, skip (sauf force).
+        // Ça évite que le mount de plusieurs composants en cascade (Home, Sidebar,
+        // HomeStatusCard, navigation vers Traduction) ne relance plusieurs fois la
+        // chaîne d'invokes (qui inclut is_translation_up_to_date = HTTP SCEFRA).
+        if (!force && Date.now() - lastComputeAt < RECENT_COMPUTE_TTL_MS) {
+            setLoading(false);
+            return;
+        }
+
+        inflightCompute = (async () => {
         try {
             const [versionsRaw, savedPrefs, translationsData] = await Promise.all([
                 invoke('get_star_citizen_versions').catch(() => null),
@@ -171,8 +197,13 @@ export function useTranslationStatus(): TranslationStatusInfo {
             }
         } catch {
             if (mountedRef.current) setLoading(false);
+        } finally {
+            lastComputeAt = Date.now();
         }
+        })();
+        try { await inflightCompute; } finally { inflightCompute = null; }
     }, []);
+
 
     useEffect(() => {
         mountedRef.current = true;
@@ -183,15 +214,16 @@ export function useTranslationStatus(): TranslationStatusInfo {
         window.addEventListener('online', handleOnline);
 
         // Re-check sur événement personnalisé après install/update depuis la page Traduction
-        const refreshHandler = () => computeState();
+        // -> force = true pour ignorer le TTL (un install vient juste de changer l'état réel).
+        const refreshHandler = () => computeState(true);
         window.addEventListener('translationStatusChanged', refreshHandler as EventListener);
 
         // Écouter les events émis par le service background (background_service.rs)
         // qui check & update les traductions toutes les N minutes en arrière-plan.
         const tauriListeners: Array<Promise<() => void>> = [];
         if (isTauri()) {
-            tauriListeners.push(listen('translation-update-done', () => computeState()));
-            tauriListeners.push(listen('translation-update-error', () => computeState()));
+            tauriListeners.push(listen('translation-update-done', () => computeState(true)));
+            tauriListeners.push(listen('translation-update-error', () => computeState(true)));
         }
 
         return () => {

@@ -454,8 +454,8 @@ export default function Traduction() {
 
         if (customTranslationSources.some((source) => source.url === url) || officialTranslationLinks.some((link) => link.url === url)) {
             toast({
-                title: "Source dÃ©jÃ  prÃ©sente",
-                description: "Ce lien global.ini est dÃ©jÃ  disponible dans la liste.",
+                title: "Source dÃ©jà prÃ©sente",
+                description: "Ce lien global.ini est dÃ©jà disponible dans la liste.",
                 duration: 3000,
             });
             return;
@@ -680,8 +680,8 @@ export default function Traduction() {
             dispatch({ type: 'SET_LOADING_BUTTON', id: `${isUpdate ? "update" : "install"}-${version}` });
             if (isProtectedPath(versionData.path) && !isAdmin) {
                 toast({
-                    title: "Chemin protÃ©gÃ©",
-                    description: "Dossier sous Program Files: relance en admin recommandÃ©e (bouclier en bas Ã  droite).",
+                    title: "Chemin protégé",
+                    description: "Dossier sous Program Files: relance en admin recommandée (bouclier en bas à droite).",
                     success: "false",
                     duration: 5000,
                 });
@@ -1815,7 +1815,7 @@ export default function Traduction() {
                     <div className="min-w-0 space-y-4 overflow-y-auto px-5 py-4">
                         <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/10 p-3 text-xs leading-relaxed text-muted-foreground">
                             Le lien doit pointer vers un fichier <span className="font-semibold text-foreground">global.ini</span>.
-                            Une fois sÃ©lectionnÃ© dans une version, il utilise les mÃªmes boutons installer / mettre Ã  jour et le mÃªme service de mise Ã  jour automatique.
+                            Une fois sÃ©lectionnÃ© dans une version, il utilise les mÃªmes boutons installer / mettre à jour et le mÃªme service de mise à jour automatique.
                         </div>
 
                         <div className="grid min-w-0 gap-3 lg:grid-cols-[0.75fr_0.85fr_1.4fr]">

@@ -115,15 +115,17 @@ export default function HomeStatusCard() {
         <Card className="border-border/40 bg-background/45 backdrop-blur-md">
             <CardContent className="p-3">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {/* Statut serveurs RSI */}
-                    <div className="rounded-lg border border-border/30 bg-background/30 p-2.5 transition-colors hover:border-cyan-500/40">
+                    {/* Statut serveurs RSI — bloc entier cliquable */}
+                    <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => openExternal('https://status.robertsspaceindustries.com')}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openExternal('https://status.robertsspaceindustries.com'); } }}
+                        className="group rounded-lg border border-border/30 bg-background/30 p-2.5 transition-colors hover:border-cyan-500/40 hover:bg-background/40 cursor-pointer focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
+                        title="Ouvrir RSI Status (externe)"
+                    >
                         <div className="flex items-center justify-between gap-2 mb-2">
-                            <button
-                                type="button"
-                                onClick={() => openExternal('https://status.robertsspaceindustries.com')}
-                                className="group flex items-center gap-2 min-w-0 text-left"
-                                title="Ouvrir RSI Status (externe)"
-                            >
+                            <div className="flex items-center gap-2 min-w-0">
                                 <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border border-cyan-500/30 bg-cyan-500/10 text-cyan-400">
                                     <Server className="h-3.5 w-3.5" />
                                 </div>
@@ -136,9 +138,10 @@ export default function HomeStatusCard() {
                                         {loading ? 'Chargement...' : (STATUS_LABEL[overall] || overall)}
                                     </p>
                                 </div>
-                            </button>
+                            </div>
                             <button
-                                onClick={() => fetchStatus(true)}
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); fetchStatus(true); }}
                                 disabled={refreshing || loading}
                                 className="inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-background/60 hover:text-foreground disabled:opacity-50"
                                 title="Rafraîchir"
@@ -216,8 +219,8 @@ export default function HomeStatusCard() {
                                                                     {versionLabel}
                                                                 </span>
                                                             </TooltipTrigger>
-                                                            <TooltipContent side="top" className="text-xs">
-                                                                <div className="space-y-0.5">
+                                                            <TooltipContent side="bottom" sideOffset={6} align="start" className="text-xs !overflow-visible max-w-[280px]">
+                                                                <div className="space-y-0.5 whitespace-nowrap">
                                                                     {v.releaseVersion && <p>Version launcher : {v.releaseVersion}</p>}
                                                                     {v.gameVersion && <p>Version : {v.gameVersion}</p>}
                                                                     {v.buildNumber && <p>Build P4 : {v.buildNumber}</p>}
