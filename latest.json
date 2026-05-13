@@ -1,11 +1,11 @@
 {
-    "version":  "4.1.4",
-    "notes":  "v4.1.4 - Tableau de bord d'accueil repensé (statut serveurs RSI temps réel, versions Star Citizen avec build/branche, cartes cliquables, mini-lecteur d'ambiance). Indicateurs colorés dans la barre latérale (Traduction, Mises à jour). Fix de l'erreur ELEVATION_REQUIRED (740) à l'auto-update : l'app redémarre auto en admin si nécessaire. Programmes tiers auto-lancés/fermés avec le RSI Launcher.",
-    "pub_date":  "2026-05-12T22:40:52.046Z",
+    "version":  "4.1.5",
+    "notes":  "v4.1.5 - Card Traduction du tableau de bord reconnaît les sources personnalisées. Email retiré sous le pseudo dans la sidebar. Éditeur de bindings : détection correcte des actions vides (préfixe device sans bouton), toggle Actions vides respecté avec device sélectionné, position après édition préservée.",
+    "pub_date":  "2026-05-13T12:15:36.178Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRb1BzLzdHaFk1RlRpWG5zSFNDeHdRc0hHVHhyK3VKZmpFYVdPVFpVWlhBeTF3ZGVFUkJ1TjhnbTUvN09US08rN3crOW1UQVQreWR1cTZiSWdwOGg1TUoya2JQd2gybGdVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4NjI1NDA1CWZpbGU6U3RhclRyYWQgRlJfNC4xLjRfeDY0LXNldHVwLmV4ZQo2YVVFZWdIZExrOUhpSFEybVI1N0xDNVE3K2FqWFFycUlUa3hJTEJoaXdhcHpHSHRlQmFmOVUyb0tPMGpZMHBqeXc4TW05Z0xxY1hjQnlTN0lZamFBZz09Cg==",
-                                             "url":  "https://github.com/drrakendu78/TradSC/releases/download/v4.1.4/StarTrad.FR_4.1.4_x64-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRb1BzLzdHaFk1RmJjUUVYSzlFN0RzT01nOTQ4aDRrbnk2cVVMWWtEWmNUK09PbnlCbHZQSVcxaS83YnZjWWxJM0JXK0pqNWFRMXZSeVJvN3RDNkc2aHh6VkIvais0OHdFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4Njc0NDgxCWZpbGU6U3RhclRyYWQgRlJfNC4xLjVfeDY0LXNldHVwLmV4ZQp0cEMrQXRZTExLSmtRL3R6VTBrcEZZSmhQRHZ3T0g4c3RQT1REc1N5SEpHbm4vdjFncTJrblF4R0dqTjF1aEx2V0l4d3lUY1dIOHNUb2lRbFZlQXhEQT09Cg==",
+                                             "url":  "https://github.com/drrakendu78/TradSC/releases/download/v4.1.5/StarTrad.FR_4.1.5_x64-setup.exe"
                                          }
                   }
 }
