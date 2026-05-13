@@ -35,6 +35,7 @@ use scripts::graphics_settings::{
     get_user_cfg_advanced_settings, set_user_cfg_advanced_settings,
     get_graphics_presets, apply_graphics_preset,
 };
+use scripts::joystick_input::{read_active_joystick_inputs, list_gilrs_joystick_devices};
 use scripts::local_characters_functions::{
     apply_character_to_version, delete_character, download_character, duplicate_character, get_character_informations,
     open_characters_folder,
@@ -599,6 +600,8 @@ pub fn run() {
             list_bindings_files,
             list_control_profiles,
             list_input_hardware_devices,
+            read_active_joystick_inputs,
+            list_gilrs_joystick_devices,
             extract_default_bindings_from_game_data,
             delete_bindings_file,
             open_bindings_folder,
