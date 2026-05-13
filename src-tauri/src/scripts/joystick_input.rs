@@ -58,7 +58,6 @@ pub fn list_gilrs_joystick_devices() -> Result<Vec<GilrsDevice>, String> {
 }
 
 const AXIS_THRESHOLD: f32 = 0.65;
-const TRIGGER_THRESHOLD: f32 = 0.6;
 const MAX_BUTTONS_PER_DEVICE: usize = 128;
 
 #[derive(Debug, Serialize, Clone)]
