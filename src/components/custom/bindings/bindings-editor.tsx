@@ -4,6 +4,8 @@ import { open } from "@tauri-apps/plugin-dialog";
 import {
     AlertTriangle,
     Cpu,
+    Eye,
+    EyeOff,
     FolderOpen,
     Gamepad2,
     Heart,
@@ -416,6 +418,12 @@ function isGenericHardwareName(name: string) {
         || lower.includes("peripherique d entree usb")
         || lower.includes("peripherique conforme aux peripheriques d interface utilisateur")
         || lower.includes("peripherique fournisseur hid")
+        // Bluetooth HID host : ce n'est pas un device de jeu, c'est juste
+        // l'adapteur Bluetooth qui apparait comme un "device HID" cote Windows.
+        || lower.includes("peripherique hid bluetooth")
+        || lower.includes("hid bluetooth")
+        || lower.includes("bluetooth hid")
+        || lower.includes("bluetooth low energy")
         || lower === "vjoy driver";
 }
 
@@ -439,7 +447,11 @@ function isAssignablePhysicalHardware(hardware: HardwareDevice) {
 }
 
 function isLinkablePhysicalHardware(hardware: HardwareDevice) {
-    return hardware.source === "windows"
+    // Accepte windows (Get-PnpDevice) ET browser (gilrs / navigator.getGamepads).
+    // Les entrees gilrs ont un id "native:<slot>:<name>" qui match les captures
+    // d'input. Le filtre auto-create exclut explicitement les gilrs pour ne
+    // pas creer des cards en double (PnP + gilrs).
+    return (hardware.source === "windows" || hardware.source === "browser")
         && !hardware.virtualDevice
         && !isVirtualDeviceName(hardware.name)
         && !isGenericHardwareName(hardware.name);
@@ -591,6 +603,10 @@ function hardwareMatchesCapturedGamepad(
     captured: Pick<CapturedGamepadInput, "deviceId" | "deviceName" | "deviceKind">
 ) {
     if (!hardware) return false;
+    // Match exact par ID : si l'user a lie une card via "Lie a" a un device
+    // gilrs (ID au format "native:<slot>:<name>") et la capture vient du meme
+    // slot, on retourne true direct.
+    if (hardware.id === captured.deviceId) return true;
     if (hardware.source === "browser" && hardware.id === captured.deviceId) return true;
     if (hardware.kind !== "unknown" && captured.deviceKind !== "unknown" && hardware.kind !== captured.deviceKind) return false;
 
@@ -661,6 +677,18 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string)
 
 function hardwareLinkStorageKey(selectedVersion: string, profilePath: string) {
     return `startrad-bindings-hardware-links:${selectedVersion}:${profilePath}`;
+}
+
+function hiddenSlotsStorageKey(selectedVersion: string) {
+    return `startrad-bindings-hidden-slots:${selectedVersion}`;
+}
+
+function hiddenHwStorageKey(selectedVersion: string) {
+    return `startrad-bindings-hidden-hw:${selectedVersion}`;
+}
+
+function gilrsSlotMapStorageKey(selectedVersion: string, profilePath: string) {
+    return `startrad-bindings-gilrs-map:${selectedVersion}:${profilePath}`;
 }
 
 function normalizeInputForDevice(rawInput: string, deviceKind?: DeviceKind) {
@@ -920,6 +948,28 @@ function serializeDoc(doc: Document) {
     return new XMLSerializer().serializeToString(doc);
 }
 
+// Nettoie les declarations `<options type="joystick" instance="N" Product="vJoy Device...">`
+// que MES versions precedentes ajoutaient automatiquement au save. L'utilisateur
+// n'en veut pas dans startrad_user ; SC se debrouille tout seul pour mapper
+// js<N> via l'ordre des devices.
+const AUTO_ADDED_VJOY_GUID = "{BEAD1234-0000-0000-0000-504944564944}";
+
+function stripAutoAddedVjoyDeclarations(xml: string): string {
+    const doc = parseXml(xml);
+    let removed = false;
+    Array.from(doc.querySelectorAll("options")).forEach((options) => {
+        const type = (options.getAttribute("type") || "").toLowerCase();
+        const product = options.getAttribute("Product") || "";
+        // On ne retire que les vJoy auto-ajoutees par notre code (GUID specifique
+        // ET pas de contenu enfant, donc c'est juste une declaration vide).
+        if (type === "joystick" && product.includes(AUTO_ADDED_VJOY_GUID) && options.children.length === 0) {
+            options.remove();
+            removed = true;
+        }
+    });
+    return removed ? serializeDoc(doc) : xml;
+}
+
 function updateActionBinding(xml: string, row: BindingRow, nextInput: string) {
     const doc = parseXml(xml);
     const action = findActionElement(doc, row);
@@ -1169,8 +1219,31 @@ export function BindingsEditor({ selectedVersion }: BindingsEditorProps) {
     const [curveDraft, setCurveDraft] = useState<CurveDraft>({ exponent: 1, deadzone: 0, saturation: 1 });
     const [hardwareDevices, setHardwareDevices] = useState<HardwareDevice[]>([]);
     const [hardwareLinks, setHardwareLinks] = useState<Record<string, string>>({});
+    // Slots masques (oeil sur la carte). Stocke device.id, pas hardware.id :
+    // cliquer l'oeil sur "Joystick 1" cache "Joystick 1", pas le hw lie.
+    // Persiste par version pour que le choix tienne entre sessions.
+    const [hiddenSlotIds, setHiddenSlotIds] = useState<Set<string>>(() => new Set());
+    // IDs hardware Windows masques par l'user (via l'oeil). Masquer un hw
+    // = il disparait des cards ET la numerotation se resserre. Du coup si tu
+    // masques MOZA / Keychron entre Sol-R [L] et Sol-R [R], Sol-R [R]
+    // devient joystick:2 au lieu de joystick:5.
+    const [hiddenHwIds, setHiddenHwIds] = useState<Set<string>>(() => new Set());
+    // Mapping dynamique gilrs_slot -> cardId (joystick:N) appris au premier
+    // press. Modele SC : "le premier stick que tu presses devient js1, le
+    // deuxieme js2, etc.". Persiste par profil pour que ton choix tienne
+    // entre sessions.
+    const [gilrsSlotMap, setGilrsSlotMap] = useState<Record<number, string>>({});
     const hardwareRefreshInFlight = useRef(false);
     const componentMountedRef = useRef(true);
+    // Ref vers la liste de cards a jour (devices augmentes avec les slots
+    // auto-crees pour les sticks physiques). Utilisee par la dialog d'edition
+    // pour resoudre la capture d'input vers le bon joystick:N (ex: Sol-R [R]
+    // capture js6_button35 cote gilrs mais doit etre remappe en js2_button35
+    // si la card de Sol-R [R] est joystick:2). Updatee dans une useEffect plus
+    // bas une fois devices calcule.
+    const devicesRef = useRef<DeviceInfo[]>([]);
+    // Ref pour le mapping gilrs slot -> cardId, accessible depuis le polling.
+    const gilrsSlotMapRef = useRef<Record<number, string>>({});
 
     const selectedProfile = useMemo(
         () => profiles.find((profile) => profile.path === selectedProfilePath) ?? null,
@@ -1305,11 +1378,17 @@ export function BindingsEditor({ selectedVersion }: BindingsEditorProps) {
                 variant: "destructive",
             });
             // La Gamepad API reste disponible si l'inventaire Windows echoue.
-        } finally {
-            hardwareRefreshInFlight.current = false;
-            if (componentMountedRef.current) {
-                setIsRefreshingHardware(false);
-            }
+        }
+
+        // NB: on n'ajoute PAS les entries gilrs comme hardware (elles ont des
+        // noms generiques "Controleur de jeu HID" qui polluent le dropdown
+        // "Lie a"). L'auto-mapping cote resolver utilise directement le slot
+        // gilrs depuis captured.input pour traduire en js<N>, donc on n'a
+        // pas besoin d'exposer les entries gilrs au niveau hardware.
+
+        hardwareRefreshInFlight.current = false;
+        if (componentMountedRef.current) {
+            setIsRefreshingHardware(false);
         }
     }, [toast]);
 
@@ -1331,9 +1410,12 @@ export function BindingsEditor({ selectedVersion }: BindingsEditorProps) {
         }
     }, [selectedProfilePath, loadProfileXml]);
 
+    const hardwareLinksLoadedKey = useRef<string | null>(null);
+    const hardwareLinksSkipNextSave = useRef(false);
     useEffect(() => {
         if (!selectedProfilePath) {
             setHardwareLinks({});
+            hardwareLinksLoadedKey.current = null;
             return;
         }
 
@@ -1343,12 +1425,100 @@ export function BindingsEditor({ selectedVersion }: BindingsEditorProps) {
         } catch {
             setHardwareLinks({});
         }
+        hardwareLinksLoadedKey.current = `${selectedVersion}|${selectedProfilePath}`;
+        hardwareLinksSkipNextSave.current = true;
     }, [selectedProfilePath, selectedVersion]);
 
     useEffect(() => {
         if (!selectedProfilePath) return;
+        if (hardwareLinksLoadedKey.current !== `${selectedVersion}|${selectedProfilePath}`) return;
+        if (hardwareLinksSkipNextSave.current) {
+            hardwareLinksSkipNextSave.current = false;
+            return;
+        }
         localStorage.setItem(hardwareLinkStorageKey(selectedVersion, selectedProfilePath), JSON.stringify(hardwareLinks));
     }, [hardwareLinks, selectedProfilePath, selectedVersion]);
+
+    // Persistance du mapping gilrs slot -> cardId (par profil).
+    const gilrsMapLoadedKey = useRef<string | null>(null);
+    const gilrsMapSkipNextSave = useRef(false);
+    useEffect(() => {
+        if (!selectedProfilePath) {
+            setGilrsSlotMap({});
+            gilrsMapLoadedKey.current = null;
+            return;
+        }
+        try {
+            const raw = localStorage.getItem(gilrsSlotMapStorageKey(selectedVersion, selectedProfilePath));
+            setGilrsSlotMap(raw ? JSON.parse(raw) : {});
+        } catch {
+            setGilrsSlotMap({});
+        }
+        gilrsMapLoadedKey.current = `${selectedVersion}|${selectedProfilePath}`;
+        gilrsMapSkipNextSave.current = true;
+    }, [selectedProfilePath, selectedVersion]);
+
+    useEffect(() => {
+        if (!selectedProfilePath) return;
+        if (gilrsMapLoadedKey.current !== `${selectedVersion}|${selectedProfilePath}`) return;
+        if (gilrsMapSkipNextSave.current) {
+            gilrsMapSkipNextSave.current = false;
+            return;
+        }
+        localStorage.setItem(gilrsSlotMapStorageKey(selectedVersion, selectedProfilePath), JSON.stringify(gilrsSlotMap));
+    }, [gilrsSlotMap, selectedProfilePath, selectedVersion]);
+
+    // Charge les sets masques au mount / changement de version (sans
+    // declencher de save - les saves se font inline via setHiddenSlotIdsAndSave).
+    useEffect(() => {
+        try {
+            const raw = localStorage.getItem(hiddenSlotsStorageKey(selectedVersion));
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) {
+                    setHiddenSlotIds(new Set(parsed.filter((x): x is string => typeof x === "string")));
+                    return;
+                }
+            }
+        } catch {}
+        setHiddenSlotIds(new Set());
+    }, [selectedVersion]);
+
+    useEffect(() => {
+        try {
+            const raw = localStorage.getItem(hiddenHwStorageKey(selectedVersion));
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) {
+                    setHiddenHwIds(new Set(parsed.filter((x): x is string => typeof x === "string")));
+                    return;
+                }
+            }
+        } catch {}
+        setHiddenHwIds(new Set());
+    }, [selectedVersion]);
+
+    // Setters wrappes qui sauvegardent SYNCHRONEMENT dans localStorage.
+    // Pas de useEffect-save = pas de race possible avec le load.
+    const setHiddenSlotIdsAndSave = useCallback((updater: (prev: Set<string>) => Set<string>) => {
+        setHiddenSlotIds((prev) => {
+            const next = updater(prev);
+            try {
+                localStorage.setItem(hiddenSlotsStorageKey(selectedVersion), JSON.stringify(Array.from(next)));
+            } catch {}
+            return next;
+        });
+    }, [selectedVersion]);
+
+    const setHiddenHwIdsAndSave = useCallback((updater: (prev: Set<string>) => Set<string>) => {
+        setHiddenHwIds((prev) => {
+            const next = updater(prev);
+            try {
+                localStorage.setItem(hiddenHwStorageKey(selectedVersion), JSON.stringify(Array.from(next)));
+            } catch {}
+            return next;
+        });
+    }, [selectedVersion]);
 
     useEffect(() => {
         void refreshHardwareDevices();
@@ -1387,12 +1557,53 @@ export function BindingsEditor({ selectedVersion }: BindingsEditorProps) {
         window.addEventListener("mousedown", onMouseDown, true);
         window.addEventListener("wheel", onWheel, { capture: true, passive: false });
 
+        // Cache des inputs natifs (gilrs DirectInput) entre 2 invocations.
+        // Le browser API ne voit que XInput, donc on complete avec gilrs pour
+        // les vJoy / HOTAS / sticks DirectInput. L'invoke est async, on garde
+        // le dernier snapshot pour ne pas bloquer le polling.
+        let nativeInputs: CapturedGamepadInput[] = [];
+        let nativeInflight = false;
+        const debugEnabled = localStorage.getItem("startrad-bindings-debug") === "1";
+        const refreshNativeInputs = () => {
+            if (nativeInflight) return;
+            nativeInflight = true;
+            invoke<{ input: string; deviceName: string; slot: number }[]>("read_active_joystick_inputs")
+                .then((entries) => {
+                    if (debugEnabled && entries.length > 0) {
+                        console.log("[bindings:native]", entries);
+                    }
+                    nativeInputs = entries.map((entry) => ({
+                        input: entry.input,
+                        deviceId: `native:${entry.slot}:${entry.deviceName}`,
+                        deviceName: entry.deviceName,
+                        deviceKind: inferHardwareKindFromName(entry.deviceName),
+                    }));
+                })
+                .catch(() => {
+                    nativeInputs = [];
+                })
+                .finally(() => {
+                    nativeInflight = false;
+                });
+        };
+
         const interval = window.setInterval(() => {
-            const activeInputs = readActiveGamepadInputs();
-            const activeSet = new Set(activeInputs.map(capturedGamepadInputKey));
+            refreshNativeInputs();
+            const browserInputs = readActiveGamepadInputs();
+            // Dedup par cle (input + deviceId) : si un meme stick est vu par
+            // les deux APIs, on garde une seule entree.
+            const merged: CapturedGamepadInput[] = [];
+            const seen = new Set<string>();
+            for (const input of [...browserInputs, ...nativeInputs]) {
+                const key = capturedGamepadInputKey(input);
+                if (seen.has(key)) continue;
+                seen.add(key);
+                merged.push(input);
+            }
+            const activeSet = new Set(merged.map(capturedGamepadInputKey));
 
             if (Date.now() < warmupUntil) {
-                activeInputs.forEach((input) => ignoredGamepadInputs.add(capturedGamepadInputKey(input)));
+                merged.forEach((input) => ignoredGamepadInputs.add(capturedGamepadInputKey(input)));
                 return;
             }
 
@@ -1402,16 +1613,49 @@ export function BindingsEditor({ selectedVersion }: BindingsEditorProps) {
                 }
             });
 
-            const nextInput = activeInputs.find((input) => !ignoredGamepadInputs.has(capturedGamepadInputKey(input)));
+            const nextInput = merged.find((input) => !ignoredGamepadInputs.has(capturedGamepadInputKey(input)));
             if (nextInput) {
-                setCapturedValue(resolveCapturedGamepadInput(
+                // Auto-assignment dynamique du gilrs slot vers un card joystick.
+                // Modele SC : "premier stick presse devient js1, deuxieme js2".
+                // Si le slot gilrs n'est pas encore mappe, on l'associe au
+                // premier card joystick libre (pas encore associe a un autre
+                // slot gilrs). Persiste via gilrsSlotMap.
+                let resolved = resolveCapturedGamepadInput(
                     nextInput,
-                    parsed?.devices ?? [],
+                    devicesRef.current,
                     hardwareDevices,
                     hardwareLinks,
                     editingRow,
                     selectedDeviceId,
-                ));
+                );
+                const slotMatch = nextInput.input.match(/^js(\d+)_/);
+                if (slotMatch && nextInput.deviceId.startsWith("native:")) {
+                    const gilrsSlot = Number(slotMatch[1]);
+                    const suffix = nextInput.input.replace(/^js\d+_/, "");
+                    const currentMap = gilrsSlotMapRef.current;
+                    let cardId = currentMap[gilrsSlot];
+                    if (!cardId) {
+                        // Pas de mapping : trouve le premier card joystick libre
+                        // (pas deja associe a un autre slot gilrs).
+                        const joystickCards = devicesRef.current.filter((d) => d.kind === "joystick");
+                        const usedCardIds = new Set(Object.values(currentMap));
+                        const freeCard = joystickCards.find((c) => !usedCardIds.has(c.id));
+                        if (freeCard) {
+                            cardId = freeCard.id;
+                            const newMap = { ...currentMap, [gilrsSlot]: cardId };
+                            gilrsSlotMapRef.current = newMap;
+                            setGilrsSlotMap(newMap);
+                        }
+                    }
+                    if (cardId) {
+                        const instance = cardId.split(":")[1] || "1";
+                        resolved = `js${instance}_${suffix}`;
+                    }
+                }
+                if (debugEnabled) {
+                    console.log("[bindings:capture] input=", nextInput, " resolved=", resolved, " gilrsMap=", gilrsSlotMapRef.current);
+                }
+                setCapturedValue(resolved);
                 ignoredGamepadInputs.add(capturedGamepadInputKey(nextInput));
             }
         }, 120);
@@ -1431,11 +1675,190 @@ export function BindingsEditor({ selectedVersion }: BindingsEditorProps) {
     }, [hardwareDevices]);
 
     const rows = parsed?.rows ?? [];
-    const devices = parsed?.devices ?? [];
-    const deviceById = useMemo(() => new Map(devices.map((device) => [device.id, device])), [devices]);
+    const parsedDevices = parsed?.devices ?? [];
+    // linkableHardwareDevices = hw physiques utilisables ET non masques par
+    // l'user. Auto-creation se base sur cette liste -> masquer un hw resserre
+    // la numerotation joystick:N. Dedup par nom+kind normalise pour eviter
+    // les doublons quand PowerShell renvoie 2 entries pour le meme stick
+    // (ex: enumeration USB + HID interface du meme Sol-R).
+    const deduppedByNameKind = (list: HardwareDevice[]) => {
+        const seen = new Map<string, HardwareDevice>();
+        for (const h of list) {
+            const key = `${h.kind}:${normalizeHardwareName(h.name) || h.id.toLowerCase()}`;
+            const existing = seen.get(key);
+            // Priorite a "windows" sur "browser" car PnP a typiquement le VID/PID complet.
+            if (!existing) {
+                seen.set(key, h);
+            } else if (existing.source !== "windows" && h.source === "windows") {
+                seen.set(key, h);
+            }
+        }
+        return Array.from(seen.values());
+    };
     const linkableHardwareDevices = useMemo(
-        () => hardwareDevices.filter(isLinkablePhysicalHardware),
+        () => deduppedByNameKind(hardwareDevices.filter((h) => isLinkablePhysicalHardware(h) && !hiddenHwIds.has(h.id))),
+        [hardwareDevices, hiddenHwIds]
+    );
+    // Liste complete (incluant masques) pour rendre les cards fantomes
+    // "masque" dans le panneau.
+    const allLinkableHardware = useMemo(
+        () => deduppedByNameKind(hardwareDevices.filter(isLinkablePhysicalHardware)),
         [hardwareDevices]
+    );
+
+    // Cards = keyboard + mouse + vJoy declarations du profil + 1 card par
+    // joystick/gamepad physique branche. Les ref generiques type "Joystick 6"
+    // venant des bindings du XML (sans correspondance hardware) sont ignorees :
+    // si l'utilisateur a 2 sticks physiques, on cree joystick:1 + joystick:2,
+    // pas joystick:6. Les bindings js6_* restent visibles dans les actions
+    // jusqu'a ce que l'user re-bind sur joystick:2.
+    const devicesWithLinks = useMemo(() => {
+        const result: DeviceInfo[] = [];
+        // Map slot.id -> hw.id (pour traduire un click oeil sur une card
+        // auto-creee en mask du hw correspondant).
+        const slotToHw = new Map<string, string>();
+
+        // Detection : startrad_user_bindings_* est le fichier de travail
+        // genere par notre app. Les vJoy y ont ete auto-ajoutes par MES
+        // anciennes versions (corrige depuis). On les ignore TOUJOURS pour
+        // le display, peu importe le bindingCount. Pour les profils
+        // importes (layout_*_exported), les vJoy sont les vraies cibles SC
+        // mises par l'utilisateur lui-meme, donc on les montre.
+        const profileFileName = selectedProfilePath.split(/[\\/]/).pop() || "";
+        const isStartradUserProfile = profileFileName.startsWith("startrad_user_bindings_");
+
+        // Phase 1 : keyboard, mouse + vJoys (sauf si c'est startrad_user).
+        for (const d of parsedDevices) {
+            if (d.kind === "keyboard" || d.kind === "mouse") {
+                result.push(d);
+            } else if (isVirtualDeviceName(d.name) && !isStartradUserProfile) {
+                result.push(d);
+            }
+        }
+
+        const hasVjoyDeclarations = result.some(
+            (d) => (d.kind === "joystick" || d.kind === "gamepad") && isVirtualDeviceName(d.name)
+        );
+
+        // Phase 2 : 1 card par joystick physique NON masque. linkableHardwareDevices
+        // exclut deja les hw masques, donc la numerotation se resserre tout seul.
+        const usedJoystickInstances = new Set<number>(
+            result.filter((d) => d.kind === "joystick").map((d) => Number(d.instance || "1"))
+        );
+        // Pour auto-create on prend UNIQUEMENT les entrees windows (Get-PnpDevice).
+        // Les entrees gilrs (id "native:...") restent dispo dans le dropdown
+        // "Lie a" pour que l'utilisateur puisse les associer manuellement a
+        // une card si le matching automatique echoue.
+        // ATTENTION : si le XML declare des vJoys, on n'auto-cree PAS de
+        // cards physiques (les vJoys sont les cibles de bindings, Gremlin
+        // route les sticks vers eux).
+        const joystickHardware = hasVjoyDeclarations
+            ? []
+            : linkableHardwareDevices.filter((h) => h.kind === "joystick" && !h.id.startsWith("native:"));
+        const claimedHwIds = new Set<string>();
+        const slotsToCreate: { slot: number; hw: HardwareDevice }[] = [];
+        let nextSlot = 1;
+        for (let i = 0; i < joystickHardware.length; i++) {
+            while (usedJoystickInstances.has(nextSlot)) nextSlot++;
+            const slotId = `joystick:${nextSlot}`;
+            const explicit = hardwareLinks[slotId];
+            let chosenHw: HardwareDevice | undefined;
+            if (explicit && explicit !== AUTO_HARDWARE_LINK) {
+                chosenHw = joystickHardware.find((h) => h.id === explicit && !claimedHwIds.has(h.id));
+            }
+            if (!chosenHw) {
+                chosenHw = joystickHardware.find((h) => !claimedHwIds.has(h.id));
+            }
+            if (!chosenHw) break;
+            claimedHwIds.add(chosenHw.id);
+            slotsToCreate.push({ slot: nextSlot, hw: chosenHw });
+            usedJoystickInstances.add(nextSlot);
+            nextSlot++;
+        }
+        for (const { slot, hw } of slotsToCreate) {
+            const slotId = `joystick:${slot}`;
+            result.push({
+                id: slotId,
+                name: hw.name,
+                kind: "joystick",
+                instance: String(slot),
+                bindingCount: 0,
+            });
+            slotToHw.set(slotId, hw.id);
+        }
+
+        // Phase 3 : 1 card par gamepad physique non masque (exclu gilrs).
+        const usedGamepadInstances = new Set<number>(
+            result.filter((d) => d.kind === "gamepad").map((d) => Number(d.instance || "1"))
+        );
+        // Idem pour gamepad : si XML a des vJoys (joystick) on n'auto-cree
+        // pas non plus de gamepad. C'est l'interpretation "vJoy => bindings
+        // ciblent vJoy, pas physique".
+        const gamepadHardware = hasVjoyDeclarations
+            ? []
+            : linkableHardwareDevices.filter((h) => h.kind === "gamepad" && !h.id.startsWith("native:"));
+        const claimedGamepadHwIds = new Set<string>();
+        const gamepadSlotsToCreate: { slot: number; hw: HardwareDevice }[] = [];
+        let nextGamepadSlot = 1;
+        for (let i = 0; i < gamepadHardware.length; i++) {
+            while (usedGamepadInstances.has(nextGamepadSlot)) nextGamepadSlot++;
+            const slotId = `gamepad:${nextGamepadSlot}`;
+            const explicit = hardwareLinks[slotId];
+            let chosenHw: HardwareDevice | undefined;
+            if (explicit && explicit !== AUTO_HARDWARE_LINK) {
+                chosenHw = gamepadHardware.find((h) => h.id === explicit && !claimedGamepadHwIds.has(h.id));
+            }
+            if (!chosenHw) {
+                chosenHw = gamepadHardware.find((h) => !claimedGamepadHwIds.has(h.id));
+            }
+            if (!chosenHw) break;
+            claimedGamepadHwIds.add(chosenHw.id);
+            gamepadSlotsToCreate.push({ slot: nextGamepadSlot, hw: chosenHw });
+            usedGamepadInstances.add(nextGamepadSlot);
+            nextGamepadSlot++;
+        }
+        for (const { slot, hw } of gamepadSlotsToCreate) {
+            const slotId = `gamepad:${slot}`;
+            result.push({
+                id: slotId,
+                name: hw.name,
+                kind: "gamepad",
+                instance: String(slot),
+                bindingCount: 0,
+            });
+            slotToHw.set(slotId, hw.id);
+        }
+
+        return { devices: result, slotToHw };
+    }, [parsedDevices, linkableHardwareDevices, hardwareLinks, selectedProfilePath]);
+    const devices = devicesWithLinks.devices;
+    const slotToHw = devicesWithLinks.slotToHw;
+    const deviceById = useMemo(() => new Map(devices.map((device) => [device.id, device])), [devices]);
+
+    // Sync devicesRef pour la dialog d'edition (qui lit devices via ref pour
+    // eviter le TDZ — l'useEffect d'edition est declare avant `devices`).
+    useEffect(() => {
+        devicesRef.current = devices;
+    }, [devices]);
+    useEffect(() => {
+        gilrsSlotMapRef.current = gilrsSlotMap;
+    }, [gilrsSlotMap]);
+
+    // Slots visibles vs masques (oeil sur la carte).
+    const visibleDevices = useMemo(
+        () => devices.filter((d) => !hiddenSlotIds.has(d.id)),
+        [devices, hiddenSlotIds]
+    );
+    const hiddenSlotsList = useMemo(
+        () => devices.filter((d) => hiddenSlotIds.has(d.id)),
+        [devices, hiddenSlotIds]
+    );
+    // Cards fantomes pour les hw masques (pas dans devices car exclus de
+    // linkableHardwareDevices). On les liste a part pour permettre a l'user
+    // de les re-afficher.
+    const hiddenHwCards = useMemo(
+        () => allLinkableHardware.filter((h) => hiddenHwIds.has(h.id)),
+        [allLinkableHardware, hiddenHwIds]
     );
     const virtualSystemDevices = useMemo(
         () => hardwareDevices.filter((device) => device.source === "windows" && (device.virtualDevice || isVirtualDeviceName(device.name))),
@@ -1631,9 +2054,16 @@ export function BindingsEditor({ selectedVersion }: BindingsEditorProps) {
                 : selectedProfile.path;
             const targetName = basename(targetPath);
 
-            await invoke("write_text_file", { path: targetPath, content: xmlContent });
+            // Avant ecriture : nettoie les declarations vJoy auto-ajoutees
+            // par les anciennes versions de l'app (l'utilisateur n'en veut
+            // pas, SC mappe via l'ordre joy.cpl ou via Gremlin).
+            const finalXml = stripAutoAddedVjoyDeclarations(xmlContent);
+            if (finalXml !== xmlContent) {
+                setXmlContent(finalXml);
+            }
+            await invoke("write_text_file", { path: targetPath, content: finalXml });
             rememberSelectedProfilePath(selectedVersion, targetPath);
-            setOriginalXml(xmlContent);
+            setOriginalXml(finalXml);
             if (writingFromBase) {
                 await loadProfiles(targetPath);
             }
@@ -1851,11 +2281,33 @@ export function BindingsEditor({ selectedVersion }: BindingsEditorProps) {
                                 </span>
                             </span>
                         </button>
-                        {devices.map((device) => {
+                        {visibleDevices.map((device) => {
                             const Icon = deviceIcon(device.kind);
                             const status = getDeviceStatus(device);
                             const displayName = getDeviceDisplayName(device.id, device.kind, device.name);
                             const isVirtualProfileDevice = isVirtualDeviceName(device.name);
+                            const isHidable = device.id !== "keyboard" && device.id !== "mouse";
+                            const toggleHidden = () => {
+                                // Pour les cards auto-creees (avec hw associe), on masque
+                                // le HW : ca libere son slot et la numerotation se resserre
+                                // (joystick:3 = Sol-R [R] devient joystick:2 si on masque MOZA).
+                                // Pour les vJoy declarees du profil (pas de hw lie), on masque
+                                // simplement le slot.
+                                const linkedHwId = slotToHw.get(device.id);
+                                if (linkedHwId) {
+                                    setHiddenHwIdsAndSave((prev) => {
+                                        const next = new Set(prev);
+                                        if (next.has(linkedHwId)) next.delete(linkedHwId); else next.add(linkedHwId);
+                                        return next;
+                                    });
+                                } else {
+                                    setHiddenSlotIdsAndSave((prev) => {
+                                        const next = new Set(prev);
+                                        if (next.has(device.id)) next.delete(device.id); else next.add(device.id);
+                                        return next;
+                                    });
+                                }
+                            };
                             const hardwareOptions = linkableHardwareDevices.filter((hardware) => {
                                 if (device.kind === "joystick") return hardware.kind === "joystick";
                                 if (device.kind === "gamepad") return hardware.kind === "gamepad";
@@ -1896,70 +2348,144 @@ export function BindingsEditor({ selectedVersion }: BindingsEditorProps) {
                                 </>
                             );
 
-                            if (isVirtualProfileDevice) {
+                            // Cards keyboard/mouse : pas de dropdown Lie a (pas de hw a choisir)
+                            const showLinkDropdown = device.kind === "joystick" || device.kind === "gamepad";
+
+                            if (!showLinkDropdown) {
                                 return (
                                     <div
                                         key={device.id}
-                                        title={`${displayName} - ${status.label}${status.detail ? ` - ${status.detail}` : ""}`}
-                                        className={cn("h-[74px] px-2.5 py-1.5", cardClassName)}
+                                        className="relative h-12"
                                     >
                                         <button
                                             type="button"
                                             onClick={() => setSelectedDeviceId(device.id)}
-                                            className="flex w-full min-w-0 items-center gap-2 text-left"
+                                            title={`${displayName} - ${status.label}${status.detail ? ` - ${status.detail}` : ""}`}
+                                            className={cn("flex h-12 w-full items-center gap-2 px-2.5 py-1.5", cardClassName)}
                                         >
                                             {deviceSummary}
                                         </button>
-                                        <div className="mt-1 flex min-w-0 items-center gap-1.5">
-                                            <span className="shrink-0 text-[10px] font-medium text-muted-foreground">Lie a</span>
-                                            <Select
-                                                value={selectedHardwareLink}
-                                                onValueChange={(value) => {
-                                                    setHardwareLinks((current) => {
-                                                        const next = { ...current };
-                                                        if (value === AUTO_HARDWARE_LINK) delete next[device.id];
-                                                        else next[device.id] = value;
-                                                        return next;
-                                                    });
-                                                }}
-                                            >
-                                                <SelectTrigger className="h-6 min-w-0 flex-1 rounded-md border-border/35 bg-[hsl(var(--background)/0.32)] px-2 text-[11px]">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value={AUTO_HARDWARE_LINK}>
-                                                        Auto{autoLinkedHardware ? ` - ${hardwareOptionLabel(autoLinkedHardware)}` : " - aucun"}
-                                                    </SelectItem>
-                                                    {hardwareOptions.map((hardware) => (
-                                                        <SelectItem key={hardware.id} value={hardware.id}>
-                                                            {hardwareOptionLabel(hardware)}
-                                                        </SelectItem>
-                                                    ))}
-                                                    {selectedHardwareIsMissing ? (
-                                                        <SelectItem value={selectedHardwareLink} disabled>Hardware absent</SelectItem>
-                                                    ) : null}
-                                                    {!hardwareOptions.length ? (
-                                                        <SelectItem value="no-hardware" disabled>Aucun hardware physique</SelectItem>
-                                                    ) : null}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
                                     </div>
                                 );
                             }
 
                             return (
-                                <button
+                                <div
                                     key={device.id}
-                                    type="button"
-                                    onClick={() => setSelectedDeviceId(device.id)}
                                     title={`${displayName} - ${status.label}${status.detail ? ` - ${status.detail}` : ""}`}
-                                    className={cn("flex h-12 items-center gap-2 px-2.5 py-1.5", cardClassName)}
+                                    className={cn("relative h-[74px] px-2.5 py-1.5", cardClassName)}
                                 >
-                                    {deviceSummary}
-                                </button>
+                                    {isHidable && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); toggleHidden(); }}
+                                            title="Masquer ce slot"
+                                            className="absolute top-1 right-1 z-10 inline-flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground/70 hover:bg-background/60 hover:text-foreground"
+                                        >
+                                            <EyeOff className="h-3 w-3" />
+                                        </button>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedDeviceId(device.id)}
+                                        className="flex w-full min-w-0 items-center gap-2 text-left"
+                                    >
+                                        {deviceSummary}
+                                    </button>
+                                    <div className="mt-1 flex min-w-0 items-center gap-1.5">
+                                        <span className="shrink-0 text-[10px] font-medium text-muted-foreground">Lie a</span>
+                                        <Select
+                                            value={selectedHardwareLink}
+                                            onValueChange={(value) => {
+                                                setHardwareLinks((current) => {
+                                                    const next = { ...current };
+                                                    if (value === AUTO_HARDWARE_LINK) delete next[device.id];
+                                                    else next[device.id] = value;
+                                                    return next;
+                                                });
+                                            }}
+                                        >
+                                            <SelectTrigger className="h-6 min-w-0 flex-1 rounded-md border-border/35 bg-[hsl(var(--background)/0.32)] px-2 text-[11px]">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value={AUTO_HARDWARE_LINK}>
+                                                    Auto{autoLinkedHardware ? ` - ${hardwareOptionLabel(autoLinkedHardware)}` : " - auto"}
+                                                </SelectItem>
+                                                {hardwareOptions.map((hardware) => (
+                                                    <SelectItem key={hardware.id} value={hardware.id}>
+                                                        {hardwareOptionLabel(hardware)}
+                                                    </SelectItem>
+                                                ))}
+                                                {selectedHardwareIsMissing ? (
+                                                    <SelectItem value={selectedHardwareLink} disabled>Hardware absent</SelectItem>
+                                                ) : null}
+                                                {!hardwareOptions.length ? (
+                                                    <SelectItem value="no-hardware" disabled>Aucun hardware physique</SelectItem>
+                                                ) : null}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
                             );
                         })}
+                        {hiddenSlotsList.map((device) => {
+                            const displayName = getDeviceDisplayName(device.id, device.kind, device.name);
+                            return (
+                                <div
+                                    key={`hidden:${device.id}`}
+                                    className="relative flex h-12 items-center gap-2 rounded-lg border border-dashed border-border/35 bg-[hsl(var(--background)/0.10)] px-2.5 py-1.5 text-muted-foreground/70 opacity-60"
+                                    title={`${displayName} - masque`}
+                                >
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setHiddenSlotIdsAndSave((prev) => {
+                                                const next = new Set(prev);
+                                                next.delete(device.id);
+                                                return next;
+                                            });
+                                        }}
+                                        title="Reafficher ce slot"
+                                        className="absolute top-1 right-1 z-10 inline-flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground/70 hover:bg-background/60 hover:text-foreground"
+                                    >
+                                        <Eye className="h-3 w-3" />
+                                    </button>
+                                    <Gamepad2 className="h-3.5 w-3.5 shrink-0" />
+                                    <span className="min-w-0 flex-1">
+                                        <span className="block truncate text-[13px] font-medium">{displayName}</span>
+                                        <span className="block text-[11px] text-muted-foreground/60">masque</span>
+                                    </span>
+                                </div>
+                            );
+                        })}
+                        {hiddenHwCards.map((hw) => (
+                            <div
+                                key={`hidden-hw:${hw.id}`}
+                                className="relative flex h-12 items-center gap-2 rounded-lg border border-dashed border-border/35 bg-[hsl(var(--background)/0.10)] px-2.5 py-1.5 text-muted-foreground/70 opacity-60"
+                                title={`${hw.name} - masque`}
+                            >
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setHiddenHwIdsAndSave((prev) => {
+                                            const next = new Set(prev);
+                                            next.delete(hw.id);
+                                            return next;
+                                        });
+                                    }}
+                                    title="Reafficher ce hardware"
+                                    className="absolute top-1 right-1 z-10 inline-flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground/70 hover:bg-background/60 hover:text-foreground"
+                                >
+                                    <Eye className="h-3 w-3" />
+                                </button>
+                                <Gamepad2 className="h-3.5 w-3.5 shrink-0" />
+                                <span className="min-w-0 flex-1">
+                                    <span className="block truncate text-[13px] font-medium">{hw.name}</span>
+                                    <span className="block text-[11px] text-muted-foreground/60">masque</span>
+                                </span>
+                            </div>
+                        ))}
                     </div>
                 </section>
 
@@ -2047,6 +2573,14 @@ export function BindingsEditor({ selectedVersion }: BindingsEditorProps) {
                                         const displayDeviceKind = displayBinding?.deviceKind ?? row.deviceKind;
                                         const Icon = deviceIcon(displayDeviceKind);
                                         const firstBinding = displayBinding?.input ?? "";
+                                        // Si la binding pointe vers un slot joystick/gamepad inexistant
+                                        // (genre js6 alors qu'on a que 2 sticks), OU vers un slot
+                                        // que l'utilisateur a masque (genre MOZA / Keychron qu'il
+                                        // ne considere pas comme un vrai joystick), on traite
+                                        // l'action comme orpheline : "Non attribue".
+                                        const isOrphanBinding = row.hasBinding
+                                            && (displayDeviceKind === "joystick" || displayDeviceKind === "gamepad")
+                                            && (!deviceById.has(displayDeviceId) || hiddenSlotIds.has(displayDeviceId));
                                         const displayDevice = deviceById.get(displayDeviceId) ?? {
                                             id: displayDeviceId,
                                             name: deviceNameFromId(displayDeviceId, displayDeviceKind),
@@ -2080,7 +2614,7 @@ export function BindingsEditor({ selectedVersion }: BindingsEditorProps) {
                                                     </p>
                                                 </td>
                                                 <td className="border-b border-border/18 px-4 py-3 align-middle">
-                                                    {row.hasBinding ? (
+                                                    {row.hasBinding && !isOrphanBinding ? (
                                                         <span
                                                             className={cn(
                                                                 "inline-flex max-w-[210px] items-center gap-1.5 rounded-lg bg-[hsl(var(--background)/0.42)] px-2.5 py-1 text-xs font-medium",
@@ -2115,12 +2649,12 @@ export function BindingsEditor({ selectedVersion }: BindingsEditorProps) {
                                                         onClick={() => startEdit(row)}
                                                         className={cn(
                                                             "max-w-full truncate rounded-lg px-2.5 py-1.5 text-left font-mono text-sm transition-colors",
-                                                            row.hasBinding
+                                                            row.hasBinding && !isOrphanBinding
                                                                 ? "bg-primary/10 text-primary hover:bg-primary/16"
                                                                 : "bg-[hsl(var(--background)/0.28)] text-muted-foreground hover:text-foreground"
                                                         )}
                                                     >
-                                                        {formatBindingInput(firstBinding)}
+                                                        {isOrphanBinding ? "Non attribue" : formatBindingInput(firstBinding)}
                                                     </button>
                                                 </td>
                                                 <td className="border-b border-border/18 px-4 py-3 align-middle">

@@ -9,6 +9,7 @@ pub mod config_paths;
 pub mod discord_presence;
 pub mod gamepath;
 pub mod graphics_settings;
+pub mod joystick_input;
 pub mod local_characters_functions;
 pub mod oauth_callback;
 pub mod offline_cache;
