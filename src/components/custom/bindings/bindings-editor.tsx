@@ -273,9 +273,15 @@ function toErrorMessage(error: unknown, fallback = "Une erreur inattendue est su
     return fallback;
 }
 
+// Match un input qui n'est qu'un préfixe device sans bouton/axe (ex: "js2_", "kb1_",
+// "mo1_", "xi1_", "gp1_", ou même juste "js2") → considéré comme vide (action non
+// attribuée même si le device est listé dans l'XML).
+const DEVICE_PREFIX_ONLY = /^(kb|mo|js|gp|xi|joy|pad|key|mouse|pi)\d*_?$/i;
+
 function cleanBindingInput(value: string | null | undefined) {
     const input = (value ?? "").trim();
     if (EMPTY_INPUTS.has(input.toLowerCase())) return "";
+    if (DEVICE_PREFIX_ONLY.test(input)) return "";
     return input;
 }
 
@@ -1156,6 +1162,9 @@ export function BindingsEditor({ selectedVersion }: BindingsEditorProps) {
     const [baseError, setBaseError] = useState("");
     const [editingRow, setEditingRow] = useState<BindingRow | null>(null);
     const [editValue, setEditValue] = useState("");
+    // Garde les rows récemment éditées visibles même si le filtre actuel ne match plus,
+    // pour ne pas faire "disparaître" l'action que l'user vient de modifier.
+    const [stickyRowIds, setStickyRowIds] = useState<Set<string>>(() => new Set());
     const [curveRow, setCurveRow] = useState<BindingRow | null>(null);
     const [curveDraft, setCurveDraft] = useState<CurveDraft>({ exponent: 1, deadzone: 0, saturation: 1 });
     const [hardwareDevices, setHardwareDevices] = useState<HardwareDevice[]>([]);
@@ -1525,10 +1534,24 @@ export function BindingsEditor({ selectedVersion }: BindingsEditorProps) {
     const visibleRows = useMemo(() => {
         const query = search.trim().toLowerCase();
         return rows.filter((row) => {
+            // Bypass : si la row vient juste d'être éditée, on la garde visible
+            // tant que les filtres n'ont pas été modifiés (évite le "disparaît après edit").
+            if (stickyRowIds.has(row.id)) return true;
             if (!showEmptyActions && !row.hasBinding) return false;
             if (selectedDeviceId !== ALL_DEVICES) {
                 if (selectedDeviceId === NO_DEVICE && row.hasBinding) return false;
-                if (selectedDeviceId !== NO_DEVICE && !row.bindings.some((binding) => binding.deviceId === selectedDeviceId)) return false;
+                // Quand un device spécifique est choisi : on garde les rows liées à ce device,
+                // ET les rows vides si le toggle "Actions vides" est ON.
+                if (
+                    selectedDeviceId !== NO_DEVICE
+                    && row.hasBinding
+                    && !row.bindings.some((binding) => binding.deviceId === selectedDeviceId)
+                ) return false;
+                if (
+                    selectedDeviceId !== NO_DEVICE
+                    && !row.hasBinding
+                    && !showEmptyActions
+                ) return false;
             }
             if (!query) return true;
 
@@ -1541,7 +1564,12 @@ export function BindingsEditor({ selectedVersion }: BindingsEditorProps) {
                 getDeviceDisplayName(row.deviceId, row.deviceKind),
             ].some((part) => part.toLowerCase().includes(query));
         });
-    }, [getDeviceDisplayName, rows, search, selectedDeviceId, showEmptyActions]);
+    }, [getDeviceDisplayName, rows, search, selectedDeviceId, showEmptyActions, stickyRowIds]);
+
+    // Quand un filtre/recherche change, on oublie les rows "sticky" (effet de masquage normal)
+    useEffect(() => {
+        setStickyRowIds(new Set());
+    }, [search, selectedDeviceId, showEmptyActions]);
 
     const stats = useMemo(() => {
         const bound = rows.filter((row) => row.hasBinding).length;
@@ -1659,7 +1687,9 @@ export function BindingsEditor({ selectedVersion }: BindingsEditorProps) {
     const applyEdit = () => {
         if (!editingRow) return;
         try {
+            const editedId = editingRow.id;
             setXmlContent((current) => updateActionBinding(current, editingRow, editValue));
+            setStickyRowIds((prev) => new Set(prev).add(editedId));
             setEditingRow(null);
         } catch (error) {
             toast({
@@ -1673,6 +1703,7 @@ export function BindingsEditor({ selectedVersion }: BindingsEditorProps) {
     const clearBinding = (row: BindingRow) => {
         try {
             setXmlContent((current) => updateActionBinding(current, row, ""));
+            setStickyRowIds((prev) => new Set(prev).add(row.id));
         } catch (error) {
             toast({
                 title: "Liaison",

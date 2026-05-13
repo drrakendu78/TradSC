@@ -33,14 +33,40 @@ export interface TranslationStatusInfo {
 }
 
 const DEFAULT_LANG = 'fr';
+const CUSTOM_SOURCES_KEY = 'startrad.customTranslationSources.v1';
 
-function extractSourceLabel(translations: LocalizationConfig | null, link: string | null): string | null {
+interface CustomSource {
+    id: string;
+    name: string;
+    url: string;
+    language?: string;
+}
+
+function readCustomSources(): CustomSource[] {
+    if (typeof window === 'undefined') return [];
+    try {
+        const raw = window.localStorage.getItem(CUSTOM_SOURCES_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+        return parsed.filter((s): s is CustomSource => Boolean(s && typeof s.url === 'string' && typeof s.name === 'string'));
+    } catch {
+        return [];
+    }
+}
+
+function extractSourceLabel(translations: LocalizationConfig | null, link: string | null, customSources: CustomSource[]): string | null {
     if (!link) return null;
     if (link.startsWith('cache:')) {
         const src = link.replace('cache:', '');
         if (src.includes('scefra') || src.includes('scfra')) return 'SCEFRA';
         if (src.includes('circuspes')) return 'Circuspes';
         return src;
+    }
+    // Source custom (perso) ?
+    const custom = customSources.find((s) => s.url === link);
+    if (custom) {
+        return `Perso · ${custom.name}`;
     }
     const found = translations?.fr?.links?.find((l) => l.url === link);
     if (found) {
@@ -273,7 +299,7 @@ export function useTranslationStatus(): TranslationStatusInfo {
     }
 
     const liveLink = selected?.LIVE?.link ?? versionsArray[0]?.selectedLink ?? null;
-    const sourceLabel = extractSourceLabel(translations, liveLink);
+    const sourceLabel = extractSourceLabel(translations, liveLink, readCustomSources());
 
     return {
         status,

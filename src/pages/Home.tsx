@@ -1469,7 +1469,7 @@ function Home() {
                                     ? 'Aucune version détectée'
                                     : status === 'not_installed'
                                         ? scLiveVersion ? `LIVE ${scLiveVersion} en attente` : 'À installer'
-                                        : `${sourceLabel ?? 'SCEFRA'}${scLiveVersion ? ` · LIVE ${scLiveVersion}` : ''}`;
+                                        : `${sourceLabel ?? 'Source inconnue'}${scLiveVersion ? ` · LIVE ${scLiveVersion}` : ''}`;
                                 return (
                                     <>
                                         <p className="mt-1.5 text-xl font-semibold">{label}</p>
