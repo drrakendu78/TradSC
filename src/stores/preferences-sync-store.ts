@@ -31,6 +31,10 @@ export interface ExportedPreferences {
     customLinks?: {
         links: CustomLink[];
     };
+    blueprints?: {
+        owned: string[];
+        updatedAt: string;
+    };
 }
 
 interface PreferencesSyncStore {
@@ -59,6 +63,27 @@ interface PreferencesSyncStore {
 
 const EXPORT_VERSION = "1.0.0";
 const PLAYTIME_CACHE_KEY = "startradfr_playtime_cache";
+const BLUEPRINTS_OWNED_STORAGE_KEY = "blueprints_owned_v2";
+
+function readOwnedBlueprintsFromLocal(): string[] {
+    try {
+        const raw = localStorage.getItem(BLUEPRINTS_OWNED_STORAGE_KEY);
+        if (!raw) return [];
+        const arr = JSON.parse(raw);
+        return Array.isArray(arr) ? arr.filter((x) => typeof x === "string") : [];
+    } catch {
+        return [];
+    }
+}
+
+function writeOwnedBlueprintsToLocal(owned: string[]) {
+    try {
+        localStorage.setItem(BLUEPRINTS_OWNED_STORAGE_KEY, JSON.stringify(owned));
+        window.dispatchEvent(new CustomEvent("blueprints-owned-changed"));
+    } catch {
+        // ignore
+    }
+}
 
 export const usePreferencesSyncStore = create<PreferencesSyncStore>((set, get) => ({
     isSyncing: false,
@@ -118,6 +143,10 @@ export const usePreferencesSyncStore = create<PreferencesSyncStore>((set, get) =
             customLinks: {
                 links: customLinksState.links,
             },
+            blueprints: {
+                owned: readOwnedBlueprintsFromLocal(),
+                updatedAt: new Date().toISOString(),
+            },
         };
     },
 
@@ -171,6 +200,13 @@ export const usePreferencesSyncStore = create<PreferencesSyncStore>((set, get) =
             if (prefs.customLinks?.links) {
                 const customLinksStore = useCustomLinksStore.getState();
                 customLinksStore.setLinks(prefs.customLinks.links);
+            }
+
+            // Import blueprints owned : union avec l'existant local (jamais de perte)
+            if (prefs.blueprints?.owned) {
+                const local = new Set(readOwnedBlueprintsFromLocal());
+                for (const id of prefs.blueprints.owned) local.add(id);
+                writeOwnedBlueprintsToLocal(Array.from(local));
             }
 
             set({ error: null });

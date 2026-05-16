@@ -1,6 +1,7 @@
 pub mod app_stats;
 pub mod background_service;
 pub mod bindings_functions;
+pub mod blueprints;
 pub mod cache_functions;
 pub mod character_backup;
 pub mod cloud_backup;
