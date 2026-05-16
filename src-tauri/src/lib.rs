@@ -11,6 +11,9 @@ use scripts::bindings_functions::{
     list_bindings_files, list_control_profiles, list_input_hardware_devices, open_bindings_folder,
     refresh_bindings,
 };
+use scripts::blueprints::{
+    blueprint_detail, blueprints_config, blueprints_list, blueprints_refresh_localization,
+};
 use scripts::cache_functions::{
     clear_cache, delete_folder, get_cache_informations, open_cache_folder,
 };
@@ -606,6 +609,10 @@ pub fn run() {
             delete_bindings_file,
             open_bindings_folder,
             refresh_bindings,
+            blueprints_list,
+            blueprint_detail,
+            blueprints_config,
+            blueprints_refresh_localization,
             get_background_service_config,
             is_background_service_running,
             set_background_service_config,

@@ -112,6 +112,13 @@ const menuItems: NavigationItem[] = [
         tooltip: "Gestion des bindings"
     },
     {
+        id: "blueprints",
+        name: "Blueprints",
+        icon: <IconBook size={18} />,
+        href: "/blueprints",
+        tooltip: "Collection de blueprints"
+    },
+    {
         id: "graphics-settings",
         name: "Paramètres généraux",
         icon: <Monitor size={18} />,
