@@ -4321,7 +4321,7 @@ dependencies = [
 
 [[package]]
 name = "startradfr"
-version = "4.1.8"
+version = "4.1.9"
 dependencies = [
  "auto-launch",
  "axum",
