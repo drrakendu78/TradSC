@@ -8,12 +8,15 @@ use tauri::command;
 use crate::scripts::gamepath::get_star_citizen_versions;
 
 const SC_CRAFT_BASE: &str = "https://sc-craft.tools";
-const USER_AGENT: &str = "StarTradFR-Blueprints/2.0";
+const ERKUL_BASE: &str = "https://server.erkul.games";
+const ERKUL_ENDPOINTS: &[&str] = &["shields", "coolers", "qeds", "radars", "weapons"];
+const SCCRAFTER_BLUEPRINTS_URL: &str = "https://www.sccrafter.com/Blueprints.json";
+const USER_AGENT: &str = "StarTradFR-Blueprints/2.2";
 
 #[derive(Serialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct BlueprintSummary {
-    pub id: u64,
+    pub id: Option<u64>,
     pub blueprint_id: String,
     pub name_en: String,
     pub name_fr: Option<String>,
@@ -23,6 +26,37 @@ pub struct BlueprintSummary {
     pub tiers: Option<u64>,
     pub default_owned: bool,
     pub version: Option<String>,
+    /// Class code resolved from global.ini description: civi/mili/indu/stlh/comp
+    pub class_code: Option<String>,
+    /// Component size (1-10) extracted from sccrafter categoryName or blueprint_id pattern
+    pub size: Option<u64>,
+}
+
+/// Extracts size N from sccrafter categoryName ("Veh. Comp. S2"/"Veh. Weapons S6")
+/// or fallback to blueprint_id pattern "_s01_" / "_s1_" / "_s1$".
+fn extract_size(blueprint_id: &str, category_name: Option<&str>) -> Option<u64> {
+    if let Some(cn) = category_name {
+        if let Some(idx) = cn.find('S') {
+            let after = &cn[idx + 1..];
+            let digits: String = after.chars().take_while(|c| c.is_ascii_digit()).collect();
+            if let Ok(n) = digits.parse::<u64>() {
+                return Some(n);
+            }
+        }
+    }
+    // Match "_s12_" or "_s12" at end
+    let lower = blueprint_id.to_ascii_lowercase();
+    let parts: Vec<&str> = lower.split('_').collect();
+    for p in &parts {
+        if let Some(rest) = p.strip_prefix('s') {
+            if !rest.is_empty() && rest.chars().all(|c| c.is_ascii_digit()) {
+                if let Ok(n) = rest.parse::<u64>() {
+                    return Some(n);
+                }
+            }
+        }
+    }
+    None
 }
 
 #[derive(Serialize, Clone, Default)]
@@ -272,11 +306,18 @@ struct RawResource {
 
 struct LocCache {
     fr: Option<HashMap<String, String>>,
+    /// Map from lowercased item key → class code, extracted from global.ini descriptions.
+    classes: Option<HashMap<String, String>>,
+    /// Map from lowercased item localName → class code, pulled from erkul.games API.
+    /// Populated lazily / in background; persisted to disk between runs.
+    erkul_classes: Option<HashMap<String, String>>,
     version: Option<String>,
 }
 
 static LOC_CACHE: Mutex<LocCache> = Mutex::new(LocCache {
     fr: None,
+    classes: None,
+    erkul_classes: None,
     version: None,
 });
 
@@ -335,6 +376,57 @@ fn parse_global_ini(path: &PathBuf) -> Option<HashMap<String, String>> {
     Some(map)
 }
 
+/// Extracts a `item_internal_name → class_code` map from a parsed global.ini.
+/// Looks at item_DescXXX entries and extracts the class from the localized text:
+/// EN "Class: Military", FR "Classe : Militaire".
+fn build_class_map(loc_map: &HashMap<String, String>) -> HashMap<String, String> {
+    let mut out = HashMap::with_capacity(900);
+    for (key, value) in loc_map {
+        if !key.starts_with("item_desc") {
+            continue;
+        }
+        let item_key = match key.strip_prefix("item_desc") {
+            Some(s) => s.to_string(),
+            None => continue,
+        };
+        if item_key.is_empty() {
+            continue;
+        }
+        if let Some(code) = normalize_class_from_text(value) {
+            out.insert(item_key, code.to_string());
+        }
+    }
+    out
+}
+
+/// Detects civi/mili/indu/stlh/comp from a localized description string.
+/// Supports both EN ("Class: Military") and FR ("Classe : Militaire") variants.
+fn normalize_class_from_text(text: &str) -> Option<&'static str> {
+    let lower = text.to_ascii_lowercase();
+    for marker in &["class:", "classe :", "classe:"] {
+        if let Some(idx) = lower.find(marker) {
+            let after = &lower[idx + marker.len()..];
+            let token: String = after
+                .trim_start()
+                .chars()
+                .take_while(|c| c.is_ascii_alphabetic() || *c == 'é' || *c == 'è' || *c == 'à')
+                .collect();
+            let normalized = match token.as_str() {
+                "civilian" | "civil" | "civile" => Some("civi"),
+                "military" | "militaire" => Some("mili"),
+                "industrial" | "industriel" => Some("indu"),
+                "stealth" | "furtif" | "discrétion" | "discretion" => Some("stlh"),
+                "competition" | "compétition" => Some("comp"),
+                _ => None,
+            };
+            if normalized.is_some() {
+                return normalized;
+            }
+        }
+    }
+    None
+}
+
 fn ensure_loc_cache() -> Result<(), String> {
     let install =
         pick_live_install_path().ok_or_else(|| "Aucune installation Star Citizen detectee".to_string())?;
@@ -342,7 +434,10 @@ fn ensure_loc_cache() -> Result<(), String> {
 
     {
         let cache = LOC_CACHE.lock().unwrap();
-        if cache.version.as_deref() == Some(&install_key) && cache.fr.is_some() {
+        if cache.version.as_deref() == Some(&install_key)
+            && cache.fr.is_some()
+            && cache.classes.is_some()
+        {
             return Ok(());
         }
     }
@@ -357,8 +452,33 @@ fn ensure_loc_cache() -> Result<(), String> {
         ));
     }
 
+    // Class extraction: parse FR first; if no class found, fall back to EN global.ini.
+    let mut class_map = fr_map
+        .as_ref()
+        .map(build_class_map)
+        .unwrap_or_default();
+    if class_map.is_empty() {
+        if let Some(en_map) = parse_global_ini(&locale_file(&install, "english")) {
+            class_map = build_class_map(&en_map);
+        }
+    } else {
+        // Enrich with EN entries for items missing from FR
+        if let Some(en_map) = parse_global_ini(&locale_file(&install, "english")) {
+            let en_classes = build_class_map(&en_map);
+            for (k, v) in en_classes {
+                class_map.entry(k).or_insert(v);
+            }
+        }
+    }
+
+    let erkul_classes = load_erkul_cache_from_disk();
+
     let mut cache = LOC_CACHE.lock().unwrap();
     cache.fr = fr_map;
+    cache.classes = Some(class_map);
+    if cache.erkul_classes.is_none() {
+        cache.erkul_classes = erkul_classes.or(Some(HashMap::new()));
+    }
     cache.version = Some(install_key);
     Ok(())
 }
@@ -368,6 +488,82 @@ fn lookup_fr(key: &Option<String>) -> Option<String> {
     let lower = key.to_ascii_lowercase();
     let cache = LOC_CACHE.lock().unwrap();
     cache.fr.as_ref().and_then(|m| m.get(&lower).cloned())
+}
+
+/// Lookup the class code (civi/mili/indu/stlh/comp) for an item.
+/// Priority chain:
+///   1. global.ini description ("Classe : Militaire") — CIG data, highest authority
+///   2. erkul `class` field — covers most shields/coolers/QDs
+///   3. Manufacturer mapping (HRST=mili, AMRS=civi, etc.) — lore-based inference
+fn lookup_class(internal_name: &str) -> Option<String> {
+    let lower = internal_name.to_ascii_lowercase();
+    {
+        let cache = LOC_CACHE.lock().unwrap();
+        if let Some(v) = cache
+            .classes
+            .as_ref()
+            .and_then(|m| m.get(&lower).cloned())
+        {
+            return Some(v);
+        }
+        if let Some(v) = cache
+            .erkul_classes
+            .as_ref()
+            .and_then(|m| m.get(&lower).cloned())
+        {
+            return Some(v);
+        }
+    }
+    manufacturer_class_from_id(&lower).map(|s| s.to_string())
+}
+
+/// Maps a manufacturer code (lowercase) to a default class orientation based on lore.
+/// Only applied as a last-resort fallback when CIG/erkul don't expose the class.
+fn manufacturer_class_from_id(id_lower: &str) -> Option<&'static str> {
+    // Extract manufacturer token: usually parts[1] of bp_craft_<mfg>_... OR parts[0] of <mfg>_xxx
+    let mfg = if let Some(rest) = id_lower.strip_prefix("bp_craft_") {
+        rest.split('_').next().unwrap_or("")
+    } else if let Some(rest) = id_lower.strip_prefix("bp_") {
+        // shapes like "bp_shld_behr_..." or "bp_powr_amrs_..."
+        let mut iter = rest.split('_');
+        let _kind = iter.next();
+        iter.next().unwrap_or("")
+    } else {
+        id_lower.split('_').next().unwrap_or("")
+    };
+    classify_manufacturer(mfg)
+}
+
+fn classify_manufacturer(code: &str) -> Option<&'static str> {
+    match code {
+        // Military / weapons-focused (UEE-aligned)
+        "aegs" | "aegis" => Some("mili"),
+        "anvl" | "anvil" => Some("mili"),
+        "behr" | "behring" => Some("mili"),
+        "basl" | "basilisk" => Some("mili"),
+        "gmni" | "gemini" => Some("mili"),
+        "hrst" | "hurston" => Some("mili"),
+        "kast" | "kastak" => Some("mili"),
+        "kbar" | "klwe" | "klauswerner" | "kw" => Some("mili"),
+        "krig" | "kruger" => Some("mili"),
+        // Civilian (recreational, exploration, comfort)
+        "amrs" | "amonreese" => Some("civi"),
+        "apar" | "apocalypse" => Some("civi"),
+        "drak" | "drake" => Some("civi"),
+        "misc" | "musashi" => Some("civi"),
+        "orig" | "origin" => Some("civi"),
+        "rsi" => Some("civi"),
+        "csgi" => Some("civi"),
+        // Industrial (mining, salvage, construction)
+        "grin" | "greycat" | "gctec" => Some("indu"),
+        "argo" => Some("indu"),
+        "esp" | "esprit" => Some("indu"),
+        "hrtd" => Some("indu"),
+        "shubin" => Some("indu"),
+        // Aliens / not classified
+        "banu" | "asas" | "aopoa" | "vncl" | "vndl" | "vnduul" | "vanduul" | "xian" => None,
+        _ => None,
+    }
 }
 
 fn http_client() -> Result<reqwest::Client, String> {
@@ -500,8 +696,15 @@ pub async fn blueprints_list(filters: Option<BlueprintsListFilters>) -> Result<V
         .into_iter()
         .map(|item| {
             let name_fr = lookup_fr(&item.loc_key);
+            // sc-craft uses blueprint_id like "bp_craft_xxx" — derive item internal name
+            let internal_for_class = item
+                .blueprint_id
+                .strip_prefix("bp_craft_")
+                .unwrap_or(&item.blueprint_id);
+            let class_code = lookup_class(internal_for_class);
+            let size = extract_size(&item.blueprint_id, item.category.as_deref());
             BlueprintSummary {
-                id: item.id,
+                id: Some(item.id),
                 blueprint_id: item.blueprint_id,
                 name_en: item.name.unwrap_or_default(),
                 name_fr,
@@ -511,9 +714,402 @@ pub async fn blueprints_list(filters: Option<BlueprintsListFilters>) -> Result<V
                 tiers: item.tiers,
                 default_owned: item.default_owned.unwrap_or(0) > 0,
                 version: item.version,
+                class_code,
+                size,
             }
         })
         .collect())
+}
+
+fn blueprints_cache_path() -> Option<PathBuf> {
+    let dir = dirs::data_local_dir()?.join("startradfr").join("blueprints");
+    fs::create_dir_all(&dir).ok()?;
+    Some(dir.join("sccrafter_blueprints.json"))
+}
+
+fn erkul_cache_path() -> Option<PathBuf> {
+    let dir = dirs::data_local_dir()?.join("startradfr").join("blueprints");
+    fs::create_dir_all(&dir).ok()?;
+    Some(dir.join("erkul_classes.json"))
+}
+
+#[derive(Deserialize)]
+struct ErkulItem {
+    #[serde(default)]
+    data: Option<ErkulItemData>,
+    #[serde(default, rename = "localName")]
+    local_name_outer: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct ErkulItemData {
+    #[serde(default, rename = "localName")]
+    local_name: Option<String>,
+    #[serde(default)]
+    class: Option<String>,
+}
+
+fn normalize_erkul_class(raw: &str) -> Option<&'static str> {
+    match raw.to_ascii_lowercase().as_str() {
+        "civilian" | "civi" | "civil" => Some("civi"),
+        "military" | "mili" => Some("mili"),
+        "industrial" | "indu" => Some("indu"),
+        "stealth" | "stlh" | "furtif" => Some("stlh"),
+        "competition" | "comp" => Some("comp"),
+        _ => None,
+    }
+}
+
+async fn fetch_erkul_classes() -> HashMap<String, String> {
+    let mut out = HashMap::with_capacity(400);
+    let client = match http_client() {
+        Ok(c) => c,
+        Err(_) => return out,
+    };
+    for endpoint in ERKUL_ENDPOINTS {
+        let url = format!("{}/live/{}", ERKUL_BASE, endpoint);
+        let req = client
+            .get(&url)
+            .header("Origin", "https://www.erkul.games")
+            .header("Referer", "https://www.erkul.games/");
+        let response = match req.send().await {
+            Ok(r) => r,
+            Err(e) => {
+                eprintln!("[blueprints] erkul {} failed: {}", endpoint, e);
+                continue;
+            }
+        };
+        if !response.status().is_success() {
+            eprintln!(
+                "[blueprints] erkul {} HTTP {}",
+                endpoint,
+                response.status()
+            );
+            continue;
+        }
+        let items: Vec<ErkulItem> = match response.json().await {
+            Ok(v) => v,
+            Err(e) => {
+                eprintln!("[blueprints] erkul {} json: {}", endpoint, e);
+                continue;
+            }
+        };
+        for item in items {
+            let local_name = item
+                .data
+                .as_ref()
+                .and_then(|d| d.local_name.clone())
+                .or(item.local_name_outer);
+            let class_raw = item.data.and_then(|d| d.class);
+            if let (Some(name), Some(cls)) = (local_name, class_raw) {
+                if let Some(code) = normalize_erkul_class(&cls) {
+                    out.insert(name.to_ascii_lowercase(), code.to_string());
+                }
+            }
+        }
+    }
+    out
+}
+
+/// Tauri command: refresh erkul class data in background and persist.
+#[command]
+pub async fn blueprints_refresh_erkul_classes() -> Result<u64, String> {
+    let map = fetch_erkul_classes().await;
+    let count = map.len() as u64;
+    if let Some(path) = erkul_cache_path() {
+        if let Ok(bytes) = serde_json::to_vec(&map) {
+            let _ = fs::write(&path, bytes);
+        }
+    }
+    {
+        let mut cache = LOC_CACHE.lock().unwrap();
+        cache.erkul_classes = Some(map);
+    }
+    Ok(count)
+}
+
+fn load_erkul_cache_from_disk() -> Option<HashMap<String, String>> {
+    let path = erkul_cache_path()?;
+    let bytes = fs::read(&path).ok()?;
+    serde_json::from_slice(&bytes).ok()
+}
+
+async fn fetch_sccrafter_payload() -> Result<SccrafterPayload, String> {
+    let client = http_client()?;
+    let response = client
+        .get(SCCRAFTER_BLUEPRINTS_URL)
+        .send()
+        .await
+        .map_err(|e| format!("Erreur reseau vers sccrafter: {}", e))?;
+    if !response.status().is_success() {
+        return Err(format!(
+            "sccrafter a renvoye un statut HTTP {}",
+            response.status()
+        ));
+    }
+    response
+        .json()
+        .await
+        .map_err(|e| format!("Reponse sccrafter illisible: {}", e))
+}
+
+#[derive(Deserialize, Serialize)]
+struct SccrafterPayload {
+    #[serde(default)]
+    version: Option<String>,
+    #[serde(default)]
+    blueprints: Vec<SccrafterBlueprint>,
+}
+
+#[derive(Deserialize, Serialize)]
+struct SccrafterBlueprint {
+    #[serde(default)]
+    file: Option<String>,
+    #[serde(rename = "recordName", default)]
+    record_name: Option<String>,
+    #[serde(rename = "internalName", default)]
+    internal_name: Option<String>,
+    #[serde(rename = "blueprintName", default)]
+    blueprint_name: Option<String>,
+    #[serde(rename = "categoryName", default)]
+    category_name: Option<String>,
+    #[serde(rename = "isReward", default)]
+    is_reward: Option<bool>,
+    #[serde(default)]
+    seconds: Option<u64>,
+    #[serde(default)]
+    slots: Option<Vec<serde_json::Value>>,
+    #[serde(rename = "rewardMissions", default)]
+    reward_missions: Vec<SccrafterMission>,
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+struct SccrafterMission {
+    #[serde(default)]
+    mission: Option<String>,
+    #[serde(default)]
+    chance: Option<f64>,
+    #[serde(default)]
+    locations: Vec<String>,
+}
+
+/// Derive the blueprint_id (lowercase) from the recordName.
+/// "CraftingBlueprintRecord.BP_CRAFT_behr_lmg_ballistic_01_mag" → "bp_craft_behr_lmg_ballistic_01_mag"
+fn sccrafter_blueprint_id(bp: &SccrafterBlueprint) -> Option<String> {
+    let rn = bp.record_name.as_deref()?;
+    let id = rn.strip_prefix("CraftingBlueprintRecord.").unwrap_or(rn);
+    Some(id.to_ascii_lowercase())
+}
+
+/// Derive the sc-craft-style hierarchical category from the file path.
+/// "LIVEfiles\libs\foundry\records\crafting\blueprints\crafting\vehiclegear\weapons\ballistic\cannon\bp_craft_kbar_ballisticcannon_s2.json"
+/// → "Vehiclegear / Weapons / Ballistic / Cannon"
+fn sccrafter_category_from_file(file: &str) -> Option<String> {
+    let normalized = file.replace('\\', "/");
+    let anchor = "/blueprints/crafting/";
+    let after = normalized.split(anchor).nth(1)?;
+    // Drop the final segment (the .json filename)
+    let segments: Vec<&str> = after.rsplitn(2, '/').collect();
+    if segments.len() < 2 {
+        return None;
+    }
+    let path = segments[1];
+    let parts: Vec<String> = path
+        .split('/')
+        .filter(|p| !p.is_empty() && !p.starts_with('$'))
+        .map(|p| {
+            let mut chars = p.chars();
+            match chars.next() {
+                Some(c) => c.to_ascii_uppercase().to_string() + chars.as_str(),
+                None => String::new(),
+            }
+        })
+        .collect();
+    if parts.is_empty() {
+        None
+    } else {
+        Some(parts.join(" / "))
+    }
+}
+
+fn build_summary_from_sccrafter(payload: &SccrafterPayload) -> Vec<BlueprintSummary> {
+    let version = payload.version.clone();
+    let mut out: Vec<BlueprintSummary> = payload
+        .blueprints
+        .iter()
+        .filter_map(|bp| {
+            let blueprint_id = sccrafter_blueprint_id(bp)?;
+            let filename_root = blueprint_id
+                .strip_prefix("bp_craft_")
+                .unwrap_or(&blueprint_id)
+                .to_string();
+            // Try internal_name first (more accurate lookup key), then blueprint_id-derived
+            let loc_key = Some(
+                bp.internal_name
+                    .as_deref()
+                    .map(|n| format!("item_name{}", n.to_ascii_lowercase()))
+                    .unwrap_or_else(|| format!("item_name{}", filename_root)),
+            );
+            let name_fr = lookup_fr(&loc_key);
+            // EN display: prefer sccrafter's blueprintName (real game name)
+            let name_en = bp
+                .blueprint_name
+                .clone()
+                .filter(|s| !s.is_empty())
+                .unwrap_or_else(|| {
+                    filename_root
+                        .split('_')
+                        .map(|t| {
+                            let mut c = t.chars();
+                            match c.next() {
+                                Some(first) => {
+                                    first.to_ascii_uppercase().to_string() + c.as_str()
+                                }
+                                None => String::new(),
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                });
+            let category = bp
+                .file
+                .as_deref()
+                .and_then(sccrafter_category_from_file);
+            let class_code = bp.internal_name.as_deref().and_then(lookup_class);
+            let size = extract_size(&blueprint_id, bp.category_name.as_deref());
+            Some(BlueprintSummary {
+                id: None,
+                blueprint_id,
+                name_en,
+                name_fr,
+                loc_key,
+                category,
+                craft_time_seconds: bp.seconds,
+                tiers: Some(1),
+                default_owned: !bp.is_reward.unwrap_or(false),
+                version: version.clone(),
+                class_code,
+                size,
+            })
+        })
+        .collect();
+    out.sort_by(|a, b| a.blueprint_id.cmp(&b.blueprint_id));
+    out
+}
+
+/// Fetch ALL blueprints (1564+) from sccrafter.com `/Blueprints.json` (5.3 MB single file,
+/// uncapped, with missions + recipe + locations inline). Uses a local disk cache for
+/// instant loads. The frontend calls `blueprints_revalidate_full` in the background
+/// to detect new entries.
+#[command]
+pub async fn blueprints_list_full() -> Result<Vec<BlueprintSummary>, String> {
+    let _ = ensure_loc_cache();
+
+    // Try cache first
+    if let Some(path) = blueprints_cache_path() {
+        if let Ok(bytes) = fs::read(&path) {
+            if let Ok(payload) = serde_json::from_slice::<SccrafterPayload>(&bytes) {
+                return Ok(build_summary_from_sccrafter(&payload));
+            }
+        }
+    }
+
+    // No cache (or unreadable): fetch + persist
+    let payload = fetch_sccrafter_payload().await?;
+    if let Some(path) = blueprints_cache_path() {
+        if let Ok(bytes) = serde_json::to_vec(&payload) {
+            let _ = fs::write(&path, bytes);
+        }
+    }
+    Ok(build_summary_from_sccrafter(&payload))
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RevalidateResult {
+    pub list: Vec<BlueprintSummary>,
+    pub new_count: u64,
+    pub removed_count: u64,
+    pub changed: bool,
+}
+
+/// Background revalidation: always re-downloads from sccrafter, diffs against the
+/// disk cache, persists the fresh copy, and returns the new list along with deltas.
+/// The frontend calls this after the initial cached load completes.
+#[command]
+pub async fn blueprints_revalidate_full() -> Result<RevalidateResult, String> {
+    let _ = ensure_loc_cache();
+
+    // Old cached ids
+    let old_ids: std::collections::HashSet<String> = blueprints_cache_path()
+        .and_then(|p| fs::read(&p).ok())
+        .and_then(|bytes| serde_json::from_slice::<SccrafterPayload>(&bytes).ok())
+        .map(|payload| {
+            payload
+                .blueprints
+                .iter()
+                .filter_map(sccrafter_blueprint_id)
+                .collect()
+        })
+        .unwrap_or_default();
+
+    // Fresh fetch
+    let fresh = fetch_sccrafter_payload().await?;
+    let fresh_ids: std::collections::HashSet<String> = fresh
+        .blueprints
+        .iter()
+        .filter_map(sccrafter_blueprint_id)
+        .collect();
+
+    let new_count = fresh_ids.difference(&old_ids).count() as u64;
+    let removed_count = old_ids.difference(&fresh_ids).count() as u64;
+    let changed = new_count > 0 || removed_count > 0;
+
+    if let Some(path) = blueprints_cache_path() {
+        if let Ok(bytes) = serde_json::to_vec(&fresh) {
+            let _ = fs::write(&path, bytes);
+        }
+    }
+
+    let list = build_summary_from_sccrafter(&fresh);
+    Ok(RevalidateResult {
+        list,
+        new_count,
+        removed_count,
+        changed,
+    })
+}
+
+/// Resolve a string `blueprint_id` (e.g. "bp_craft_kbar_ballisticcannon_s2")
+/// to sc-craft.tools numeric id (e.g. 3532), needed for `blueprint_detail`.
+/// Uses `?search=` which returns matching items.
+#[command]
+pub async fn blueprint_resolve_sc_craft_id(blueprint_id: String) -> Result<Option<u64>, String> {
+    let url = format!(
+        "{}/api/blueprints?limit=20&search={}",
+        SC_CRAFT_BASE,
+        urlencoding::encode(&blueprint_id)
+    );
+    let client = http_client()?;
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Erreur reseau: {}", e))?;
+    if !response.status().is_success() {
+        return Err(format!("sc-craft.tools HTTP {}", response.status()));
+    }
+    let raw: RawListResponse = response
+        .json()
+        .await
+        .map_err(|e| format!("Reponse illisible: {}", e))?;
+    let target = blueprint_id.to_ascii_lowercase();
+    let matched = raw
+        .items
+        .into_iter()
+        .find(|item| item.blueprint_id.eq_ignore_ascii_case(&target))
+        .map(|item| item.id);
+    Ok(matched)
 }
 
 #[command]
@@ -539,8 +1135,14 @@ pub async fn blueprint_detail(blueprint_internal_id: u64) -> Result<BlueprintDet
         .map_err(|e| format!("Reponse /api/blueprints/<id> illisible: {}", e))?;
 
     let summary_loc_key = raw.loc_key.clone();
+    let class_code = lookup_class(
+        raw.blueprint_id
+            .strip_prefix("bp_craft_")
+            .unwrap_or(&raw.blueprint_id),
+    );
+    let size = extract_size(&raw.blueprint_id, raw.category.as_deref());
     let summary = BlueprintSummary {
-        id: raw.id,
+        id: Some(raw.id),
         blueprint_id: raw.blueprint_id,
         name_en: raw.name.unwrap_or_default(),
         name_fr: lookup_fr(&summary_loc_key),
@@ -550,6 +1152,8 @@ pub async fn blueprint_detail(blueprint_internal_id: u64) -> Result<BlueprintDet
         tiers: raw.tiers,
         default_owned: raw.default_owned.unwrap_or(0) > 0,
         version: raw.version,
+        class_code,
+        size,
     };
 
     let ingredients = raw

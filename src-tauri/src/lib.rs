@@ -12,7 +12,9 @@ use scripts::bindings_functions::{
     refresh_bindings,
 };
 use scripts::blueprints::{
-    blueprint_detail, blueprints_config, blueprints_list, blueprints_refresh_localization,
+    blueprint_detail, blueprint_resolve_sc_craft_id, blueprints_config, blueprints_list,
+    blueprints_list_full, blueprints_refresh_erkul_classes, blueprints_refresh_localization,
+    blueprints_revalidate_full,
 };
 use scripts::cache_functions::{
     clear_cache, delete_folder, get_cache_informations, open_cache_folder,
@@ -610,9 +612,13 @@ pub fn run() {
             open_bindings_folder,
             refresh_bindings,
             blueprints_list,
+            blueprints_list_full,
+            blueprints_revalidate_full,
             blueprint_detail,
+            blueprint_resolve_sc_craft_id,
             blueprints_config,
             blueprints_refresh_localization,
+            blueprints_refresh_erkul_classes,
             get_background_service_config,
             is_background_service_running,
             set_background_service_config,
