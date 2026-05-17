@@ -10,7 +10,7 @@ import {
     PinOff
 } from 'lucide-react';
 import { IconHome, IconBrandDiscord, IconCloud, IconBrandGithub, IconLanguage, IconUsers, IconNews, IconKeyboard, IconCalculator, IconMap2, IconSearch, IconSwords, IconPackage, IconHammer, IconBook, IconDatabase } from "@tabler/icons-react";
-import { BrushCleaning, Download, Power, PowerOff, Loader2, RotateCcw, Monitor, Route, BarChart3, Calendar, Languages, Trash2, Save, Users, Pickaxe, ShieldCheck, MessagesSquare } from "lucide-react";
+import { BrushCleaning, Download, Power, PowerOff, Loader2, RotateCcw, Monitor, Route, BarChart3, Calendar, Languages, Trash2, Save, Users, Pickaxe, ShieldCheck, MessagesSquare, Handshake } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { ColorPicker } from "@/components/custom/color-picker";
 import openExternal, { isAllowedUrl, openExternalCustom } from "@/utils/external";
@@ -542,6 +542,7 @@ export function AppSidebar() {
         const currentItem = menuItems.find(item => item.href === currentPath);
         if (currentItem) return currentItem.id;
         if (currentPath === '/actualites') return 'actualites';
+        if (currentPath === '/partenaires') return 'partenaires';
         if (currentPath === '/dps-calculator') return 'dps-calculator';
         if (currentPath === '/ship-maps') return 'ship-maps';
         if (currentPath === '/finder') return 'finder';
@@ -914,6 +915,41 @@ export function AppSidebar() {
                                     {isCollapsed && (
                                         <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">
                                             Actualités Star Citizen
+                                        </div>
+                                    )}
+                                </Link>
+                            </li>
+
+                            {/* Partenaires */}
+                            <li>
+                                <Link
+                                    to="/partenaires"
+                                    onClick={() => handleItemClick('partenaires', '/partenaires')}
+                                    className={`
+                                        flex items-center gap-3 rounded-lg text-left group relative
+                                        transition-all duration-200 ease-out
+                                        ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"}
+                                        ${activeItem === 'partenaires'
+                                            ? "bg-primary/15 text-primary"
+                                            : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                                        }
+                                    `}
+                                    title={isCollapsed ? "Le salon des partenaires" : undefined}
+                                >
+                                    {activeItem === 'partenaires' && !isCollapsed && (
+                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />
+                                    )}
+                                    <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === 'partenaires' ? '' : 'group-hover:scale-110'}`}>
+                                        <Handshake size={18} />
+                                    </div>
+                                    {!isCollapsed && (
+                                        <span className={`text-sm ${activeItem === 'partenaires' ? "font-medium" : "font-normal"}`}>
+                                            Partenaires
+                                        </span>
+                                    )}
+                                    {isCollapsed && (
+                                        <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">
+                                            Le salon des partenaires
                                         </div>
                                     )}
                                 </Link>

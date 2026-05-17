@@ -13,6 +13,7 @@ import PatchNotes from '@/pages/PatchNotes';
 import Actualites from '@/pages/Actualites';
 import Bindings from '@/pages/Bindings';
 import Blueprints from '@/pages/Blueprints';
+import Partenaires from '@/pages/Partenaires';
 import DpsCalculator from '@/pages/DpsCalculator';
 import GraphicsSettings from '@/pages/GraphicsSettings';
 import ShipMaps from '@/pages/ShipMaps';
@@ -149,6 +150,7 @@ const AppRouter = () => (
         <Route path='/dps-calculator' element={<DpsCalculator />} />
         <Route path='/bindings' element={<Bindings />} />
         <Route path='/blueprints' element={<Blueprints />} />
+        <Route path='/partenaires' element={<Partenaires />} />
         <Route path='/graphics-settings' element={<GraphicsSettings />} />
         <Route path='/ship-maps' element={<ShipMaps />} />
         <Route path='/finder' element={<Finder />} />
