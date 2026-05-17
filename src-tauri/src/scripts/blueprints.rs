@@ -11,6 +11,14 @@ const SC_CRAFT_BASE: &str = "https://sc-craft.tools";
 const ERKUL_BASE: &str = "https://server.erkul.games";
 const ERKUL_ENDPOINTS: &[&str] = &["shields", "coolers", "qeds", "radars", "weapons"];
 const SCCRAFTER_BLUEPRINTS_URL: &str = "https://www.sccrafter.com/Blueprints.json";
+/// Official CIG global.ini files hosted by PolyTool (auto-synced from game data).
+/// We pull from here instead of the user's local install so that translation
+/// coverage is identical for all users regardless of which FR pack they have
+/// installed (StarTrad, Circuspes, vanilla, none, etc.).
+const POLYTOOL_GLOBAL_FR_URL: &str =
+    "https://raw.githubusercontent.com/GerbyTV/PolyToolSC/main/global.ini";
+const POLYTOOL_GLOBAL_EN_URL: &str =
+    "https://raw.githubusercontent.com/GerbyTV/PolyToolSC/main/global_en.ini";
 const USER_AGENT: &str = "StarTradFR-Blueprints/2.2";
 
 #[derive(Serialize, Clone, Default)]
@@ -306,16 +314,20 @@ struct RawResource {
 
 struct LocCache {
     fr: Option<HashMap<String, String>>,
+    /// EN global.ini fallback, used when the user's FR pack misses a key
+    /// (different translator like Circuspes, partial translations, etc.).
+    /// Guarantees we always have at least an EN string from the official game install.
+    en: Option<HashMap<String, String>>,
     /// Map from lowercased item key → class code, extracted from global.ini descriptions.
     classes: Option<HashMap<String, String>>,
     /// Map from lowercased item localName → class code, pulled from erkul.games API.
-    /// Populated lazily / in background; persisted to disk between runs.
     erkul_classes: Option<HashMap<String, String>>,
     version: Option<String>,
 }
 
 static LOC_CACHE: Mutex<LocCache> = Mutex::new(LocCache {
     fr: None,
+    en: None,
     classes: None,
     erkul_classes: None,
     version: None,
@@ -428,46 +440,47 @@ fn normalize_class_from_text(text: &str) -> Option<&'static str> {
 }
 
 fn ensure_loc_cache() -> Result<(), String> {
-    let install =
-        pick_live_install_path().ok_or_else(|| "Aucune installation Star Citizen detectee".to_string())?;
-    let install_key = install.to_string_lossy().to_string();
+    let cache_key = "polytool".to_string();
 
     {
         let cache = LOC_CACHE.lock().unwrap();
-        if cache.version.as_deref() == Some(&install_key)
+        if cache.version.as_deref() == Some(&cache_key)
             && cache.fr.is_some()
+            && cache.en.is_some()
             && cache.classes.is_some()
         {
             return Ok(());
         }
     }
 
-    let fr_path = locale_file(&install, "french_(france)");
-    let fr_map = parse_global_ini(&fr_path);
+    // 1) Try PolyTool's published global.ini (canonical CIG, identical for all users
+    //    regardless of which translator they have installed locally).
+    let mut fr_map = load_polytool_global("fr");
+    let mut en_map = load_polytool_global("en");
 
-    if fr_map.is_none() {
-        return Err(format!(
-            "Impossible de lire le fichier global.ini FR sous {}",
-            fr_path.display()
-        ));
+    // 2) Fallback to the user's local install if PolyTool cache is missing
+    //    (offline first launch, etc.).
+    if fr_map.is_none() || en_map.is_none() {
+        if let Some(install) = pick_live_install_path() {
+            if fr_map.is_none() {
+                fr_map = parse_global_ini(&locale_file(&install, "french_(france)"));
+            }
+            if en_map.is_none() {
+                en_map = parse_global_ini(&locale_file(&install, "english"));
+            }
+        }
     }
 
-    // Class extraction: parse FR first; if no class found, fall back to EN global.ini.
-    let mut class_map = fr_map
-        .as_ref()
-        .map(build_class_map)
-        .unwrap_or_default();
-    if class_map.is_empty() {
-        if let Some(en_map) = parse_global_ini(&locale_file(&install, "english")) {
-            class_map = build_class_map(&en_map);
-        }
-    } else {
-        // Enrich with EN entries for items missing from FR
-        if let Some(en_map) = parse_global_ini(&locale_file(&install, "english")) {
-            let en_classes = build_class_map(&en_map);
-            for (k, v) in en_classes {
-                class_map.entry(k).or_insert(v);
-            }
+    if fr_map.is_none() && en_map.is_none() {
+        return Err(
+            "Aucun global.ini disponible (ni PolyTool ni install locale). Lance l'app une fois en ligne pour le télécharger.".to_string(),
+        );
+    }
+
+    let mut class_map = fr_map.as_ref().map(build_class_map).unwrap_or_default();
+    if let Some(en) = en_map.as_ref() {
+        for (k, v) in build_class_map(en) {
+            class_map.entry(k).or_insert(v);
         }
     }
 
@@ -475,11 +488,12 @@ fn ensure_loc_cache() -> Result<(), String> {
 
     let mut cache = LOC_CACHE.lock().unwrap();
     cache.fr = fr_map;
+    cache.en = en_map;
     cache.classes = Some(class_map);
     if cache.erkul_classes.is_none() {
         cache.erkul_classes = erkul_classes.or(Some(HashMap::new()));
     }
-    cache.version = Some(install_key);
+    cache.version = Some(cache_key);
     Ok(())
 }
 
@@ -487,7 +501,11 @@ fn lookup_fr(key: &Option<String>) -> Option<String> {
     let key = key.as_ref()?;
     let lower = key.to_ascii_lowercase();
     let cache = LOC_CACHE.lock().unwrap();
-    cache.fr.as_ref().and_then(|m| m.get(&lower).cloned())
+    if let Some(v) = cache.fr.as_ref().and_then(|m| m.get(&lower)) {
+        return Some(v.clone());
+    }
+    // Fallback to EN so the UI never shows an empty cell when FR is incomplete
+    cache.en.as_ref().and_then(|m| m.get(&lower).cloned())
 }
 
 /// Lookup the class code (civi/mili/indu/stlh/comp) for an item.
@@ -731,6 +749,94 @@ fn erkul_cache_path() -> Option<PathBuf> {
     let dir = dirs::data_local_dir()?.join("startradfr").join("blueprints");
     fs::create_dir_all(&dir).ok()?;
     Some(dir.join("erkul_classes.json"))
+}
+
+fn polytool_global_cache_path(suffix: &str) -> Option<PathBuf> {
+    let dir = dirs::data_local_dir()?.join("startradfr").join("blueprints");
+    fs::create_dir_all(&dir).ok()?;
+    Some(dir.join(format!("polytool_global_{}.ini", suffix)))
+}
+
+/// Returns true if `path` is missing or older than `max_age_days`.
+fn is_cache_stale(path: &PathBuf, max_age_days: u64) -> bool {
+    let Ok(meta) = fs::metadata(path) else {
+        return true;
+    };
+    let Ok(modified) = meta.modified() else {
+        return true;
+    };
+    let Ok(elapsed) = modified.elapsed() else {
+        return true;
+    };
+    elapsed.as_secs() > max_age_days * 24 * 60 * 60
+}
+
+async fn fetch_text(url: &str) -> Result<String, String> {
+    let client = http_client()?;
+    let response = client
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| format!("Erreur reseau {}: {}", url, e))?;
+    if !response.status().is_success() {
+        return Err(format!("{} HTTP {}", url, response.status()));
+    }
+    response
+        .text()
+        .await
+        .map_err(|e| format!("Reponse {} illisible: {}", url, e))
+}
+
+/// Fetches the latest PolyTool global.ini (FR or EN) to disk if cache is stale.
+/// Cache lifetime: 7 days.
+async fn ensure_polytool_global(suffix: &str, url: &str) {
+    let Some(path) = polytool_global_cache_path(suffix) else {
+        return;
+    };
+    if !is_cache_stale(&path, 7) {
+        return;
+    }
+    match fetch_text(url).await {
+        Ok(text) => {
+            let _ = fs::write(&path, text);
+        }
+        Err(e) => {
+            eprintln!("[blueprints] polytool {} fetch failed: {}", suffix, e);
+        }
+    }
+}
+
+/// Loads a parsed global.ini from PolyTool disk cache. Returns None if cache is missing.
+fn load_polytool_global(suffix: &str) -> Option<HashMap<String, String>> {
+    let path = polytool_global_cache_path(suffix)?;
+    parse_global_ini(&path)
+}
+
+/// Tauri command: force refresh PolyTool global.ini files (FR + EN) on next call.
+#[command]
+pub async fn blueprints_refresh_polytool_globals() -> Result<(), String> {
+    // Delete cache files so the next ensure_loc_cache call re-downloads them
+    if let Some(p) = polytool_global_cache_path("fr") {
+        let _ = fs::remove_file(&p);
+    }
+    if let Some(p) = polytool_global_cache_path("en") {
+        let _ = fs::remove_file(&p);
+    }
+    ensure_polytool_global("fr", POLYTOOL_GLOBAL_FR_URL).await;
+    ensure_polytool_global("en", POLYTOOL_GLOBAL_EN_URL).await;
+    {
+        let mut cache = LOC_CACHE.lock().unwrap();
+        cache.fr = load_polytool_global("fr").or(cache.fr.take());
+        cache.en = load_polytool_global("en").or(cache.en.take());
+        if let Some(en) = cache.en.as_ref() {
+            let mut class_map = cache.fr.as_ref().map(build_class_map).unwrap_or_default();
+            for (k, v) in build_class_map(en) {
+                class_map.entry(k).or_insert(v);
+            }
+            cache.classes = Some(class_map);
+        }
+    }
+    Ok(())
 }
 
 #[derive(Deserialize)]

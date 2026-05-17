@@ -14,7 +14,7 @@ use scripts::bindings_functions::{
 use scripts::blueprints::{
     blueprint_detail, blueprint_resolve_sc_craft_id, blueprints_config, blueprints_list,
     blueprints_list_full, blueprints_refresh_erkul_classes, blueprints_refresh_localization,
-    blueprints_revalidate_full,
+    blueprints_refresh_polytool_globals, blueprints_revalidate_full,
 };
 use scripts::cache_functions::{
     clear_cache, delete_folder, get_cache_informations, open_cache_folder,
@@ -619,6 +619,7 @@ pub fn run() {
             blueprints_config,
             blueprints_refresh_localization,
             blueprints_refresh_erkul_classes,
+            blueprints_refresh_polytool_globals,
             get_background_service_config,
             is_background_service_running,
             set_background_service_config,

@@ -203,6 +203,28 @@ function categoryLabelFr(key: string): string {
     return CATEGORY_FR[key] || key;
 }
 
+/// Nettoie les balises et placeholders du moteur CIG dans les strings localisées.
+/// Exemples gérés :
+///   "<EM4>[BP]</EM4> Retrieve Additional Smuggler Intel" → "[BP] Retrieve Additional Smuggler Intel"
+///   "Target at ~mission(Location)" → "Target at [Lieu]"
+///   "~mission(TargetName) needs stomping" → "[Cible] needs stomping"
+function cleanScText(input: string | null | undefined): string {
+    if (!input) return "";
+    let out = input;
+    // Strip <EM1>..</EM1>, <EM4>..</EM4>, etc.
+    out = out.replace(/<\/?EM\d+>/gi, "");
+    // Replace ~mission(X) placeholders with bracketed hints
+    out = out.replace(/~mission\(Location[^)]*\)/gi, "[Lieu]");
+    out = out.replace(/~mission\(Destination[^)]*\)/gi, "[Destination]");
+    out = out.replace(/~mission\(TargetName[^)]*\)/gi, "[Cible]");
+    out = out.replace(/~mission\(StoreName[^)]*\)/gi, "[Magasin]");
+    out = out.replace(/~mission\(System[^)]*\)/gi, "[Système]");
+    out = out.replace(/~mission\([^)]+\)/g, "[…]");
+    // Collapse multiple spaces
+    out = out.replace(/\s{2,}/g, " ").trim();
+    return out;
+}
+
 function extractSize(b: BlueprintSummary): number | null {
     return b.size ?? null;
 }
@@ -492,6 +514,14 @@ export default function Blueprints() {
                 })
                 .catch((e) =>
                     console.warn("[blueprints] erkul refresh failed:", e),
+                );
+            // Telecharge les global.ini canoniques (PolyTool) en arriere-plan.
+            // Garantit la meme couverture FR/EN pour tous les users, peu importe
+            // le pack de traduction qu'ils ont installe (StarTrad, Circuspes, etc.)
+            invoke("blueprints_refresh_polytool_globals")
+                .then(() => console.log("[blueprints] polytool globals refreshed"))
+                .catch((e) =>
+                    console.warn("[blueprints] polytool refresh failed:", e),
                 );
         }, 3000);
         return () => clearTimeout(t);
@@ -1410,10 +1440,11 @@ function DetailBody({
                         </div>
                         <div className="space-y-1.5">
                             {detail.missions.map((m, i) => {
-                                const missionName =
+                                const rawName =
                                     lang === "fr"
                                         ? m.nameFr || m.nameRaw
                                         : m.nameRaw || m.nameFr || "—";
+                                const missionName = cleanScText(rawName) || "—";
                                 const lawful = m.lawful;
                                 const sys = rootSystem(m.locations);
                                 return (
