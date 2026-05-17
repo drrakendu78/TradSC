@@ -42,7 +42,7 @@ interface TwitchStatusInfo {
     fromCache: boolean;
 }
 
-type PartnerCat = "organisation" | "streamer" | "discord" | "sponsor";
+type PartnerCat = "organisation" | "streamer" | "discord" | "sponsor" | "site";
 type LinkType = "org" | "twitch" | "youtube" | "discord" | "web";
 
 interface Partner {
@@ -84,24 +84,24 @@ const ST = {
 
 const PARTNERS: Partner[] = [
     { id: "p1", name: "Aureus Steelworks", cat: "organisation", tag: "ORG · Fret · Transport · Fabrication", desc: "Organisation francophone de fret, transport et fabrication. Roleplay et sim en développement actif au sein du Verse.", since: "2026-05-17", verified: true, hue: 45, link: "https://robertsspaceindustries.com/en/orgs/ARSW", linkType: "org", discordInvite: "https://discord.gg/BfGpnUCGPZ" },
-    { id: "p2", name: "Artics001", cat: "streamer", tag: "Twitch · Star Citizen FR", desc: "Streamer francophone Star Citizen — fondateur du HUB, tutos, événements communautaires et lives réguliers depuis Stanton.", live: false, since: "2024-01-01", verified: true, hue: 200, link: "https://www.twitch.tv/artics001", linkType: "twitch" },
+    { id: "p2", name: "Artics001", cat: "streamer", tag: "Twitch · Star Citizen FR", desc: "Streamer francophone Star Citizen — fondateur du HUB, tutos, événements communautaires et lives réguliers depuis Stanton.", live: false, since: "2026-05-17", verified: true, hue: 200, link: "https://www.twitch.tv/artics001", linkType: "twitch" },
     { id: "p3", name: "Le HUB", cat: "discord", tag: "Projet communautaire · Base-building", desc: "Le Hub est une communauté francophone ouverte dédiée à Star Citizen, pensée comme un espace de rencontre, d'entraide et de coopération entre joueurs, issus de tous les milieux. Son objectif : rassembler nouveaux venus, vétérans, créateurs de contenu, rôlistes, commerçants, explorateurs, combattants et corpos autour d'une vision commune — construire une véritable expérience communautaire persistante dans le Verse.", since: "2026-05-17", verified: true, hue: 200, link: "https://discord.gg/75gpShnHx", linkType: "discord", featured: true, logo: projetHubLogo },
-    { id: "s-erkul", name: "Erkul Games", cat: "sponsor", tag: "Site · DPS calculator", desc: "Calculateur DPS, builds vaisseaux et armes. Référence absolue pour comparer ses configs avant le combat.", since: "2024-01-01", verified: true, hue: 220, link: "https://www.erkul.games", linkType: "web" },
-    { id: "s-uex", name: "UEX Corp", cat: "sponsor", tag: "Site · Routes de trading", desc: "Routes de commerce, prix des matières, données crowdsourcées par la communauté. Indispensable pour optimiser ses runs.", since: "2024-01-01", verified: true, hue: 35, link: "https://uexcorp.space", linkType: "web" },
-    { id: "s-sccrafter", name: "SCCrafter", cat: "sponsor", tag: "Site · Crafting database", desc: "Liste complète des 1564 blueprints du système crafting 4.0+. Source utilisée par StarTrad pour la page Blueprints.", since: "2024-01-01", verified: true, hue: 30, link: "https://www.sccrafter.com", linkType: "web" },
-    { id: "s-sc-craft", name: "SC Craft Tools", cat: "sponsor", tag: "Site · Détails crafting", desc: "API et UI pour les recettes de craft enrichies — missions, ingrédients, lawful/illegal. Intégré dans StarTrad.", since: "2024-01-01", verified: true, hue: 25, link: "https://sc-craft.tools", linkType: "web" },
-    { id: "s-schaulers", name: "Schaulers", cat: "sponsor", tag: "Site · Server status & alerts", desc: "Status temps réel des serveurs SC, alertes patchs et événements. Intégré dans la sidebar StarTrad.", since: "2024-01-01", verified: true, hue: 200, link: "https://schaulers.space", linkType: "web" },
-    { id: "s-sc-cargo", name: "SC Cargo", cat: "sponsor", tag: "Site · Cargo viewer", desc: "Visualiseur de cargaisons et soutes — calcule les compositions optimales avant un voyage. Intégré dans StarTrad.", since: "2024-01-01", verified: true, hue: 55, link: "https://sc-cargo.space", linkType: "web" },
-    { id: "s-allsky", name: "AllSky Mining", cat: "sponsor", tag: "Site · Minage", desc: "Outils de calcul pour le minage de surface et de quantum. Intégré dans StarTrad.", since: "2024-01-01", verified: true, hue: 195, link: "https://mining.getallsky.net", linkType: "web" },
-    { id: "s-protixit", name: "Protixit", cat: "sponsor", tag: "Site · Réputation joueurs", desc: "Base de réputation communautaire pour identifier les pirates, trolls et joueurs fair-play. Intégré dans StarTrad.", since: "2024-01-01", verified: true, hue: 145, link: "https://www.protixit.com/reputation", linkType: "web" },
-    { id: "s-scdb", name: "SCDB", cat: "sponsor", tag: "Site · Database", desc: "Base de données complète sur les vaisseaux, items, armes et lieux. Intégrée dans StarTrad.", since: "2024-01-01", verified: true, hue: 290, link: "https://scdb.space", linkType: "web" },
-    { id: "s-hauler", name: "Hauler", cat: "sponsor", tag: "Site · Hauling missions", desc: "Optimiseur de missions de hauling — itinéraires, charges et profits. Intégré dans StarTrad.", since: "2024-01-01", verified: true, hue: 100, link: "https://hauler.thespacecoder.space", linkType: "web" },
-    { id: "s-finder", name: "Finder Cstone", cat: "sponsor", tag: "Site · Lieux & cartes", desc: "Recherche de lieux d'intérêt et points de map dans tous les systèmes accessibles. Intégré dans StarTrad.", since: "2024-01-01", verified: true, hue: 240, link: "https://finder.cstone.space", linkType: "web" },
-    { id: "s-verseguide", name: "Verse Guide", cat: "sponsor", tag: "Site · Guides & wiki", desc: "Guides débutants, lore et tutoriels FR. Source enrichie pour comprendre l'univers Star Citizen.", since: "2024-01-01", verified: true, hue: 175, link: "https://verseguide.com", linkType: "web" },
-    { id: "s-scmdb", name: "SCMDB", cat: "sponsor", tag: "Site · SCM Database", desc: "Base de données sur les mécaniques SCM (Spatial Combat Maneuver). Intégrée dans StarTrad.", since: "2024-01-01", verified: true, hue: 260, link: "https://scmdb.net", linkType: "web" },
-    { id: "s-spviewer", name: "SP Viewer", cat: "sponsor", tag: "Site · Ship viewer", desc: "Visualiseur 3D des vaisseaux Star Citizen avec specs détaillées.", since: "2024-01-01", verified: true, hue: 280, link: "https://www.spviewer.eu", linkType: "web" },
-    { id: "s-scwiki", name: "Star Citizen Wiki", cat: "sponsor", tag: "Site · Encyclopédie", desc: "Wiki officiel de référence — vaisseaux, lore, systèmes, items. Source canonique de la communauté.", since: "2024-01-01", verified: true, hue: 5, link: "https://starcitizen.tools", linkType: "web" },
-    { id: "s-polytool", name: "PolyTool SC", cat: "sponsor", tag: "Site · Outil communautaire", desc: "Suite d'outils SC dont StarTrad utilise les global.ini auto-syncés comme source canonique des traductions CIG.", since: "2024-01-01", verified: true, hue: 310, link: "https://github.com/GerbyTV/PolyToolSC", linkType: "web" },
+    { id: "s-erkul", name: "Erkul Games", cat: "site", tag: "Site · DPS calculator", desc: "Calculateur DPS, builds vaisseaux et armes. Référence absolue pour comparer ses configs avant le combat.", since: "2024-01-01", verified: true, hue: 220, link: "https://www.erkul.games", linkType: "web" },
+    { id: "s-uex", name: "UEX Corp", cat: "site", tag: "Site · Routes de trading", desc: "Routes de commerce, prix des matières, données crowdsourcées par la communauté. Indispensable pour optimiser ses runs.", since: "2024-01-01", verified: true, hue: 35, link: "https://uexcorp.space", linkType: "web" },
+    { id: "s-sccrafter", name: "SCCrafter", cat: "site", tag: "Site · Crafting database", desc: "Liste complète des 1564 blueprints du système crafting 4.0+. Source utilisée par StarTrad pour la page Blueprints.", since: "2024-01-01", verified: true, hue: 30, link: "https://www.sccrafter.com", linkType: "web" },
+    { id: "s-sc-craft", name: "SC Craft Tools", cat: "site", tag: "Site · Détails crafting", desc: "API et UI pour les recettes de craft enrichies — missions, ingrédients, lawful/illegal. Intégré dans StarTrad.", since: "2024-01-01", verified: true, hue: 25, link: "https://sc-craft.tools", linkType: "web" },
+    { id: "s-schaulers", name: "Schaulers", cat: "site", tag: "Site · Server status & alerts", desc: "Status temps réel des serveurs SC, alertes patchs et événements. Intégré dans la sidebar StarTrad.", since: "2024-01-01", verified: true, hue: 200, link: "https://schaulers.space", linkType: "web" },
+    { id: "s-sc-cargo", name: "SC Cargo", cat: "site", tag: "Site · Cargo viewer", desc: "Visualiseur de cargaisons et soutes — calcule les compositions optimales avant un voyage. Intégré dans StarTrad.", since: "2024-01-01", verified: true, hue: 55, link: "https://sc-cargo.space", linkType: "web" },
+    { id: "s-allsky", name: "AllSky Mining", cat: "site", tag: "Site · Minage", desc: "Outils de calcul pour le minage de surface et de quantum. Intégré dans StarTrad.", since: "2024-01-01", verified: true, hue: 195, link: "https://mining.getallsky.net", linkType: "web" },
+    { id: "s-protixit", name: "Protixit", cat: "site", tag: "Site · Réputation joueurs", desc: "Base de réputation communautaire pour identifier les pirates, trolls et joueurs fair-play. Intégré dans StarTrad.", since: "2024-01-01", verified: true, hue: 145, link: "https://www.protixit.com/reputation", linkType: "web" },
+    { id: "s-scdb", name: "SCDB", cat: "site", tag: "Site · Database", desc: "Base de données complète sur les vaisseaux, items, armes et lieux. Intégrée dans StarTrad.", since: "2024-01-01", verified: true, hue: 290, link: "https://scdb.space", linkType: "web" },
+    { id: "s-hauler", name: "Hauler", cat: "site", tag: "Site · Hauling missions", desc: "Optimiseur de missions de hauling — itinéraires, charges et profits. Intégré dans StarTrad.", since: "2024-01-01", verified: true, hue: 100, link: "https://hauler.thespacecoder.space", linkType: "web" },
+    { id: "s-finder", name: "Finder Cstone", cat: "site", tag: "Site · Lieux & cartes", desc: "Recherche de lieux d'intérêt et points de map dans tous les systèmes accessibles. Intégré dans StarTrad.", since: "2024-01-01", verified: true, hue: 240, link: "https://finder.cstone.space", linkType: "web" },
+    { id: "s-verseguide", name: "Verse Guide", cat: "site", tag: "Site · Guides & wiki", desc: "Guides débutants, lore et tutoriels FR. Source enrichie pour comprendre l'univers Star Citizen.", since: "2024-01-01", verified: true, hue: 175, link: "https://verseguide.com", linkType: "web" },
+    { id: "s-scmdb", name: "SCMDB", cat: "site", tag: "Site · SCM Database", desc: "Base de données sur les mécaniques SCM (Spatial Combat Maneuver). Intégrée dans StarTrad.", since: "2024-01-01", verified: true, hue: 260, link: "https://scmdb.net", linkType: "web" },
+    { id: "s-spviewer", name: "SP Viewer", cat: "site", tag: "Site · Ship viewer", desc: "Visualiseur 3D des vaisseaux Star Citizen avec specs détaillées.", since: "2024-01-01", verified: true, hue: 280, link: "https://www.spviewer.eu", linkType: "web" },
+    { id: "s-scwiki", name: "Star Citizen Wiki", cat: "site", tag: "Site · Encyclopédie", desc: "Wiki officiel de référence — vaisseaux, lore, systèmes, items. Source canonique de la communauté.", since: "2024-01-01", verified: true, hue: 5, link: "https://starcitizen.tools", linkType: "web" },
+    { id: "s-polytool", name: "PolyTool SC", cat: "site", tag: "Site · Outil communautaire", desc: "Suite d'outils SC dont StarTrad utilise les global.ini auto-syncés comme source canonique des traductions CIG.", since: "2024-01-01", verified: true, hue: 310, link: "https://github.com/GerbyTV/PolyToolSC", linkType: "web" },
 ];
 
 const CAT_INFO: Record<PartnerCat, { label: string; short: string; icon: React.ComponentType<{ size?: number | string }>; color: string }> = {
@@ -109,6 +109,7 @@ const CAT_INFO: Record<PartnerCat, { label: string; short: string; icon: React.C
     streamer: { label: "Streamers", short: "Streamers", icon: Twitch, color: ST.rose },
     discord: { label: "Discord", short: "Discord", icon: IconBrandDiscord, color: ST.cyan },
     sponsor: { label: "Sponsors", short: "Sponsors", icon: Star, color: ST.green },
+    site: { label: "Sites", short: "Sites", icon: ExternalLink, color: ST.green },
 };
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("fr-FR", { month: "short", year: "numeric" });
@@ -758,6 +759,7 @@ function SponsorChip({ p, onClick }: CardProps) {
     );
 }
 
+// @ts-expect-error reserved for future grid mode
 function PartnerCardA({ p, onClick }: CardProps) {
     const ci = CAT_INFO[p.cat];
     const CatIcon = ci.icon;
@@ -922,11 +924,13 @@ function ReelRow({
     icon: Icon,
     title,
     subtitle,
+    wrap = false,
     children,
 }: {
     icon: React.ComponentType<{ size?: number | string; color?: string; strokeWidth?: number | string }>;
     title: string;
     subtitle: string;
+    wrap?: boolean;
     children: React.ReactNode;
 }) {
     const scrollerRef = useRef<HTMLDivElement>(null);
@@ -1034,6 +1038,11 @@ function ReelRow({
                     </div>
                 </div>
             </div>
+            {wrap ? (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
+                    {children}
+                </div>
+            ) : (
             <div
                 onMouseEnter={() => setHovered(true)}
                 onMouseLeave={() => setHovered(false)}
@@ -1132,6 +1141,7 @@ function ReelRow({
                     {children}
                 </div>
             </div>
+            )}
         </section>
     );
 }
@@ -1289,7 +1299,9 @@ function DetailPanel({ p, onClose }: { p: Partner; onClose: () => void }) {
                         {p.members && (
                             <Row label="Membres" value={p.members.toLocaleString("fr-FR")} mono />
                         )}
-                        <Row label="Partenaire depuis" value={fmtFullDate(p.since)} />
+                        {p.cat !== "sponsor" && p.cat !== "site" && (
+                            <Row label="Partenaire depuis" value={fmtFullDate(p.since)} />
+                        )}
                         <Row
                             label="Lien"
                             value={linkLabel(p)}
@@ -1492,7 +1504,7 @@ export default function Partenaires() {
                         logo: tw.avatarUrl ?? next.logo,
                     };
                 }
-                if (!next.logo && next.cat === "sponsor" && next.linkType === "web") {
+                if (!next.logo && (next.cat === "site" || next.cat === "sponsor") && next.linkType === "web") {
                     const fav = faviconFor(next.link);
                     if (fav) next = { ...next, logo: fav };
                 }
@@ -1516,13 +1528,6 @@ export default function Partenaires() {
     };
 
     const showHero = (tab === "all" || tab === hero.cat) && matchSearch(hero);
-    const grid = useMemo(
-        () =>
-            partners.filter(
-                (p) => (tab === "all" || p.cat === tab) && p.id !== hero.id && matchSearch(p)
-            ),
-        [partners, tab, hero.id, search]
-    );
 
     const counts = useMemo(
         () => ({
@@ -1531,6 +1536,7 @@ export default function Partenaires() {
             streamer: partners.filter((p) => p.cat === "streamer").length,
             discord: partners.filter((p) => p.cat === "discord").length,
             sponsor: partners.filter((p) => p.cat === "sponsor").length,
+            site: partners.filter((p) => p.cat === "site").length,
         }),
         [partners]
     );
@@ -1750,6 +1756,7 @@ export default function Partenaires() {
                 <Chip id="streamer" icon={Twitch} label="Streamers" count={counts.streamer} />
                 <Chip id="discord" icon={IconBrandDiscord} label="Discord" count={counts.discord} />
                 <Chip id="sponsor" icon={Star} label="Sponsors" count={counts.sponsor} />
+                <Chip id="site" icon={ExternalLink} label="Sites" count={counts.site} />
             </div>
 
             <div
@@ -1986,84 +1993,118 @@ export default function Partenaires() {
                     </article>
                 )}
 
-                {tab === "all" ? (
-                    <>
-                        {inReel("organisation").length > 0 && (
-                            <ReelRow
-                                icon={Flag}
-                                title="Organisations"
-                                subtitle="Corporations et squadrons francophones"
-                            >
-                                <div style={{ display: "flex", gap: 14 }}>
-                                    {inReel("organisation").map((p) => (
-                                        <OrgCard
-                                            key={p.id}
-                                            p={p}
-                                            onClick={() => setSelectedId(p.id)}
-                                        />
-                                    ))}
-                                </div>
-                            </ReelRow>
+                {(tab === "all" || tab === "organisation") && inReel("organisation").length > 0 && (
+                    <ReelRow
+                        icon={Flag}
+                        title="Organisations"
+                        subtitle="Corporations et squadrons francophones"
+                        wrap={tab === "organisation"}
+                    >
+                        {tab === "organisation" ? (
+                            inReel("organisation").map((p) => (
+                                <OrgCard key={p.id} p={p} onClick={() => setSelectedId(p.id)} />
+                            ))
+                        ) : (
+                            <div style={{ display: "flex", gap: 14 }}>
+                                {inReel("organisation").map((p) => (
+                                    <OrgCard key={p.id} p={p} onClick={() => setSelectedId(p.id)} />
+                                ))}
+                            </div>
                         )}
-                        {inReel("streamer").length > 0 && (
-                            <ReelRow
-                                icon={Twitch}
-                                title="Streamers & créateurs"
-                                subtitle="Lives, guides, lore"
-                            >
-                                <div style={{ display: "flex", gap: 14 }}>
-                                    {inReel("streamer").map((p) => (
-                                        <StreamerCard
-                                            key={p.id}
-                                            p={p}
-                                            onClick={() => setSelectedId(p.id)}
-                                        />
-                                    ))}
-                                </div>
-                            </ReelRow>
+                    </ReelRow>
+                )}
+                {(tab === "all" || tab === "streamer") && inReel("streamer").length > 0 && (
+                    <ReelRow
+                        icon={Twitch}
+                        title="Streamers & créateurs"
+                        subtitle="Lives, guides, lore"
+                        wrap={tab === "streamer"}
+                    >
+                        {tab === "streamer" ? (
+                            inReel("streamer").map((p) => (
+                                <StreamerCard key={p.id} p={p} onClick={() => setSelectedId(p.id)} />
+                            ))
+                        ) : (
+                            <div style={{ display: "flex", gap: 14 }}>
+                                {inReel("streamer").map((p) => (
+                                    <StreamerCard key={p.id} p={p} onClick={() => setSelectedId(p.id)} />
+                                ))}
+                            </div>
                         )}
-                        {inReel("discord").length > 0 && (
-                            <ReelRow
-                                icon={IconBrandDiscord}
-                                title="Serveurs Discord"
-                                subtitle="Là où on se retrouve"
-                            >
-                                <div
-                                    style={{
-                                        display: "flex",
-                                        gap: 18,
-                                        alignItems: "flex-start",
-                                    }}
-                                >
-                                    {inReel("discord").map((p) => (
-                                        <DiscordNode
-                                            key={p.id}
-                                            p={p}
-                                            onClick={() => setSelectedId(p.id)}
-                                        />
-                                    ))}
-                                </div>
-                            </ReelRow>
+                    </ReelRow>
+                )}
+                {(tab === "all" || tab === "discord") && inReel("discord").length > 0 && (
+                    <ReelRow
+                        icon={IconBrandDiscord}
+                        title="Serveurs Discord"
+                        subtitle="Là où on se retrouve"
+                        wrap={tab === "discord"}
+                    >
+                        {tab === "discord" ? (
+                            inReel("discord").map((p) => (
+                                <DiscordNode key={p.id} p={p} onClick={() => setSelectedId(p.id)} />
+                            ))
+                        ) : (
+                            <div style={{ display: "flex", gap: 18, alignItems: "flex-start" }}>
+                                {inReel("discord").map((p) => (
+                                    <DiscordNode key={p.id} p={p} onClick={() => setSelectedId(p.id)} />
+                                ))}
+                            </div>
                         )}
-                        {inReel("sponsor").length > 0 && (
-                            <ReelRow
-                                icon={Star}
-                                title="Sponsors & sites"
-                                subtitle="Ils soutiennent StarTrad"
+                    </ReelRow>
+                )}
+                {(tab === "all" || tab === "sponsor") && (
+                    <ReelRow
+                        icon={Star}
+                        title="Sponsors"
+                        subtitle="Ils soutiennent StarTrad"
+                        wrap={tab === "sponsor"}
+                    >
+                        {inReel("sponsor").length === 0 ? (
+                            <div
+                                style={{
+                                    padding: "18px 0 4px",
+                                    fontSize: 12,
+                                    color: ST.textFaint,
+                                    fontStyle: "italic",
+                                }}
                             >
-                                <div style={{ display: "flex", gap: 12 }}>
-                                    {inReel("sponsor").map((p) => (
-                                        <SponsorChip
-                                            key={p.id}
-                                            p={p}
-                                            onClick={() => setSelectedId(p.id)}
-                                        />
-                                    ))}
-                                </div>
-                            </ReelRow>
+                                Aucun sponsor pour le moment.
+                            </div>
+                        ) : tab === "sponsor" ? (
+                            inReel("sponsor").map((p) => (
+                                <SponsorChip key={p.id} p={p} onClick={() => setSelectedId(p.id)} />
+                            ))
+                        ) : (
+                            <div style={{ display: "flex", gap: 12 }}>
+                                {inReel("sponsor").map((p) => (
+                                    <SponsorChip key={p.id} p={p} onClick={() => setSelectedId(p.id)} />
+                                ))}
+                            </div>
                         )}
-                    </>
-                ) : !false ? null : grid.length === 0 ? (
+                    </ReelRow>
+                )}
+                {(tab === "all" || tab === "site") && inReel("site").length > 0 && (
+                    <ReelRow
+                        icon={ExternalLink}
+                        title="Sites"
+                        subtitle="Les sites SC que j'utilise au quotidien"
+                        wrap={tab === "site"}
+                    >
+                        {tab === "site" ? (
+                            inReel("site").map((p) => (
+                                <SponsorChip key={p.id} p={p} onClick={() => setSelectedId(p.id)} />
+                            ))
+                        ) : (
+                            <div style={{ display: "flex", gap: 12 }}>
+                                {inReel("site").map((p) => (
+                                    <SponsorChip key={p.id} p={p} onClick={() => setSelectedId(p.id)} />
+                                ))}
+                            </div>
+                        )}
+                    </ReelRow>
+                )}
+                {tab !== "all" && inReel(tab).length === 0 && (
                     <div
                         style={{
                             padding: "48px 16px",
@@ -2072,19 +2113,7 @@ export default function Partenaires() {
                             fontSize: 14,
                         }}
                     >
-                        Aucun partenaire ne correspond à cette recherche.
-                    </div>
-                ) : (
-                    <div
-                        style={{
-                            display: "grid",
-                            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-                            gap: 16,
-                        }}
-                    >
-                        {grid.map((p) => (
-                            <PartnerCardA key={p.id} p={p} onClick={() => setSelectedId(p.id)} />
-                        ))}
+                        Aucun partenaire dans cette catégorie pour le moment.
                     </div>
                 )}
 
