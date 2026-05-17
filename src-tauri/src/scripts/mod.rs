@@ -16,6 +16,7 @@ pub mod oauth_callback;
 pub mod offline_cache;
 pub mod onboarding;
 pub mod overlay;
+pub mod partners;
 pub mod patchnote;
 pub mod presets_list_functions;
 pub mod startup_manager;
