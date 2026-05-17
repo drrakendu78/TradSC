@@ -1,5 +1,5 @@
 import { m } from "framer-motion";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
     BookOpen,
@@ -17,9 +17,9 @@ import {
     Clock,
     Hammer,
     Trophy,
-    X,
     Tag,
     Briefcase,
+    X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -40,7 +40,9 @@ import { useToast } from "@/hooks/use-toast";
 type Lang = "fr" | "en";
 
 interface BlueprintSummary {
-    id: number;
+    id: number | null;
+    classCode: string | null;
+    size: number | null;
     blueprintId: string;
     nameEn: string;
     nameFr: string | null;
@@ -160,11 +162,17 @@ const CATEGORY_FR: Record<string, string> = {
     Shield: "Bouclier",
     Cooler: "Refroidisseur",
     Quantumdrive: "Moteur Quantum",
+    Powerplant: "Réacteur",
     Radar: "Radar",
     Salvage: "Salvage",
+    "Tractor Beam": "Faisceau tracteur",
+    "Docking Collar": "Collier d'amarrage",
     Weapons: "Armes",
     Cannon: "Canon",
     Gatling: "Gatling",
+    Gun: "Canon",
+    Mining: "Minage",
+    Attachment: "Accessoire",
     Ballistic: "Balistique",
     Magazine: "Chargeur",
     Sniper: "Sniper",
@@ -172,6 +180,12 @@ const CATEGORY_FR: Record<string, string> = {
     Undersuit: "Sous-combinaison",
     Combat: "Combat",
     Ammo: "Munitions",
+    Arms: "Bras",
+    Backpack: "Sac à dos",
+    Helmet: "Casque",
+    Legs: "Jambes",
+    Torso: "Torse",
+    Misc: "Divers",
     Vehiclegear: "Équip. vaisseau",
     Personalgear: "Équip. perso",
     Armour: "Armure",
@@ -187,6 +201,102 @@ function categoryKey(category: string | null | undefined): string | null {
 
 function categoryLabelFr(key: string): string {
     return CATEGORY_FR[key] || key;
+}
+
+function extractSize(b: BlueprintSummary): number | null {
+    return b.size ?? null;
+}
+
+type BlueprintClass = "civi" | "mili" | "indu" | "stlh" | "comp";
+
+const CLASS_PREFIX_MAP: Record<string, BlueprintClass> = {
+    Civ: "civi",
+    Civi: "civi",
+    Mil: "mili",
+    Mili: "mili",
+    Ind: "indu",
+    Indu: "indu",
+    Stl: "stlh",
+    Stlh: "stlh",
+    Cmp: "comp",
+    Comp: "comp",
+};
+
+/// Resolves the class for a blueprint. Priority:
+///   1. backend `classCode` (from global.ini "Classe :" description)
+///   2. fallback to prefix in the EN name ("Mil/1/D Charger" → mili)
+function resolveClass(b: BlueprintSummary): BlueprintClass | null {
+    const code = b.classCode;
+    if (code === "civi" || code === "mili" || code === "indu" || code === "stlh" || code === "comp") {
+        return code;
+    }
+    const m = b.nameEn?.match(/^(Civ|Civi|Mil|Mili|Ind|Indu|Stl|Stlh|Cmp|Comp)\b/);
+    if (m) {
+        return CLASS_PREFIX_MAP[m[1]] ?? null;
+    }
+    return null;
+}
+
+const CLASS_LABEL_FR: Record<BlueprintClass, string> = {
+    civi: "Civil",
+    mili: "Militaire",
+    indu: "Industriel",
+    stlh: "Furtif",
+    comp: "Compétition",
+};
+
+const CLASS_BADGE_COLOR: Record<BlueprintClass, string> = {
+    civi: "border-sky-400/55 bg-sky-400/20 text-sky-200",
+    mili: "border-red-400/55 bg-red-400/20 text-red-200",
+    indu: "border-amber-400/55 bg-amber-400/20 text-amber-200",
+    stlh: "border-violet-400/55 bg-violet-400/20 text-violet-200",
+    comp: "border-emerald-400/55 bg-emerald-400/20 text-emerald-200",
+};
+
+const MISSION_TYPE_FR: Record<string, string> = {
+    "Bounty Hunter": "Chasse à prime",
+    Collection: "Collecte",
+    Courier: "Coursier",
+    Delivery: "Livraison",
+    Event: "Événement",
+    "Hand Mining": "Minage à pied",
+    Hauling: "Transport",
+    "Hauling - Interstellar": "Transport interstellaire",
+    Investigation: "Enquête",
+    Mercenary: "Mercenaire",
+    Priority: "Priorité",
+    Refueling: "Ravitaillement",
+    Salvage: "Récupération",
+    "Ship Mining": "Minage vaisseau",
+    "Wikelo - Other Items": "Wikelo — autres",
+};
+
+function missionTypeLabelFr(key: string): string {
+    return MISSION_TYPE_FR[key] || key;
+}
+
+const SYSTEM_FR_SUFFIX: Record<string, string> = {
+    "Stanton System": "Système Stanton",
+    "Pyro System": "Système Pyro",
+    "Nyx System": "Système Nyx",
+};
+
+function locationLabelFr(key: string): string {
+    if (SYSTEM_FR_SUFFIX[key]) return SYSTEM_FR_SUFFIX[key];
+    return key.replace(/\s+\/\s+/g, " / ");
+}
+
+const CONTRACTOR_FR: Record<string, string> = {
+    "Bounty Hunters Guild": "Guilde des chasseurs de primes",
+    "Dead Saints": "Dead Saints",
+    "Headhunters": "Headhunters",
+    "Highpoint Wilderness Specialists": "Spécialistes Highpoint",
+    "FTL Courier": "FTL Courier",
+    "Ling Family Hauling": "Transport familial Ling",
+};
+
+function contractorLabelFr(key: string): string {
+    return CONTRACTOR_FR[key] || key;
 }
 
 interface CompactSelectProps {
@@ -286,7 +396,7 @@ export default function Blueprints() {
         }
     });
     const [owned, setOwned] = useState<Set<string>>(() => loadOwned());
-    const [selectedId, setSelectedId] = useState<number | null>(null);
+    const [selectedBlueprintId, setSelectedBlueprintId] = useState<string | null>(null);
     const [detail, setDetail] = useState<BlueprintDetail | null>(null);
     const [detailLoading, setDetailLoading] = useState(false);
     const [detailError, setDetailError] = useState<string | null>(null);
@@ -294,6 +404,14 @@ export default function Blueprints() {
     const [cloudStatus, setCloudStatus] = useState<"idle" | "syncing" | "saved" | "error">(
         "idle",
     );
+    const filtersSnapshotRef = useRef<{
+        search: string;
+        locationFilter: string;
+        contractorFilter: string;
+        missionTypeFilter: string;
+        categoryFilter: string;
+        lawfulFilter: "all" | "lawful" | "unlawful";
+    } | null>(null);
     const loadFromCloud = usePreferencesSyncStore((s) => s.loadFromCloud);
     const saveToCloud = usePreferencesSyncStore((s) => s.saveToCloud);
 
@@ -311,19 +429,32 @@ export default function Blueprints() {
         setIsLoading(true);
         setLoadError(null);
         try {
-            const filters = {
-                location: locationFilter === "all" ? undefined : locationFilter,
-                contractor: contractorFilter === "all" ? undefined : contractorFilter,
-                missionType: missionTypeFilter === "all" ? undefined : missionTypeFilter,
-                lawful:
-                    lawfulFilter === "lawful"
-                        ? 1
-                        : lawfulFilter === "unlawful"
-                          ? 0
-                          : undefined,
-                search: search.trim() || undefined,
-            };
-            const list = await invoke<BlueprintSummary[]>("blueprints_list", { filters });
+            // Les filtres serveur (système / contractor / mission / UEE) demandent
+            // sc-craft (capé à 100 items). La recherche reste client-side sur le full list.
+            const hasServerFilter =
+                locationFilter !== "all" ||
+                contractorFilter !== "all" ||
+                missionTypeFilter !== "all" ||
+                lawfulFilter !== "all";
+            let list: BlueprintSummary[];
+            if (hasServerFilter) {
+                const filters = {
+                    location: locationFilter === "all" ? undefined : locationFilter,
+                    contractor:
+                        contractorFilter === "all" ? undefined : contractorFilter,
+                    missionType:
+                        missionTypeFilter === "all" ? undefined : missionTypeFilter,
+                    lawful:
+                        lawfulFilter === "lawful"
+                            ? 1
+                            : lawfulFilter === "unlawful"
+                              ? 0
+                              : undefined,
+                };
+                list = await invoke<BlueprintSummary[]>("blueprints_list", { filters });
+            } else {
+                list = await invoke<BlueprintSummary[]>("blueprints_list_full");
+            }
             setBlueprints(list);
         } catch (e) {
             const message = typeof e === "string" ? e : (e as Error)?.message ?? String(e);
@@ -336,7 +467,7 @@ export default function Blueprints() {
         } finally {
             setIsLoading(false);
         }
-    }, [toast, locationFilter, contractorFilter, missionTypeFilter, lawfulFilter, search]);
+    }, [toast, locationFilter, contractorFilter, missionTypeFilter, lawfulFilter]);
 
     useEffect(() => {
         fetchConfig();
@@ -348,6 +479,65 @@ export default function Blueprints() {
         }, 250);
         return () => clearTimeout(t);
     }, [fetchList]);
+
+    // Refresh erkul classes (shields/coolers/QDs/weapons) en arrière-plan.
+    // Update le cache disque ; les prochains loads bénéficient des nouvelles classes.
+    useEffect(() => {
+        const t = setTimeout(() => {
+            invoke<number>("blueprints_refresh_erkul_classes")
+                .then((n) => {
+                    if (n > 0) {
+                        console.log(`[blueprints] erkul classes loaded: ${n}`);
+                    }
+                })
+                .catch((e) =>
+                    console.warn("[blueprints] erkul refresh failed:", e),
+                );
+        }, 3000);
+        return () => clearTimeout(t);
+    }, []);
+
+    // Stale-while-revalidate : après le chargement initial (cache instantané),
+    // on re-fetch en arrière-plan pour détecter les nouveaux blueprints.
+    // Pas de blocage UI, pas de bouton.
+    const hasFilteredViewRef = useRef(false);
+    hasFilteredViewRef.current =
+        locationFilter !== "all" ||
+        contractorFilter !== "all" ||
+        missionTypeFilter !== "all" ||
+        lawfulFilter !== "all";
+    useEffect(() => {
+        // Ne pas revalider si on est en vue filtrée (sc-craft, pas concerné par le cache scunpacked)
+        if (hasFilteredViewRef.current) return;
+        let cancelled = false;
+        const t = setTimeout(async () => {
+            try {
+                const result = await invoke<{
+                    list: BlueprintSummary[];
+                    newCount: number;
+                    removedCount: number;
+                    changed: boolean;
+                }>("blueprints_revalidate_full");
+                if (cancelled) return;
+                // Toujours mettre à jour : même si les IDs n'ont pas bougé, les noms /
+                // catégories / loc_keys peuvent avoir évolué côté sccrafter.
+                setBlueprints(result.list);
+                if (result.newCount > 0) {
+                    toast({
+                        title: `${result.newCount} nouveau${result.newCount > 1 ? "x" : ""} blueprint${result.newCount > 1 ? "s" : ""}`,
+                        description:
+                            "La liste a été mise à jour depuis sccrafter.",
+                    });
+                }
+            } catch (e) {
+                console.warn("[blueprints] revalidate failed:", e);
+            }
+        }, 1500);
+        return () => {
+            cancelled = true;
+            clearTimeout(t);
+        };
+    }, [toast, locationFilter, contractorFilter, missionTypeFilter, lawfulFilter]);
 
     useEffect(() => {
         try {
@@ -453,15 +643,27 @@ export default function Blueprints() {
     }, [blueprints]);
 
     const displayedBlueprints = useMemo(() => {
+        const q = search.trim().toLowerCase();
         return blueprints.filter((b) => {
             if (onlyOwned && !owned.has(b.blueprintId)) return false;
             if (categoryFilter !== "all" && categoryKey(b.category) !== categoryFilter)
                 return false;
+            if (q) {
+                const hay = [
+                    b.blueprintId,
+                    b.nameEn,
+                    b.nameFr ?? "",
+                    b.category ?? "",
+                ]
+                    .join(" ")
+                    .toLowerCase();
+                if (!hay.includes(q)) return false;
+            }
             return true;
         });
-    }, [blueprints, onlyOwned, owned, categoryFilter]);
+    }, [blueprints, onlyOwned, owned, categoryFilter, search]);
 
-    const total = config?.totalBlueprints ?? blueprints.length;
+    const total = Math.max(blueprints.length, config?.totalBlueprints ?? 0);
     const ownedCount = useMemo(
         () => blueprints.reduce((acc, b) => (owned.has(b.blueprintId) ? acc + 1 : acc), 0),
         [blueprints, owned],
@@ -479,41 +681,40 @@ export default function Blueprints() {
     }, []);
 
     const selectBlueprint = useCallback(async (entry: BlueprintSummary) => {
-        setSelectedId(entry.id);
+        console.log("[blueprints] click row:", entry.blueprintId, "id:", entry.id);
+        setSelectedBlueprintId(entry.blueprintId);
         setDetail(null);
         setDetailError(null);
         setDetailLoading(true);
         try {
+            // Si on vient de scunpacked, id est null : on résout via sc-craft search
+            let numericId = entry.id;
+            if (numericId == null) {
+                console.log("[blueprints] resolving sc-craft id for", entry.blueprintId);
+                numericId = await invoke<number | null>("blueprint_resolve_sc_craft_id", {
+                    blueprintId: entry.blueprintId,
+                });
+                console.log("[blueprints] resolved to:", numericId);
+                if (numericId == null) {
+                    throw new Error(
+                        "Ce blueprint n'est pas référencé dans sc-craft.tools — détails enrichis indisponibles.",
+                    );
+                }
+            }
+            console.log("[blueprints] fetching detail id:", numericId);
             const value = await invoke<BlueprintDetail>("blueprint_detail", {
-                blueprintInternalId: entry.id,
+                blueprintInternalId: numericId,
             });
+            console.log("[blueprints] detail loaded:", value?.blueprintId);
             setDetail(value);
         } catch (e) {
             const message = typeof e === "string" ? e : (e as Error)?.message ?? String(e);
+            console.error("[blueprints] select failed:", message);
             setDetailError(message);
         } finally {
             setDetailLoading(false);
         }
     }, []);
-
-    const clearFilters = useCallback(() => {
-        setSearch("");
-        setLocationFilter("all");
-        setContractorFilter("all");
-        setMissionTypeFilter("all");
-        setCategoryFilter("all");
-        setLawfulFilter("all");
-        setOnlyOwned(false);
-    }, []);
-
-    const hasActiveFilter =
-        !!search ||
-        locationFilter !== "all" ||
-        contractorFilter !== "all" ||
-        missionTypeFilter !== "all" ||
-        categoryFilter !== "all" ||
-        lawfulFilter !== "all" ||
-        onlyOwned;
 
     const displayName = (b: BlueprintSummary): string => {
         const fr = b.nameFr;
@@ -635,8 +836,18 @@ export default function Blueprints() {
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 placeholder="Rechercher…"
-                                className="h-8 pl-7 text-xs"
+                                className="h-8 px-7 text-xs"
                             />
+                            {search && (
+                                <button
+                                    type="button"
+                                    onClick={() => setSearch("")}
+                                    title="Effacer la recherche"
+                                    className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                                >
+                                    <X className="h-3 w-3" />
+                                </button>
+                            )}
                         </div>
                         <CompactSelect
                             icon={<MapPin className="h-3 w-3" />}
@@ -644,6 +855,7 @@ export default function Blueprints() {
                             value={locationFilter}
                             onChange={setLocationFilter}
                             options={config?.locations ?? []}
+                            renderOption={(c) => (lang === "fr" ? locationLabelFr(c) : c)}
                             allLabel="Système"
                             active={locationFilter !== "all"}
                         />
@@ -653,6 +865,7 @@ export default function Blueprints() {
                             value={contractorFilter}
                             onChange={setContractorFilter}
                             options={config?.contractors ?? []}
+                            renderOption={(c) => (lang === "fr" ? contractorLabelFr(c) : c)}
                             allLabel="Contractor"
                             active={contractorFilter !== "all"}
                         />
@@ -672,6 +885,7 @@ export default function Blueprints() {
                             value={missionTypeFilter}
                             onChange={setMissionTypeFilter}
                             options={config?.missionTypes ?? []}
+                            renderOption={(c) => (lang === "fr" ? missionTypeLabelFr(c) : c)}
                             allLabel="Type"
                             active={missionTypeFilter !== "all"}
                         />
@@ -702,7 +916,41 @@ export default function Blueprints() {
                             </SelectContent>
                         </Select>
                         <button
-                            onClick={() => setOnlyOwned((v) => !v)}
+                            onClick={() => {
+                                setOnlyOwned((v) => {
+                                    const next = !v;
+                                    if (next) {
+                                        // Activation : snapshot des filtres puis reset
+                                        filtersSnapshotRef.current = {
+                                            search,
+                                            locationFilter,
+                                            contractorFilter,
+                                            missionTypeFilter,
+                                            categoryFilter,
+                                            lawfulFilter,
+                                        };
+                                        setSearch("");
+                                        setLocationFilter("all");
+                                        setContractorFilter("all");
+                                        setMissionTypeFilter("all");
+                                        setCategoryFilter("all");
+                                        setLawfulFilter("all");
+                                    } else {
+                                        // Désactivation : restaure les filtres précédents
+                                        const snap = filtersSnapshotRef.current;
+                                        if (snap) {
+                                            setSearch(snap.search);
+                                            setLocationFilter(snap.locationFilter);
+                                            setContractorFilter(snap.contractorFilter);
+                                            setMissionTypeFilter(snap.missionTypeFilter);
+                                            setCategoryFilter(snap.categoryFilter);
+                                            setLawfulFilter(snap.lawfulFilter);
+                                            filtersSnapshotRef.current = null;
+                                        }
+                                    }
+                                    return next;
+                                });
+                            }}
                             title={onlyOwned ? "Afficher tous" : "Afficher seulement les possédés"}
                             className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border transition-all ${
                                 onlyOwned
@@ -734,15 +982,6 @@ export default function Blueprints() {
                                 EN
                             </button>
                         </div>
-                        {hasActiveFilter && (
-                            <button
-                                onClick={clearFilters}
-                                title="Réinitialiser les filtres"
-                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border/40 bg-background/20 text-muted-foreground transition-all hover:border-destructive/40 hover:bg-destructive/10 hover:text-foreground"
-                            >
-                                <X className="h-3.5 w-3.5" />
-                            </button>
-                        )}
                     </div>
                 </section>
 
@@ -791,7 +1030,7 @@ export default function Blueprints() {
                                     </thead>
                                     <tbody>
                                         {displayedBlueprints.map((b) => {
-                                            const isSelected = b.id === selectedId;
+                                            const isSelected = b.blueprintId === selectedBlueprintId;
                                             const isOwned = owned.has(b.blueprintId);
                                             const fallback =
                                                 lang === "fr" && !b.nameFr && !b.nameEn
@@ -799,7 +1038,8 @@ export default function Blueprints() {
                                                     : "";
                                             return (
                                                 <tr
-                                                    key={b.id}
+                                                    key={b.blueprintId}
+                                                    data-no-drag
                                                     onClick={() => selectBlueprint(b)}
                                                     className={`group cursor-pointer border-b border-border/25 transition-colors hover:bg-primary/[0.06] ${
                                                         isSelected
@@ -819,8 +1059,32 @@ export default function Blueprints() {
                                                         />
                                                     </td>
                                                     <td className="px-2 py-1.5">
-                                                        <div className={`truncate ${fallback}`}>
-                                                            {displayName(b)}
+                                                        <div className="flex items-center gap-2">
+                                                            <div className={`truncate ${fallback}`}>
+                                                                {displayName(b)}
+                                                            </div>
+                                                            {(() => {
+                                                                const size = extractSize(b);
+                                                                return size != null ? (
+                                                                    <Badge
+                                                                        variant="outline"
+                                                                        className="h-5 shrink-0 px-1.5 text-[10.5px] font-semibold border-primary/60 bg-primary/20 text-primary"
+                                                                    >
+                                                                        T{size}
+                                                                    </Badge>
+                                                                ) : null;
+                                                            })()}
+                                                            {(() => {
+                                                                const cls = resolveClass(b);
+                                                                return cls ? (
+                                                                    <Badge
+                                                                        variant="outline"
+                                                                        className={`h-5 shrink-0 px-1.5 text-[10.5px] font-semibold ${CLASS_BADGE_COLOR[cls]}`}
+                                                                    >
+                                                                        {CLASS_LABEL_FR[cls]}
+                                                                    </Badge>
+                                                                ) : null;
+                                                            })()}
                                                         </div>
                                                     </td>
                                                     <td className="px-2 py-1.5 text-muted-foreground">
@@ -855,7 +1119,7 @@ export default function Blueprints() {
 
                     {/* DETAIL PANEL */}
                     <DetailPanel
-                        selectedId={selectedId}
+                        selectedId={selectedBlueprintId}
                         detail={detail}
                         loading={detailLoading}
                         error={detailError}
@@ -870,7 +1134,7 @@ export default function Blueprints() {
 }
 
 interface DetailPanelProps {
-    selectedId: number | null;
+    selectedId: string | null;
     detail: BlueprintDetail | null;
     loading: boolean;
     error: string | null;
@@ -1029,7 +1293,29 @@ function DetailBody({
                         {formatDuration(detail.craftTimeSeconds)}
                     </div>
                 </div>
-                {detail.tiers != null && (
+                {(() => {
+                    const size = extractSize(detail);
+                    return size != null ? (
+                        <div>
+                            <div className="text-[10px] uppercase text-muted-foreground">
+                                Taille
+                            </div>
+                            <div className="font-medium">T{size}</div>
+                        </div>
+                    ) : null;
+                })()}
+                {(() => {
+                    const cls = resolveClass(detail);
+                    return cls ? (
+                        <div>
+                            <div className="text-[10px] uppercase text-muted-foreground">
+                                Classe
+                            </div>
+                            <div className="font-medium">{CLASS_LABEL_FR[cls]}</div>
+                        </div>
+                    ) : null;
+                })()}
+                {detail.tiers != null && detail.tiers > 1 && (
                     <div>
                         <div className="text-[10px] uppercase text-muted-foreground">Tiers</div>
                         <div>{detail.tiers}</div>
