@@ -1449,7 +1449,7 @@ function SettingsContent() {
         });
         setAutoCleanRunning(true);
         try {
-            const result = await runShaderCacheAutoClean();
+            const result = await runShaderCacheAutoClean({ force: true });
             if (result.cleared.length > 0) {
                 toast({
                     title: 'Caches obsolètes nettoyés',
