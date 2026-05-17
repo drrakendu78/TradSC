@@ -537,19 +537,28 @@ fn lookup_class(internal_name: &str) -> Option<String> {
 
 /// Maps a manufacturer code (lowercase) to a default class orientation based on lore.
 /// Only applied as a last-resort fallback when CIG/erkul don't expose the class.
+///
+/// sccrafter naming conventions seen in the wild :
+///   - `bp_craft_<mfg>_<weapon>_...`     ← armes ship & FPS (parts[0] = mfg)
+///   - `bp_craft_<type>_<mfg>_...`       ← shields/coolers/QDs/radars/powerplants
+///                                          (parts[0] = type prefix shld/powr/cool/qdrv/radr/etc.)
+///   - `bp_craft_<weapon>_<mfg>_..._mag` ← FPS magazines (parts[0] = weapon kind, parts[1] = mfg)
+///
+/// On essaie parts[0] puis parts[1] et on retourne le 1er qui matche un fabricant connu.
 fn manufacturer_class_from_id(id_lower: &str) -> Option<&'static str> {
-    // Extract manufacturer token: usually parts[1] of bp_craft_<mfg>_... OR parts[0] of <mfg>_xxx
-    let mfg = if let Some(rest) = id_lower.strip_prefix("bp_craft_") {
-        rest.split('_').next().unwrap_or("")
-    } else if let Some(rest) = id_lower.strip_prefix("bp_") {
-        // shapes like "bp_shld_behr_..." or "bp_powr_amrs_..."
-        let mut iter = rest.split('_');
-        let _kind = iter.next();
-        iter.next().unwrap_or("")
-    } else {
-        id_lower.split('_').next().unwrap_or("")
-    };
-    classify_manufacturer(mfg)
+    let rest = id_lower.strip_prefix("bp_craft_").unwrap_or(id_lower);
+    let parts: Vec<&str> = rest.split('_').collect();
+    if let Some(p0) = parts.first() {
+        if let Some(cls) = classify_manufacturer(p0) {
+            return Some(cls);
+        }
+    }
+    if let Some(p1) = parts.get(1) {
+        if let Some(cls) = classify_manufacturer(p1) {
+            return Some(cls);
+        }
+    }
+    None
 }
 
 fn classify_manufacturer(code: &str) -> Option<&'static str> {
