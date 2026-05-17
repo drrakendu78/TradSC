@@ -1,11 +1,11 @@
 {
-    "version":  "4.1.6",
-    "notes":  "v4.1.6 - Éditeur de bindings : capture native DirectInput via gilrs (vJoy / HOTAS / sticks invisibles au navigator.getGamepads). Mapping dynamique js<N> appris au premier press (Sol-R [L] = js1, Sol-R [R] = js2…) persisté par profil. Masquage par hardware (resserre la numérotation des slots). Bluetooth HID host filtré. Persistance des cards masquées + Lié à corrigée (plus de race condition useEffect). Captures bouton en check digital seul (plus de flicker sur boutons analog au repos).",
-    "pub_date":  "2026-05-13T19:30:00.000Z",
+    "version":  "4.2.1",
+    "notes":  "v4.2.1 - Nouvelle page Partenaires (Le salon des partenaires) avec hero featured, 4 reels Netflix-style, données live Discord (membres + presence + icône serveur) et Twitch (avatar + statut live auto). Fix blueprints : détection fabricant désormais correcte sur shields/coolers/QDs/radars/powerplants (parts[0] OU parts[1]).",
+    "pub_date":  "2026-05-17T21:45:00.000Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRb1BzLzdHaFk1RlR3MWQwYzlGeE02QU11bUZ4clhvTEswaVdIdDJIOFg1U2lXb0hmM1N1ZktNVmk1dWtJS0ZnRCtrSWVGcmpMeERNMUVwbUhnV0d3RGJjL1l4Q0NCd3dZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4NzAyMzQ3CWZpbGU6U3RhclRyYWQgRlJfNC4xLjZfeDY0LXNldHVwLmV4ZQpPRzNqZGhPQTZzMmhXdG13dnZnbEdVcUVKWFlaQUJ3SUwzdFh3Qm94VzhsR3hIclNaOFJRMVQ5SmFCL0NxdVZBUnAwK0QyYmNCT0pnbmhPdEtjSjhDUT09Cg==",
-                                             "url":  "https://github.com/drrakendu78/TradSC/releases/download/v4.1.6/StarTrad.FR_4.1.6_x64-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRb1BzLzdHaFk1RlpRZWowVlVBL05rMnpkcWdBbmYxM0lSZzVlUERIalEyVURHWmtmR0wwcFdjU2xyaWVFS0Q1bTJNdlE2d21HbGd0bjR6OHp0R0lhWHZhNy9mL1VmcndRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5MDU0MjMzCWZpbGU6U3RhclRyYWQgRlJfNC4yLjFfeDY0LXNldHVwLmV4ZQpnQ0NUZ2xXU3pzdERuelpEeUNWOXNjSnFWUnFRUDlxOUR5b0x4UVF2T3lrcDFOMzBFWFJsaGVZNDNkdDN3RGZjMW9UUHMxZHdwcmZpQ3Znd3hwYytEUT09Cg==",
+                                             "url":  "https://github.com/drrakendu78/TradSC/releases/download/v4.2.1/StarTrad.FR_4.2.1_x64-setup.exe"
                                          }
                   }
 }
