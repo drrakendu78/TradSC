@@ -4,6 +4,9 @@ import { useToast } from '@/hooks/use-toast';
 import { isTauri } from '@/utils/tauri-helpers';
 
 export const AUTO_CLEAN_OBSOLETE_CACHES_KEY = 'startradfr_auto_clear_obsolete_caches';
+/// Stores the SC game_version(s) last seen by the auto-clean check.
+/// We only trigger a cleanup when this changes (= a new SC build was installed).
+const AUTO_CLEAN_LAST_SEEN_VERSIONS_KEY = 'startradfr_auto_clear_last_seen_versions';
 
 interface RawVersionInfo {
     path?: string;
@@ -43,7 +46,35 @@ export function isAutoCleanEnabled(): boolean {
     }
 }
 
-export async function runShaderCacheAutoClean(): Promise<AutoCleanResult> {
+function fingerprintVersions(installed: Set<string>): string {
+    return Array.from(installed).sort().join('|');
+}
+
+function readLastSeenFingerprint(): string | null {
+    try {
+        return localStorage.getItem(AUTO_CLEAN_LAST_SEEN_VERSIONS_KEY);
+    } catch {
+        return null;
+    }
+}
+
+function writeLastSeenFingerprint(fp: string): void {
+    try {
+        localStorage.setItem(AUTO_CLEAN_LAST_SEEN_VERSIONS_KEY, fp);
+    } catch {
+        // ignore
+    }
+}
+
+export interface RunAutoCleanOptions {
+    /// If true, ignore the "last seen versions" guard and always run the scan.
+    /// Used for the manual cleanup button. Default false (= only run on version change).
+    force?: boolean;
+}
+
+export async function runShaderCacheAutoClean(
+    opts: RunAutoCleanOptions = {},
+): Promise<AutoCleanResult> {
     if (!isTauri()) return { cleared: [], freedMb: 0 };
 
     const [versions, cacheInfoStr] = await Promise.all([
@@ -57,6 +88,17 @@ export async function runShaderCacheAutoClean(): Promise<AutoCleanResult> {
     for (const v of Object.values(versions)) {
         if (v && typeof v.game_version === 'string' && v.game_version.length > 0) {
             installedVersions.add(v.game_version);
+        }
+    }
+
+    // Only run cleanup when the installed SC versions have changed since last time
+    // (= a new build was installed). Skip otherwise to avoid pruning fresh caches
+    // that SC re-creates between launches.
+    const currentFingerprint = fingerprintVersions(installedVersions);
+    if (!opts.force) {
+        const lastSeen = readLastSeenFingerprint();
+        if (lastSeen === currentFingerprint) {
+            return { cleared: [], freedMb: 0 };
         }
     }
 
@@ -82,6 +124,10 @@ export async function runShaderCacheAutoClean(): Promise<AutoCleanResult> {
             freedMb += parseWeightMb(folder.weight);
         }
     }
+
+    // Update the last-seen fingerprint AFTER cleanup so we don't re-scan
+    // until SC versions change again.
+    writeLastSeenFingerprint(currentFingerprint);
 
     return { cleared, freedMb };
 }
