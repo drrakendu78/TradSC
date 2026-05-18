@@ -1,12 +1,14 @@
 import { m } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
-import { ExternalLink, RefreshCw, Loader2, Database, PictureInPicture2 } from "lucide-react";
+import { ExternalLink, RefreshCw, Loader2, Database, PictureInPicture2, Languages, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import openExternal from "@/utils/external";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
 const SCMDB_URL = "https://scmdb.net/";
+const SCMDB_FR_LANG_URL =
+    "https://cdn.jsdelivr.net/gh/drrakendu78/TradSC@main/scmdb-lang/lang-fr-4.8.0-live.11825000.json";
 
 interface OverlayClosedPayload {
     id: string;
@@ -16,8 +18,28 @@ export default function ScmDb() {
     const [isLoading, setIsLoading] = useState(true);
     const [hasError, setHasError] = useState(false);
     const [isDetachedToOverlay, setIsDetachedToOverlay] = useState(false);
+    const [copiedFrLang, setCopiedFrLang] = useState(false);
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const { toast } = useToast();
+
+    const handleCopyFrLang = async () => {
+        try {
+            await navigator.clipboard.writeText(SCMDB_FR_LANG_URL);
+            setCopiedFrLang(true);
+            toast({
+                title: "Lien copié !",
+                description:
+                    "Colle-le dans « Community Translation » des paramètres SCMDB puis clique Apply.",
+            });
+            window.setTimeout(() => setCopiedFrLang(false), 2500);
+        } catch {
+            toast({
+                title: "Erreur",
+                description: "Impossible de copier le lien dans le presse-papiers.",
+                variant: "destructive",
+            });
+        }
+    };
 
     useEffect(() => {
         const timeout = setTimeout(() => setIsLoading(false), 8000);
@@ -115,6 +137,22 @@ export default function ScmDb() {
                     <span className="font-medium text-[12px]">SCMDB - Base de donnees</span>
                 </div>
                 <div className="flex gap-1.5">
+                    <button
+                        onClick={handleCopyFrLang}
+                        className={`flex h-8 items-center gap-1.5 rounded-full border px-3 text-[11.5px] backdrop-blur-md shadow-sm transition-all ${
+                            copiedFrLang
+                                ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-500"
+                                : "border-primary/40 bg-primary/10 text-primary hover:border-primary/60 hover:bg-primary/20"
+                        }`}
+                        title="Copier l'URL de la trad FR (à coller dans Community Translation des paramètres SCMDB)"
+                    >
+                        {copiedFrLang ? (
+                            <Check className="h-3.5 w-3.5" />
+                        ) : (
+                            <Languages className="h-3.5 w-3.5" />
+                        )}
+                        <span>{copiedFrLang ? "Copié !" : "Copier trad FR"}</span>
+                    </button>
                     <button
                         onClick={handleRefresh}
                         className="flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-background/80 text-foreground/80 backdrop-blur-md shadow-sm transition-all hover:border-primary/50 hover:bg-primary/15 hover:text-primary"
