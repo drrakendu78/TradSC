@@ -13,6 +13,10 @@ interface ScToolBase {
     webviewHeight?: number;
     webviewOpacity?: number;
     hideIframeScrollbar?: boolean;
+    /** Optional URL to a community FR translation file, shown as a copy button. */
+    frTranslationUrl?: string;
+    /** Optional helper text shown next to the copy button. */
+    frTranslationHint?: string;
 }
 
 export interface ScIframeTool extends ScToolBase {

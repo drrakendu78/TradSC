@@ -228,7 +228,7 @@ export default function Traduction() {
         try {
             window.localStorage.setItem(CUSTOM_TRANSLATION_SOURCES_KEY, JSON.stringify(customTranslationSources));
         } catch (error) {
-            logger.error("Erreur sauvegarde sources personnalisÃ©es:", error);
+            logger.error("Erreur sauvegarde sources personnalisées:", error);
         }
     }, [customTranslationSources]);
 
@@ -445,7 +445,7 @@ export default function Traduction() {
         if (!url) {
             toast({
                 title: "Lien invalide",
-                description: "La source personnalisÃ©e doit Ãªtre un lien http(s) qui pointe vers un fichier global.ini.",
+                description: "La source personnalisée doit être un lien http(s) qui pointe vers un fichier global.ini.",
                 variant: "destructive",
                 duration: 4000,
             });
@@ -454,8 +454,8 @@ export default function Traduction() {
 
         if (customTranslationSources.some((source) => source.url === url) || officialTranslationLinks.some((link) => link.url === url)) {
             toast({
-                title: "Source dÃ©jà prÃ©sente",
-                description: "Ce lien global.ini est dÃ©jà disponible dans la liste.",
+                title: "Source déjà présente",
+                description: "Ce lien global.ini est déjà disponible dans la liste.",
                 duration: 3000,
             });
             return;
@@ -477,7 +477,7 @@ export default function Traduction() {
         setCustomSourceLanguage(DEFAULT_CUSTOM_TRANSLATION_LANGUAGE);
 
         toast({
-            title: "Source personnalisÃ©e ajoutÃ©e",
+            title: "Source personnalisée ajoutée",
             description: `Elle est maintenant disponible pour ${getCustomLanguageLabel(language)}.`,
             variant: "success",
             duration: 3000,
@@ -1804,7 +1804,7 @@ export default function Traduction() {
                                 <Link2 className="h-4 w-4 text-primary" />
                             </div>
                             <div>
-                                <DialogTitle>Source de traduction personnalisÃ©e</DialogTitle>
+                                <DialogTitle>Source de traduction personnalisée</DialogTitle>
                                 <DialogDescription className="mt-1">
                                     Ajoute un lien direct vers un fichier global.ini. Les sources officielles restent intactes.
                                 </DialogDescription>
@@ -1815,13 +1815,13 @@ export default function Traduction() {
                     <div className="min-w-0 space-y-4 overflow-y-auto px-5 py-4">
                         <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/10 p-3 text-xs leading-relaxed text-muted-foreground">
                             Le lien doit pointer vers un fichier <span className="font-semibold text-foreground">global.ini</span>.
-                            Une fois sÃ©lectionnÃ© dans une version, il utilise les mÃªmes boutons installer / mettre à jour et le mÃªme service de mise à jour automatique.
+                            Une fois sélectionné dans une version, il utilise les mêmes boutons installer / mettre à jour et le même service de mise à jour automatique.
                         </div>
 
                         <div className="grid min-w-0 gap-3 lg:grid-cols-[0.75fr_0.85fr_1.4fr]">
                             <div className="min-w-0 space-y-1.5">
                                 <label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                                    Nom affichÃ©
+                                    Nom affiché
                                 </label>
                                 <Input
                                     value={customSourceName}
@@ -1868,7 +1868,7 @@ export default function Traduction() {
 
                         <div className="min-w-0 space-y-2">
                             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                                Sources personnalisÃ©es
+                                Sources personnalisées
                             </p>
                             {customTranslationSources.length > 0 ? (
                                 <div className="max-h-52 min-w-0 space-y-2 overflow-y-auto pr-1">
@@ -1941,16 +1941,6 @@ export default function Traduction() {
                                 </div>
                             </div>
                             <div className="flex shrink-0 flex-wrap justify-end gap-2">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-7 gap-1.5 rounded-md border-primary/25 bg-primary/10 px-2 text-[11px] text-primary hover:bg-primary/15"
-                                    onClick={() => setCustomSourceDialogOpen(true)}
-                                >
-                                    <Link2 className="h-3.5 w-3.5" />
-                                    Source perso
-                                </Button>
                                 {translations?.fr?.links?.length ? (
                                     <Badge variant="outline" className="h-6 rounded-md border-emerald-500/25 bg-emerald-500/10 px-2 text-[11px] text-emerald-500">
                                         Serveurs actifs
@@ -1969,7 +1959,7 @@ export default function Traduction() {
                     <Card className="overflow-hidden rounded-xl border border-border/30 bg-[hsl(var(--background)/0.10)] shadow-none backdrop-blur-md">
                         <CardContent className="space-y-2 p-2.5">
                             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Sources disponibles</p>
-                            <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
+                            <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
                                 <div className="rounded-lg border border-border/30 bg-background/20 p-2.5">
                                     <p className="text-sm font-semibold tracking-tight text-primary">SCEFRA</p>
                                     <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
@@ -1982,6 +1972,21 @@ export default function Traduction() {
                                         Traduction par des équipes de traducteurs et relecteurs (communauté Hugo Lisoir). Mises à jour moins fréquentes.
                                     </p>
                                 </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setCustomSourceDialogOpen(true)}
+                                    className="group relative flex flex-col items-start gap-1 overflow-hidden rounded-lg border border-dashed border-emerald-500/40 bg-emerald-500/[0.06] p-2.5 text-left transition-all hover:border-emerald-500/70 hover:bg-emerald-500/15 hover:shadow-[0_4px_20px_-8px_rgba(52,211,153,0.5)]"
+                                >
+                                    <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 transition-transform group-hover:scale-110">
+                                        <Plus className="h-3 w-3" strokeWidth={2.5} />
+                                    </span>
+                                    <p className="text-sm font-semibold tracking-tight text-emerald-400">
+                                        Source perso
+                                    </p>
+                                    <p className="text-xs leading-relaxed text-muted-foreground">
+                                        Ajouter une URL personnelle vers un fichier global.ini que tu maintiens toi-même.
+                                    </p>
+                                </button>
                             </div>
                         </CardContent>
                     </Card>

@@ -55,6 +55,7 @@ import { invoke as tauriInvoke } from '@tauri-apps/api/core';
 import { isAutoCleanEnabled, runShaderCacheAutoClean } from '@/hooks/useShaderCacheAutoClean';
 import { useTranslationStatus } from '@/hooks/useTranslationStatus';
 import MiniPlayer from '@/components/custom/mini-player';
+import { ReferralBanner } from '@/components/custom/referral-banner';
 import HomeStatusCard from '@/components/custom/home-status-card';
 import { detectDistribution } from '@/utils/buildInfo';
 
@@ -1375,6 +1376,7 @@ function Home() {
 
     return (
         <div className="flex w-full h-full flex-col gap-3 p-4 overflow-visible relative justify-between">
+            <ReferralBanner />
             {isBackgroundVideoEnabled && (
                 <div className="pointer-events-none absolute inset-0 z-0 overflow-visible">
                     <div
