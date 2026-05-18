@@ -1,11 +1,11 @@
 {
-    "version":  "4.2.2",
-    "notes":  "v4.2.2 - Page Partenaires : split des catégories Sponsors vs Sites (16 sites SC en cat:site), reels apparaissent aussi en mode catégorie unique (layout wrap), animations slide-in/out fluides pour le detail panel, backdrop+Escape pour fermer, favicons auto pour les sponsors/sites, headers de reels uniformisés (monochrome).",
-    "pub_date":  "2026-05-18T00:57:00.000Z",
+    "version":  "4.2.3",
+    "notes":  "v4.2.3 - Home : bandeau Parrainage RSI (50 000 UEC) + pill 'Mon orga' (Aureus Steelworks, DA bronze) qui pendouillent de la titlebar. Auto-collapse parrainage après 10s. Coordinateur mutex pour qu'un seul soit déployé. SCMDB : bouton 'Copier trad FR' dans la toolbar. Traduction : 'Source perso' en 3ème carte verte + fix mojibake. Partenaires : Aureus tag mis à jour (Fret · Transport · Commerce · Passagers), logo Le HUB via icône Discord animée, online count dans OrgCard.",
+    "pub_date":  "2026-05-18T16:48:00.000Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRb1BzLzdHaFk1RlZiekhTemxSU2tOVWpFZ00ycWt0OCtxYmlmUEN2VHdyeTZ0VitUYU9IaXlLTVpTSFBQcUt3NGE5VDhPblRqK1RUUTk4dHRRdEFBbm1sYmJPdmg4OXdFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5MDU4NjQxCWZpbGU6U3RhclRyYWQgRlJfNC4yLjJfeDY0LXNldHVwLmV4ZQpZcTJZcDk0QXhFSE1vK1pCUmJUQUUwV1hwOTJ0aExNd3Rlb1Q1eUJJL3RXQWxhemV5ckpTdlhHQVBxSndidzVNNHhSQlZwQmNZbjNlL2dYaXZJMXFEQT09Cg==",
-                                             "url":  "https://github.com/drrakendu78/TradSC/releases/download/v4.2.2/StarTrad.FR_4.2.2_x64-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRb1BzLzdHaFk1RmJaM2dnbFdSTmFBNG1NQVlwcUJIRXMwWG1JdSttazJWbVRrRm14bG5OdjU3RzVpS1pvelVtSU9uanNSZkZNZGg4bmNnV2hqYmtEbEh1QlEwUnl3Y3c4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5MTIyODEzCWZpbGU6U3RhclRyYWQgRlJfNC4yLjNfeDY0LXNldHVwLmV4ZQpBS2hQWDRKQjdsa0pZTTNtbkRJajFVcUt5dXliNWYwZjB6S1ZYM2hGL0Y1TW5QSGpwQXFNVURUeXdqbTR6TVNhdWtQNnNkTGVONHJ1bEk0dkhrUmdEQT09Cg==",
+                                             "url":  "https://github.com/drrakendu78/TradSC/releases/download/v4.2.3/StarTrad.FR_4.2.3_x64-setup.exe"
                                          }
                   }
 }
