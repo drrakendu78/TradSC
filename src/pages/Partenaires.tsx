@@ -20,7 +20,6 @@ import { IconBrandDiscord } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import { openExternalCustom } from "@/utils/external";
 import { isTauri } from "@/utils/tauri-helpers";
-import projetHubLogo from "@/assets/partners/projet-hub.jpg";
 
 interface DiscordInviteInfo {
     code: string;
@@ -52,6 +51,8 @@ interface Partner {
     tag: string;
     desc: string;
     members?: number;
+    /** Live Discord presence (en ligne) — injecté au runtime */
+    online?: number;
     live?: boolean;
     since: string;
     verified: boolean;
@@ -85,7 +86,7 @@ const ST = {
 const PARTNERS: Partner[] = [
     { id: "p1", name: "Aureus Steelworks", cat: "organisation", tag: "ORG · Fret · Transport · Commerce · Passagers", desc: "Organisation francophone de fret, transport (cargo et passagers) et commerce. Sim en développement actif au sein du Verse.", since: "2026-05-17", verified: true, hue: 45, link: "https://robertsspaceindustries.com/en/orgs/ARSW", linkType: "org", discordInvite: "https://discord.gg/BfGpnUCGPZ" },
     { id: "p2", name: "Artics001", cat: "streamer", tag: "Twitch · Star Citizen FR", desc: "Streamer francophone Star Citizen — fondateur du HUB, tutos, événements communautaires et lives réguliers depuis Stanton.", live: false, since: "2026-05-17", verified: true, hue: 200, link: "https://www.twitch.tv/artics001", linkType: "twitch" },
-    { id: "p3", name: "Le HUB", cat: "discord", tag: "Projet communautaire · Base-building", desc: "Le Hub est une communauté francophone ouverte dédiée à Star Citizen, pensée comme un espace de rencontre, d'entraide et de coopération entre joueurs, issus de tous les milieux. Son objectif : rassembler nouveaux venus, vétérans, créateurs de contenu, rôlistes, commerçants, explorateurs, combattants et corpos autour d'une vision commune — construire une véritable expérience communautaire persistante dans le Verse.", since: "2026-05-17", verified: true, hue: 200, link: "https://discord.gg/75gpShnHx", linkType: "discord", featured: true, logo: projetHubLogo },
+    { id: "p3", name: "Le HUB", cat: "discord", tag: "Projet communautaire · Base-building", desc: "Le Hub est une communauté francophone ouverte dédiée à Star Citizen, pensée comme un espace de rencontre, d'entraide et de coopération entre joueurs, issus de tous les milieux. Son objectif : rassembler nouveaux venus, vétérans, créateurs de contenu, rôlistes, commerçants, explorateurs, combattants et corpos autour d'une vision commune — construire une véritable expérience communautaire persistante dans le Verse.", since: "2026-05-17", verified: true, hue: 200, link: "https://discord.gg/75gpShnHx", linkType: "discord", featured: true },
     { id: "s-erkul", name: "Erkul Games", cat: "site", tag: "Site · DPS calculator", desc: "Calculateur DPS, builds vaisseaux et armes. Référence absolue pour comparer ses configs avant le combat.", since: "2024-01-01", verified: true, hue: 220, link: "https://www.erkul.games", linkType: "web" },
     { id: "s-uex", name: "UEX Corp", cat: "site", tag: "Site · Routes de trading", desc: "Routes de commerce, prix des matières, données crowdsourcées par la communauté. Indispensable pour optimiser ses runs.", since: "2024-01-01", verified: true, hue: 35, link: "https://uexcorp.space", linkType: "web" },
     { id: "s-sccrafter", name: "SCCrafter", cat: "site", tag: "Site · Crafting database", desc: "Liste complète des 1564 blueprints du système crafting 4.0+. Source utilisée par StarTrad pour la page Blueprints.", since: "2024-01-01", verified: true, hue: 30, link: "https://www.sccrafter.com", linkType: "web" },
@@ -267,16 +268,40 @@ function OrgCard({ p, onClick }: CardProps) {
                         alignItems: "center",
                         gap: 6,
                         fontSize: 9,
-                        color: "rgba(255,255,255,0.65)",
+                        color: "rgba(255,255,255,0.85)",
                         fontFamily: ST.fontMono,
                         letterSpacing: 1,
                         textTransform: "uppercase",
                         padding: "4px 8px",
-                        background: "rgba(0,0,0,0.3)",
+                        background: "rgba(0,0,0,0.35)",
                         borderRadius: 4,
                     }}
                 >
-                    <Users size={10} /> {p.members?.toLocaleString("fr-FR")}
+                    <Users size={10} /> {p.members?.toLocaleString("fr-FR") ?? "—"}
+                    {p.online != null && p.online > 0 && (
+                        <>
+                            <span
+                                style={{
+                                    width: 1,
+                                    height: 10,
+                                    background: "rgba(255,255,255,0.2)",
+                                }}
+                            />
+                            <span
+                                style={{
+                                    display: "inline-block",
+                                    width: 5,
+                                    height: 5,
+                                    borderRadius: 3,
+                                    background: "oklch(0.78 0.16 150)",
+                                    boxShadow: "0 0 5px oklch(0.78 0.16 150 / 0.7)",
+                                }}
+                            />
+                            <span style={{ color: "oklch(0.85 0.16 150)", fontWeight: 700 }}>
+                                {p.online.toLocaleString("fr-FR")}
+                            </span>
+                        </>
+                    )}
                 </div>
             </div>
             <div style={{ position: "relative" }}>
@@ -1493,6 +1518,9 @@ export default function Partenaires() {
                 if (liveMembers[p.id] != null) {
                     next = { ...next, members: liveMembers[p.id] };
                 }
+                if (livePresence[p.id] != null) {
+                    next = { ...next, online: livePresence[p.id] };
+                }
                 if (!next.logo && discordIcons[p.id]) {
                     next = { ...next, logo: discordIcons[p.id] };
                 }
@@ -1510,7 +1538,7 @@ export default function Partenaires() {
                 }
                 return next;
             }),
-        [liveMembers, discordIcons, twitchInfo]
+        [liveMembers, livePresence, discordIcons, twitchInfo]
     );
 
     const hero = useMemo(() => partners.find((p) => p.featured) ?? partners[0], [partners]);

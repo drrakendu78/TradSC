@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { m, AnimatePresence } from "framer-motion";
 import { Shield, ChevronDown, ChevronUp, ExternalLink, Users, BadgeCheck } from "lucide-react";
 import { IconBrandDiscord } from "@tabler/icons-react";
@@ -37,8 +37,14 @@ export function OrgPill() {
     const [iconUrl, setIconUrl] = useState<string | null>(null);
     const [members, setMembers] = useState<number | null>(null);
     const [online, setOnline] = useState<number | null>(null);
-    const [referralActive, setReferralActive] = useState<boolean>(
-        () => getActiveBanner() === "referral"
+
+    // useSyncExternalStore : se sync avec activeBanner à chaque render,
+    // sans race condition entre mount et useEffect. Indispensable au
+    // re-mount (changement de page) pour que le pill se masque
+    // immédiatement quand le parrainage est actif.
+    const referralActive = useSyncExternalStore(
+        useCallback((onChange) => subscribeActiveBanner(() => onChange()), []),
+        useCallback(() => getActiveBanner() === "referral", [])
     );
 
     useEffect(() => {
@@ -64,10 +70,10 @@ export function OrgPill() {
     }, []);
 
     // Coordination : si un autre bandeau s'ouvre, on se replie.
-    // En particulier, si le Parrainage est ouvert, on se masque entièrement.
+    // (referralActive est géré par useSyncExternalStore ci-dessus,
+    // ici on s'occupe uniquement de fermer notre propre open state.)
     useEffect(() => {
         const unsub = subscribeActiveBanner((id) => {
-            setReferralActive(id === "referral");
             if (id !== "org" && open) {
                 setOpen(false);
             }
