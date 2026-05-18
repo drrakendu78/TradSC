@@ -10,16 +10,32 @@ import {
 
 const REFERRAL_CODE = "STAR-FYZN-9HQQ";
 const REFERRAL_URL = `https://robertsspaceindustries.com/enlist?referral=${REFERRAL_CODE}`;
+const COLLAPSED_STORAGE_KEY = "startradfr_referral_banner_collapsed";
 
 type BannerState = "open" | "collapsed";
 
-// Pas de persistance : le bandeau revient toujours ouvert au prochain démarrage.
-// L'user peut juste le réduire temporairement durant la session.
+// Une fois que l'user a cliqué ▲ pour réduire, on persiste ce choix.
+// Le pill reste cliquable pour réouvrir manuellement, mais l'app ne
+// déploie plus automatiquement le bandeau à chaque démarrage.
 
 const AUTO_COLLAPSE_DELAY_MS = 10_000;
 
+function loadInitialState(): BannerState {
+    try {
+        if (localStorage.getItem(COLLAPSED_STORAGE_KEY) === "1") return "collapsed";
+    } catch {}
+    return "open";
+}
+
+function persistCollapsed(collapsed: boolean) {
+    try {
+        if (collapsed) localStorage.setItem(COLLAPSED_STORAGE_KEY, "1");
+        else localStorage.removeItem(COLLAPSED_STORAGE_KEY);
+    } catch {}
+}
+
 export function ReferralBanner() {
-    const [state, setState] = useState<BannerState>("open");
+    const [state, setState] = useState<BannerState>(() => loadInitialState());
     const [mounted, setMounted] = useState(false);
     const [copiedCode, setCopiedCode] = useState(false);
     const [copiedLink, setCopiedLink] = useState(false);
@@ -28,9 +44,12 @@ export function ReferralBanner() {
 
     useEffect(() => {
         setMounted(true);
-        // Au mount, on est dans l'état initial "open" → on l'enregistre
-        // auprès du coordinateur pour que les autres bandeaux puissent réagir.
-        setActiveBanner("referral");
+        // Au mount, si on est dans l'état "open", on l'enregistre auprès du
+        // coordinateur pour que les autres bandeaux puissent réagir.
+        if (state === "open") {
+            setActiveBanner("referral");
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Coordination : si un autre bandeau s'ouvre, on se replie.
@@ -44,11 +63,14 @@ export function ReferralBanner() {
     }, [state]);
 
     // Auto-collapse après 10s d'inactivité (souris pas dessus) quand ouvert.
+    // On persiste l'état collapsed pour ne plus afficher en grand au prochain
+    // démarrage (les users râlent quand ça s'ouvre à chaque fois).
     useEffect(() => {
         if (state !== "open" || hovered) return;
         const timer = window.setTimeout(() => {
             setState("collapsed");
             setActiveBanner(null);
+            persistCollapsed(true);
         }, AUTO_COLLAPSE_DELAY_MS);
         return () => window.clearTimeout(timer);
     }, [state, hovered]);
@@ -240,9 +262,10 @@ export function ReferralBanner() {
                                 onClick={() => {
                                     setState("collapsed");
                                     setActiveBanner(null);
+                                    persistCollapsed(true);
                                 }}
                                 className="ml-1 flex h-6 w-6 items-center justify-center rounded-full text-white/70 transition-colors hover:bg-white/15 hover:text-white"
-                                title="Réduire"
+                                title="Réduire (le bandeau ne se rouvrira plus automatiquement)"
                                 aria-label="Réduire le bandeau de parrainage"
                             >
                                 <ChevronUp className="h-3.5 w-3.5" />
