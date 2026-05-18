@@ -3,6 +3,10 @@ import { m, AnimatePresence } from "framer-motion";
 import { ChevronDown, ChevronUp, Copy, Check, Sparkles, HelpCircle, Trophy, Coins, Rocket } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+    setActiveBanner,
+    subscribeActiveBanner,
+} from "@/components/custom/titlebar-banner-coordinator";
 
 const REFERRAL_CODE = "STAR-FYZN-9HQQ";
 const REFERRAL_URL = `https://robertsspaceindustries.com/enlist?referral=${REFERRAL_CODE}`;
@@ -12,16 +16,42 @@ type BannerState = "open" | "collapsed";
 // Pas de persistance : le bandeau revient toujours ouvert au prochain démarrage.
 // L'user peut juste le réduire temporairement durant la session.
 
+const AUTO_COLLAPSE_DELAY_MS = 10_000;
+
 export function ReferralBanner() {
     const [state, setState] = useState<BannerState>("open");
     const [mounted, setMounted] = useState(false);
     const [copiedCode, setCopiedCode] = useState(false);
     const [copiedLink, setCopiedLink] = useState(false);
+    const [hovered, setHovered] = useState(false);
     const { toast } = useToast();
 
     useEffect(() => {
         setMounted(true);
+        // Au mount, on est dans l'état initial "open" → on l'enregistre
+        // auprès du coordinateur pour que les autres bandeaux puissent réagir.
+        setActiveBanner("referral");
     }, []);
+
+    // Coordination : si un autre bandeau s'ouvre, on se replie.
+    useEffect(() => {
+        const unsub = subscribeActiveBanner((id) => {
+            if (id !== "referral" && state === "open") {
+                setState("collapsed");
+            }
+        });
+        return unsub;
+    }, [state]);
+
+    // Auto-collapse après 10s d'inactivité (souris pas dessus) quand ouvert.
+    useEffect(() => {
+        if (state !== "open" || hovered) return;
+        const timer = window.setTimeout(() => {
+            setState("collapsed");
+            setActiveBanner(null);
+        }, AUTO_COLLAPSE_DELAY_MS);
+        return () => window.clearTimeout(timer);
+    }, [state, hovered]);
 
     const copy = async (text: string, kind: "code" | "link") => {
         try {
@@ -72,6 +102,8 @@ export function ReferralBanner() {
                         exit={{ y: -80, opacity: 0 }}
                         transition={{ type: "spring", stiffness: 320, damping: 30 }}
                         className="pointer-events-auto group relative"
+                        onMouseEnter={() => setHovered(true)}
+                        onMouseLeave={() => setHovered(false)}
                     >
                         {/* Halo emerald subtil sous le bandeau pour ressortir */}
                         <span
@@ -205,7 +237,10 @@ export function ReferralBanner() {
                             </div>
 
                             <button
-                                onClick={() => setState("collapsed")}
+                                onClick={() => {
+                                    setState("collapsed");
+                                    setActiveBanner(null);
+                                }}
                                 className="ml-1 flex h-6 w-6 items-center justify-center rounded-full text-white/70 transition-colors hover:bg-white/15 hover:text-white"
                                 title="Réduire"
                                 aria-label="Réduire le bandeau de parrainage"
@@ -221,7 +256,10 @@ export function ReferralBanner() {
                         animate={{ y: 0, opacity: 1 }}
                         exit={{ y: -24, opacity: 0 }}
                         transition={{ type: "spring", stiffness: 320, damping: 30 }}
-                        onClick={() => setState("open")}
+                        onClick={() => {
+                            setState("open");
+                            setActiveBanner("referral");
+                        }}
                         className="startrad-referral-pill pointer-events-auto relative flex h-7 items-center gap-2 rounded-b-2xl border border-t-0 border-primary/50 bg-gradient-to-b from-primary/40 to-primary/25 px-3.5 text-[11.5px] font-semibold text-primary-foreground shadow-[0_8px_24px_-10px_rgba(160,120,255,0.7)] backdrop-blur-xl transition-all hover:from-primary/55 hover:to-primary/35"
                         title="Afficher le code de parrainage (50 000 UEC offerts)"
                     >

@@ -59,6 +59,7 @@ import { isAutoCleanEnabled, runShaderCacheAutoClean } from '@/hooks/useShaderCa
 import { useTranslationStatus } from '@/hooks/useTranslationStatus';
 import MiniPlayer from '@/components/custom/mini-player';
 import { ReferralBanner } from '@/components/custom/referral-banner';
+import { OrgPill } from '@/components/custom/org-pill';
 import HomeStatusCard from '@/components/custom/home-status-card';
 import { ProjectorShadow, type ProjectorShadowSettings } from '@/utils/ambilight/projector-shadow';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
@@ -1387,6 +1388,7 @@ function Home() {
     return (
         <div className="flex w-full h-full flex-col gap-3 p-4 overflow-visible relative justify-between">
             <ReferralBanner />
+            <OrgPill />
             {isBackgroundVideoEnabled && (
                 <div className="pointer-events-none absolute inset-0 z-0 overflow-visible">
                     <div
