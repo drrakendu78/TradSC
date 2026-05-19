@@ -1,11 +1,11 @@
 {
-    "version":  "4.2.4",
-    "notes":  "v4.2.4 - Bandeau parrainage : persistance du collapsed après la 1ère réduction (manuelle via ▲ ou auto après 10s). Plus de pop-up agressif à chaque démarrage de l'app. L'user peut toujours cliquer la pill pour rouvrir manuellement.",
-    "pub_date":  "2026-05-18T21:10:00.000Z",
+    "version":  "4.2.5",
+    "notes":  "v4.2.5 - Nettoyage shaders SC : fini les suppressions à chaque patch. Détection sur la vraie major SC (4.8 → 4.9 = trigger, 4.9.0 → 4.9.1 = ignoré) + modale de confirmation au boot. Nouveau bouton 'Mot de passe oublié ?' dans l'auth dialog. Nouveau partenaire BlackBird (boutique de supports joystick 3D), nouvelle catégorie 'Boutiques & Makers', hero card qui tourne entre Le HUB et BlackBird. VECTARIS CORP. remplace Aureus sur le bandeau 'Mon orga'.",
+    "pub_date":  "2026-05-19T13:50:00.000Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRb1BzLzdHaFk1RllCZ3ZIUlptNE4vaHNMYmIwcFkwU0RZUFg0S3NLcmV4SmgvRDJLZDBJNVBJcExJWFRhN25DZUxPZHpNdG45anBIYnNjTDhCUGhoZ1BmaWFoM1piS1FJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5MTMxMzY1CWZpbGU6U3RhclRyYWQgRlJfNC4yLjRfeDY0LXNldHVwLmV4ZQpBTzhkZUZoRllLTi95Y2dnNkxnWjNHVGdjTDVQbWEwWFRMZ0szODh4end0cTh3bGdXVmNQSkR1aXZtSDdVZ25PanNnd212ZE1DQlZXSW9HRElma0pBdz09Cg==",
-                                             "url":  "https://github.com/drrakendu78/TradSC/releases/download/v4.2.4/StarTrad.FR_4.2.4_x64-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRb1BzLzdHaFk1RmJ2US9mdEdTK2pZc2duTUVockxqQmEyZnEzUHpPV0Nhb1d6WnUxSytrZmpzRU0vVktIMHBaUEt1K1ZqUW40NXNxTDY5dUhtSE1WZTBPMXRBOXQ2SmdZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5MTk4NDg3CWZpbGU6U3RhclRyYWQgRlJfNC4yLjVfeDY0LXNldHVwLmV4ZQpXeGt0RnNxdEh2VnRwR2FScUE2dkZseVZRbUdiYUhRMUhlZHFyQWMvVmNVb3NiaVFoNlFNQXFwNGhNa1JtclhVQzJqL2lWWDhOQVJ1NGlLV3orVFNEQT09Cg==",
+                                             "url":  "https://github.com/drrakendu78/TradSC/releases/download/v4.2.5/StarTrad.FR_4.2.5_x64-setup.exe"
                                          }
                   }
 }
