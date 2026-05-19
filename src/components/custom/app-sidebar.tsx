@@ -10,7 +10,7 @@ import {
     PinOff
 } from 'lucide-react';
 import { IconHome, IconBrandDiscord, IconCloud, IconBrandGithub, IconLanguage, IconUsers, IconNews, IconKeyboard, IconCalculator, IconMap2, IconSearch, IconSwords, IconPackage, IconHammer, IconBook, IconDatabase } from "@tabler/icons-react";
-import { BrushCleaning, Download, Power, PowerOff, Loader2, RotateCcw, Monitor, Route, BarChart3, Calendar, Languages, Trash2, Save, Users, Pickaxe, ShieldCheck, MessagesSquare, Handshake } from "lucide-react";
+import { BrushCleaning, Download, Power, PowerOff, Loader2, RotateCcw, Monitor, Route, BarChart3, Calendar, Languages, Trash2, Save, Users, Pickaxe, ShieldCheck, Handshake } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { ColorPicker } from "@/components/custom/color-picker";
 import openExternal, { isAllowedUrl, openExternalCustom } from "@/utils/external";
@@ -56,7 +56,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { CompanionCard } from "@/components/custom/CompanionCard";
-import { AUTO_CLEAN_OBSOLETE_CACHES_KEY, AUTO_CLEAN_PROMPT_DISMISSED_KEY, runShaderCacheAutoClean } from "@/hooks/useShaderCacheAutoClean";
+import { AUTO_CLEAN_PROMPT_DISMISSED_KEY, AUTO_CLEAN_TOGGLE_UI_KEY, FORCE_CACHE_CLEANUP_MODAL_EVENT } from "@/hooks/useShaderCacheAutoClean";
 import { useTranslationStatus } from "@/hooks/useTranslationStatus";
 
 interface NavigationItem {
@@ -145,10 +145,10 @@ const menuItems: NavigationItem[] = [
 const socialLinks: NavigationItem[] = [
     {
         id: "discord",
-        name: "Support",
-        icon: <MessagesSquare size={18} />,
+        name: "Discord",
+        icon: <IconBrandDiscord size={18} />,
         href: "https://discord.startrad.link/",
-        tooltip: "Support"
+        tooltip: "Discord"
     },
     {
         id: "site",
@@ -1460,52 +1460,22 @@ function SettingsContent() {
     });
     const [autoCleanCachesEnabled, setAutoCleanCachesEnabled] = useState<boolean>(() => {
         try {
-            return localStorage.getItem(AUTO_CLEAN_OBSOLETE_CACHES_KEY) === 'true';
+            return localStorage.getItem(AUTO_CLEAN_TOGGLE_UI_KEY) === 'true';
         } catch {
             return false;
         }
     });
-    const [autoCleanRunning, setAutoCleanRunning] = useState(false);
+    const [autoCleanRunning] = useState(false);
 
+    // Toggle ON → persiste l'état dans `AUTO_CLEAN_TOGGLE_UI_KEY` (clé dédiée
+    // UI, séparée de la clé legacy piégeante) et dispatch l'event qui force
+    // l'affichage du modal de cache cleanup immédiatement.
+    // Toggle OFF → persiste 'false' pour que le state UI tienne au re-mount.
     const handleAutoCleanCachesToggle = async (checked: boolean) => {
         setAutoCleanCachesEnabled(checked);
-        try {
-            localStorage.setItem(AUTO_CLEAN_OBSOLETE_CACHES_KEY, String(checked));
-        } catch {}
-        if (!checked) {
-            toast({
-                title: 'Nettoyage automatique désactivé',
-                description: 'Les caches obsolètes ne seront plus supprimés automatiquement.',
-            });
-            return;
-        }
-        toast({
-            title: 'Nettoyage automatique activé',
-            description: 'Recherche des caches obsolètes en cours...',
-        });
-        setAutoCleanRunning(true);
-        try {
-            const result = await runShaderCacheAutoClean({ force: true });
-            if (result.cleared.length > 0) {
-                toast({
-                    title: 'Caches obsolètes nettoyés',
-                    description: `${result.cleared.length} cache(s) supprimé(s) (versions ${result.cleared.join(', ')}) — ${result.freedMb.toFixed(0)} Mo libérés.`,
-                });
-            } else {
-                toast({
-                    title: 'Aucun cache obsolète',
-                    description: 'Tous les caches correspondent à une version Star Citizen installée.',
-                });
-            }
-        } catch (error) {
-            console.error('Erreur lors du nettoyage manuel des caches:', error);
-            toast({
-                title: 'Erreur',
-                description: "Impossible de scanner les caches Star Citizen.",
-                variant: 'destructive',
-            });
-        } finally {
-            setAutoCleanRunning(false);
+        try { localStorage.setItem(AUTO_CLEAN_TOGGLE_UI_KEY, String(checked)); } catch {}
+        if (checked) {
+            window.dispatchEvent(new CustomEvent(FORCE_CACHE_CLEANUP_MODAL_EVENT));
         }
     };
 

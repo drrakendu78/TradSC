@@ -12,6 +12,7 @@ pub mod gamepath;
 pub mod graphics_settings;
 pub mod joystick_input;
 pub mod local_characters_functions;
+pub mod migration_v426;
 pub mod oauth_callback;
 pub mod offline_cache;
 pub mod onboarding;
