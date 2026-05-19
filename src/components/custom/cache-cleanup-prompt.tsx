@@ -56,11 +56,8 @@ export function CacheCleanupPrompt() {
     };
 
     const handleKeep = () => {
-        console.log('[cache-debug] handleKeep neverAsk=', neverAsk, 'fingerprint=', detection.currentMajorsFingerprint);
         if (neverAsk) {
-            console.log('[cache-debug] storing fingerprint:', detection.currentMajorsFingerprint);
             acknowledgeMajorsFingerprint(detection.currentMajorsFingerprint);
-            console.log('[cache-debug] after store, localStorage =', localStorage.getItem('startradfr_auto_clear_last_seen_majors'));
         }
         dismiss();
     };

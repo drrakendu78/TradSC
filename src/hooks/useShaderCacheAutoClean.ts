@@ -17,6 +17,91 @@ const FORCE_CLEANUP_TEST_KEY = 'startradfr_force_cleanup_test';
 /// cache puisque le renderer reste stable entre patches d'une même Alpha.
 const AUTO_CLEAN_LAST_SEEN_MAJORS_KEY = 'startradfr_auto_clear_last_seen_majors';
 
+/// Clé qui stocke le timestamp de modification du binaire de l'app vu au
+/// dernier wipe. À chaque boot, on compare avec le mtime courant de l'exe :
+/// s'il diffère, c'est une fresh install (NSIS a écrasé l'exe avec un nouveau
+/// timestamp) → on déclenche le wipe complet. Sinon, boot normal → pas de wipe.
+/// Cette logique se re-déclenche donc à CHAQUE installation, sans flag
+/// d'idempotence permanent.
+const LAST_EXE_MTIME_KEY = 'startradfr_last_exe_mtime_seen';
+
+/// Clé dédiée au state visuel du toggle "Nettoyage automatique" (sidebar +
+/// onboarding). Séparée de `AUTO_CLEAN_OBSOLETE_CACHES_KEY` (legacy) pour
+/// éviter qu'une valeur piégeante de cette dernière force le mode silent au
+/// boot. Le toggle lit/écrit uniquement cette nouvelle clé.
+export const AUTO_CLEAN_TOGGLE_UI_KEY = 'startradfr_auto_clean_toggle_ui';
+
+/// Event window dispatché par les toggles "Nettoyage automatique" (sidebar +
+/// onboarding) quand l'user les active. Écouté par `useDetectObsoleteCachesOnBoot`
+/// pour forcer l'affichage du modal de cache cleanup, même si la major SC n'a
+/// pas changé.
+export const FORCE_CACHE_CLEANUP_MODAL_EVENT = 'startradfr:force-cache-cleanup-modal';
+
+/// Clés `startradfr_*` qu'on PRÉSERVE lors du wipe d'install. La nouvelle
+/// valeur du mtime sera stockée juste après le wipe.
+/// - `playtime_cache` : compteur temps de jeu SC (heures jouées) — surtout pas perdre.
+/// - flag mtime : sera ré-écrit juste après le wipe.
+const CACHE_LEGACY_MIGRATION_WHITELIST = new Set<string>([
+    'startradfr_playtime_cache',
+    LAST_EXE_MTIME_KEY,
+]);
+
+/// Migration ponctuelle au boot : wipe toutes les clés localStorage `startradfr_*`
+/// qui pourraient piéger l'état (caches RSS, statuts launcher, flags obsolètes
+/// d'anciennes versions, etc.) + wipe le contenu du dossier `app_config_dir`
+/// côté Rust (onboarding.json, theme_selected.json, translations_selected.json,
+/// background_service.json) pour repartir 100% neuf. Cas déclencheur observé :
+/// `startradfr_auto_clear_obsolete_caches='true'` traînait en prod sans que
+/// l'user le voie dans l'UI, ce qui faisait supprimer les caches silent au boot.
+/// On préserve la whitelist (cf. constante) : compteur d'heures jouées + flag
+/// de migration lui-même. Exécuté UNE SEULE FOIS grâce au flag de migration.
+/// Détecte une fresh install via le mtime du binaire de l'app. Si l'exe a un
+/// mtime différent de celui stocké dans localStorage → fresh install →
+/// wipe complet (localStorage `startradfr_*` sauf whitelist + `app_config_dir`
+/// côté Rust). Boot normal sur install existante → mtime identique → no-op.
+/// Async : à attendre AVANT toute lecture de `isAutoCleanEnabled()` sinon le
+/// silent clean legacy peut se déclencher avant que le wipe ait pu clear son
+/// flag piégeant.
+/// Promise singleton : la migration ne tourne qu'une fois par session, même si
+/// plusieurs callers (main.tsx au boot, hook au mount) l'invoquent en parallèle.
+let _migrationPromise: Promise<{ mtime: number | null; stored: string | null; wiped: boolean } | null> | null = null;
+
+export function ensureLegacyCacheMigration(): Promise<{ mtime: number | null; stored: string | null; wiped: boolean } | null> {
+    if (!_migrationPromise) {
+        _migrationPromise = migrateLegacyCacheFlags();
+    }
+    return _migrationPromise;
+}
+
+async function migrateLegacyCacheFlags(): Promise<{ mtime: number | null; stored: string | null; wiped: boolean } | null> {
+    if (!isTauri()) return null;
+    try {
+        const mtime = await invoke<number>('get_app_exe_mtime');
+        const stored = localStorage.getItem(LAST_EXE_MTIME_KEY);
+        if (stored === String(mtime)) return { mtime, stored, wiped: false };
+
+        // Fresh install : wipe localStorage `startradfr_*` (sauf whitelist).
+        const toRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (!key) continue;
+            if (!key.startsWith('startradfr_')) continue;
+            if (CACHE_LEGACY_MIGRATION_WHITELIST.has(key)) continue;
+            toRemove.push(key);
+        }
+        for (const key of toRemove) localStorage.removeItem(key);
+
+        // Wipe app_config_dir (4 JSON : onboarding, theme, translations, bg).
+        await invoke('wipe_v426_app_config').catch(() => { /* ignore */ });
+
+        // Marque le mtime courant comme "déjà wipe pour cette install".
+        try { localStorage.setItem(LAST_EXE_MTIME_KEY, String(mtime)); } catch {}
+        return { mtime, stored, wiped: true };
+    } catch {
+        return null;
+    }
+}
+
 interface RawVersionInfo {
     path?: string;
     game_version?: string | null;
@@ -319,10 +404,17 @@ export function useShaderCacheAutoCleanOnBoot() {
     const { toast } = useToast();
 
     useEffect(() => {
-        if (!isAutoCleanEnabled()) return;
         let cancelled = false;
-        runShaderCacheAutoClean()
-            .then((result) => {
+        (async () => {
+            // Migration AWAIT : sinon `isAutoCleanEnabled()` ci-dessous peut lire
+            // une valeur 'true' legacy qui n'a pas encore été wipe et déclencher
+            // une suppression silent. Singleton partagé avec main.tsx (qui en a
+            // aussi besoin avant son check `get_onboarding_state`).
+            await ensureLegacyCacheMigration();
+            if (cancelled) return;
+            if (!isAutoCleanEnabled()) return;
+            try {
+                const result = await runShaderCacheAutoClean();
                 if (cancelled) return;
                 if (result.cleared.length > 0) {
                     toast({
@@ -330,10 +422,10 @@ export function useShaderCacheAutoCleanOnBoot() {
                         description: `${result.cleared.length} cache(s) supprimé(s) (versions ${result.cleared.join(', ')}) — ${result.freedMb.toFixed(0)} Mo libérés.`,
                     });
                 }
-            })
-            .catch((error) => {
+            } catch (error) {
                 console.error('Erreur lors du nettoyage automatique des caches:', error);
-            });
+            }
+        })();
         return () => {
             cancelled = true;
         };
@@ -351,22 +443,15 @@ export function useDetectObsoleteCachesOnBoot(): {
     const [detection, setDetection] = useState<DetectionResult | null>(null);
 
     useEffect(() => {
-        console.log('[cache-debug] HOOK mount, autoClean=', isAutoCleanEnabled(), 'dismissed=', isPromptDismissed());
-        // Si l'auto silent est ON → useShaderCacheAutoCleanOnBoot gère, pas de modale.
-        if (isAutoCleanEnabled()) { console.log('[cache-debug] HOOK bail: autoClean ON'); return; }
-        // Si l'user a coché "ne plus me demander" → respect du choix, rien.
-        if (isPromptDismissed()) { console.log('[cache-debug] HOOK bail: promptDismissed'); return; }
+        if (isAutoCleanEnabled()) return;
+        if (isPromptDismissed()) return;
 
         let cancelled = false;
         detectObsoleteCaches()
             .then((result) => {
-                console.log('[cache-debug] HOOK then: cancelled=', cancelled, 'majorChanged=', result.majorChanged, 'folders=', result.folders.length, 'fingerprint=', result.currentMajorsFingerprint);
                 if (cancelled) return;
                 if (result.majorChanged && result.folders.length > 0) {
-                    console.log('[cache-debug] HOOK setDetection CALLED');
                     setDetection(result);
-                } else {
-                    console.log('[cache-debug] HOOK setDetection SKIPPED');
                 }
             })
             .catch((error) => {
@@ -375,6 +460,25 @@ export function useDetectObsoleteCachesOnBoot(): {
         return () => {
             cancelled = true;
         };
+    }, []);
+
+    // Écoute l'event dispatché par les toggles "Nettoyage automatique" :
+    // force la détection (avec `force: true` pour ignorer majorChanged) et
+    // affiche le modal si on trouve au moins un cache obsolète.
+    useEffect(() => {
+        const onForce = () => {
+            detectObsoleteCaches({ force: true })
+                .then((result) => {
+                    if (result.folders.length > 0) {
+                        setDetection(result);
+                    }
+                })
+                .catch((error) => {
+                    console.error('Erreur force détection caches obsolètes:', error);
+                });
+        };
+        window.addEventListener(FORCE_CACHE_CLEANUP_MODAL_EVENT, onForce);
+        return () => window.removeEventListener(FORCE_CACHE_CLEANUP_MODAL_EVENT, onForce);
     }, []);
 
     return {

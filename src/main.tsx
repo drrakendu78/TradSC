@@ -13,7 +13,7 @@ import { SplashScreen } from "@/components/custom/SplashScreen";
 import OnboardingWizard from "@/components/custom/onboarding/OnboardingWizard";
 import { CacheCleanupPrompt } from "@/components/custom/cache-cleanup-prompt";
 import { useCompanionBridge } from "@/hooks/useCompanionBridge";
-import { useShaderCacheAutoCleanOnBoot } from "@/hooks/useShaderCacheAutoClean";
+import { ensureLegacyCacheMigration, useShaderCacheAutoCleanOnBoot } from "@/hooks/useShaderCacheAutoClean";
 import { isTauri } from "@/utils/tauri-helpers";
 
 const COMPANION_ENABLED_KEY = "companionServerEnabled";
@@ -53,9 +53,22 @@ function App() {
       setShowOnboarding(false);
       return;
     }
-    invoke<{ onboarding_done: boolean; attempts: number }>("get_onboarding_state")
-      .then((s) => setShowOnboarding(!s.onboarding_done))
-      .catch(() => setShowOnboarding(false));
+    let cancelled = false;
+    (async () => {
+      // Await la migration mtime-based AVANT de check l'onboarding state :
+      // sinon `get_onboarding_state` lit le `onboarding.json` legacy avant
+      // qu'il soit wipe, et le wizard ne se relance pas après une fresh install.
+      await ensureLegacyCacheMigration();
+      if (cancelled) return;
+      try {
+        const s = await invoke<{ onboarding_done: boolean; attempts: number }>("get_onboarding_state");
+        if (cancelled) return;
+        setShowOnboarding(!s.onboarding_done);
+      } catch {
+        if (!cancelled) setShowOnboarding(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   const isOverlay =

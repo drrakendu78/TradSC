@@ -31,7 +31,7 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { AUTO_CLEAN_OBSOLETE_CACHES_KEY } from "@/hooks/useShaderCacheAutoClean";
+import { AUTO_CLEAN_TOGGLE_UI_KEY, FORCE_CACHE_CLEANUP_MODAL_EVENT } from "@/hooks/useShaderCacheAutoClean";
 import type { ServicesConfig } from "../types";
 
 interface StepServicesProps {
@@ -121,14 +121,15 @@ export function StepServices({ services, onChange }: StepServicesProps) {
         }
     };
 
-    // ─── Auto-clean caches obsolètes : live (juste localStorage) ────────
+    // Toggle ON → persiste dans `AUTO_CLEAN_TOGGLE_UI_KEY` (clé UI dédiée) +
+    // dispatch event qui force l'affichage du modal.
+    // Toggle OFF → persiste 'false' pour que l'état tienne au re-mount.
     const handleAutoCleanCachesToggle = (on: boolean) => {
         const next = { ...services, autoCleanObsoleteCaches: on };
         onChange(next);
-        try {
-            localStorage.setItem(AUTO_CLEAN_OBSOLETE_CACHES_KEY, String(on));
-        } catch {
-            /* ignore */
+        try { localStorage.setItem(AUTO_CLEAN_TOGGLE_UI_KEY, String(on)); } catch {}
+        if (on) {
+            window.dispatchEvent(new CustomEvent(FORCE_CACHE_CLEANUP_MODAL_EVENT));
         }
     };
 

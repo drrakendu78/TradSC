@@ -559,6 +559,8 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            scripts::migration_v426::wipe_v426_app_config,
+            scripts::migration_v426::get_app_exe_mtime,
             update_tray_service,
             save_theme_selected,
             load_theme_selected,

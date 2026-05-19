@@ -61,9 +61,11 @@ export default function OnboardingWizard({ onClose }: OnboardingWizardProps) {
     const [perVersion, setPerVersion] = useState<Record<string, VersionSelection>>({});
 
     const [services, setServices] = useState<ServicesConfig>(() => {
+        // Lit la clé UI dédiée du toggle "Nettoyage automatique caches" (pas la
+        // clé legacy piégeante `auto_clear_obsolete_caches`).
         let autoCleanInit = false;
         try {
-            autoCleanInit = localStorage.getItem('startradfr_auto_clear_obsolete_caches') === 'true';
+            autoCleanInit = localStorage.getItem('startradfr_auto_clean_toggle_ui') === 'true';
         } catch {
             /* ignore */
         }
