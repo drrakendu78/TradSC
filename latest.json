@@ -1,11 +1,11 @@
 {
-    "version":  "4.2.5",
-    "notes":  "v4.2.5 - Nettoyage shaders SC : fini les suppressions à chaque patch. Détection sur la vraie major SC (4.8 → 4.9 = trigger, 4.9.0 → 4.9.1 = ignoré) + modale de confirmation au boot. Nouveau bouton 'Mot de passe oublié ?' dans l'auth dialog. Nouveau partenaire BlackBird (boutique de supports joystick 3D), nouvelle catégorie 'Boutiques & Makers', hero card qui tourne entre Le HUB et BlackBird. VECTARIS CORP. remplace Aureus sur le bandeau 'Mon orga'.",
-    "pub_date":  "2026-05-19T13:50:00.000Z",
+    "version":  "4.2.6",
+    "notes":  "v4.2.6 - Fix critique du nettoyage des caches shaders SC. Le mode 'auto silent' qui pouvait supprimer sans afficher la modale a été retiré (causait des suppressions au boot sans demander). Les toggles 'Nettoyage automatique' dans l'onboarding et la sidebar déclenchent maintenant l'affichage de la modale (au lieu de supprimer direct) et persistent leur état correctement. Migration automatique au premier boot post-install pour repartir d'un état propre (clés localStorage `startradfr_*` legacy + fichiers de config dans AppData/Roaming sont remis à zéro).",
+    "pub_date":  "2026-05-19T19:55:00.000Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRb1BzLzdHaFk1RmJ2US9mdEdTK2pZc2duTUVockxqQmEyZnEzUHpPV0Nhb1d6WnUxSytrZmpzRU0vVktIMHBaUEt1K1ZqUW40NXNxTDY5dUhtSE1WZTBPMXRBOXQ2SmdZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5MTk4NDg3CWZpbGU6U3RhclRyYWQgRlJfNC4yLjVfeDY0LXNldHVwLmV4ZQpXeGt0RnNxdEh2VnRwR2FScUE2dkZseVZRbUdiYUhRMUhlZHFyQWMvVmNVb3NiaVFoNlFNQXFwNGhNa1JtclhVQzJqL2lWWDhOQVJ1NGlLV3orVFNEQT09Cg==",
-                                             "url":  "https://github.com/drrakendu78/TradSC/releases/download/v4.2.5/StarTrad.FR_4.2.5_x64-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRb1BzLzdHaFk1RlE4ZnN4b2Rmb0VOdEc1bU1PeERnWHBTNXg0VVdUQmxQejJXVmxmTFlFeTFPSldEdkMxMHR3OTZzc09vSnYxNUNiTXBIWFIwYUFHWkpoVTdnRWNNUlFRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5MjIwNDUwCWZpbGU6U3RhclRyYWQgRlJfNC4yLjZfeDY0LXNldHVwLmV4ZQo5ZFN4TUZkOWNEenRvNkF2MEJLWWREM0EvVXBtSWhrU2QzSU1PU3FudTNWZUVPSzZQVTBielNDb1RtV0xvTjBucktpWWp0cy9RQkdDYzM5V1pZOFZBUT09Cg==",
+                                             "url":  "https://github.com/drrakendu78/TradSC/releases/download/v4.2.6/StarTrad.FR_4.2.6_x64-setup.exe"
                                          }
                   }
 }
