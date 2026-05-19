@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import CloudBackupContent from './cloud-backup-content';
-import { User as UserIcon, Save, LogIn, Camera, RotateCcw, LogOut, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { User as UserIcon, Save, LogIn, Camera, RotateCcw, LogOut, ShieldAlert, CheckCircle2, KeyRound, ArrowLeft, Mail } from 'lucide-react';
 
 function DiscordLogo({ className }: { className?: string }) {
     return (
@@ -48,6 +48,8 @@ interface AuthDialogProps {
     defaultTab?: string;
 }
 
+type AuthView = 'tabs' | 'forgot' | 'forgot-sent';
+
 type AuthState = {
     user: User | null;
     loading: boolean;
@@ -55,6 +57,8 @@ type AuthState = {
     email: string;
     password: string;
     activeTab: string;
+    view: AuthView;
+    forgotEmail: string;
     showDeleteConfirm: boolean;
     deleteLoading: boolean;
 };
@@ -66,6 +70,8 @@ type AuthAction =
     | { type: 'SET_EMAIL'; value: string }
     | { type: 'SET_PASSWORD'; value: string }
     | { type: 'SET_ACTIVE_TAB'; value: string }
+    | { type: 'SET_VIEW'; value: AuthView }
+    | { type: 'SET_FORGOT_EMAIL'; value: string }
     | { type: 'SET_SHOW_DELETE_CONFIRM'; value: boolean }
     | { type: 'SET_DELETE_LOADING'; value: boolean }
     | { type: 'SIGNED_IN'; user: User }
@@ -79,32 +85,37 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
         case 'SET_EMAIL': return { ...state, email: action.value };
         case 'SET_PASSWORD': return { ...state, password: action.value };
         case 'SET_ACTIVE_TAB': return { ...state, activeTab: action.value };
+        case 'SET_VIEW': return { ...state, view: action.value };
+        case 'SET_FORGOT_EMAIL': return { ...state, forgotEmail: action.value };
         case 'SET_SHOW_DELETE_CONFIRM': return { ...state, showDeleteConfirm: action.value };
         case 'SET_DELETE_LOADING': return { ...state, deleteLoading: action.value };
-        case 'SIGNED_IN': return { ...state, user: action.user, activeTab: 'backup', discordLoading: false };
-        case 'SIGNED_OUT': return { ...state, user: null, email: '', password: '', activeTab: 'login', loading: false };
+        case 'SIGNED_IN': return { ...state, user: action.user, activeTab: 'backup', view: 'tabs', discordLoading: false };
+        case 'SIGNED_OUT': return { ...state, user: null, email: '', password: '', activeTab: 'login', view: 'tabs', loading: false };
         default: return state;
     }
 }
 
 export default function AuthDialog({ open, onOpenChange, defaultTab }: AuthDialogProps) {
     const { toast } = useToast();
-    const [{ user, loading, discordLoading, email, password, activeTab, showDeleteConfirm, deleteLoading }, dispatch] = useReducer(authReducer, {
+    const [{ user, loading, discordLoading, email, password, activeTab, view, forgotEmail, showDeleteConfirm, deleteLoading }, dispatch] = useReducer(authReducer, {
         user: null,
         loading: false,
         discordLoading: false,
         email: '',
         password: '',
         activeTab: defaultTab || 'login',
+        view: 'tabs' as AuthView,
+        forgotEmail: '',
         showDeleteConfirm: false,
         deleteLoading: false,
     });
     const { avatarUrl, isCustom, setCustomAvatar, resetAvatar } = useAvatar(user);
 
-    // Réinitialiser l'onglet quand le dialog s'ouvre ou l'utilisateur change
+    // Réinitialiser l'onglet et la vue quand le dialog s'ouvre ou l'utilisateur change
     useEffect(() => {
         if (open) {
             dispatch({ type: 'SET_ACTIVE_TAB', value: user ? 'backup' : (defaultTab || 'login') });
+            dispatch({ type: 'SET_VIEW', value: 'tabs' });
         }
     }, [open, user, defaultTab]);
 
@@ -315,6 +326,47 @@ export default function AuthDialog({ open, onOpenChange, defaultTab }: AuthDialo
                 description: error.message || 'Une erreur est survenue',
                 variant: 'destructive',
             });
+        }
+    };
+
+    const openForgotPasswordView = () => {
+        // Pré-remplit avec l'email saisi sur le formulaire de login si dispo
+        dispatch({ type: 'SET_FORGOT_EMAIL', value: email.trim() });
+        dispatch({ type: 'SET_VIEW', value: 'forgot' });
+    };
+
+    const backToLoginView = () => {
+        dispatch({ type: 'SET_VIEW', value: 'tabs' });
+        dispatch({ type: 'SET_ACTIVE_TAB', value: 'login' });
+    };
+
+    const handleSendResetEmail = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const trimmed = forgotEmail.trim();
+        if (!trimmed) {
+            toast({
+                title: 'Email requis',
+                description: 'Saisis ton email pour recevoir le lien.',
+                variant: 'destructive',
+            });
+            return;
+        }
+        dispatch({ type: 'SET_LOADING', value: true });
+        try {
+            const { error } = await supabase.auth.resetPasswordForEmail(trimmed, {
+                redirectTo: 'https://reset.startrad.link/',
+            });
+            if (error) throw error;
+            dispatch({ type: 'SET_VIEW', value: 'forgot-sent' });
+        } catch (error: any) {
+            console.error('Erreur réinitialisation mot de passe:', error);
+            toast({
+                title: 'Erreur',
+                description: error.message || "Impossible d'envoyer l'email de réinitialisation",
+                variant: 'destructive',
+            });
+        } finally {
+            dispatch({ type: 'SET_LOADING', value: false });
         }
     };
 
@@ -593,6 +645,72 @@ export default function AuthDialog({ open, onOpenChange, defaultTab }: AuthDialo
                             </section>
                         </TabsContent>
                     </Tabs>
+                ) : view === 'forgot' ? (
+                    <div className="mt-2 space-y-5">
+                        <div className="flex flex-col items-center gap-3 text-center">
+                            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/12 ring-1 ring-primary/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                                <KeyRound className="h-6 w-6 text-primary" />
+                            </div>
+                            <div className="space-y-1">
+                                <h3 className="text-lg font-semibold tracking-tight">Réinitialiser le mot de passe</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Saisis l'email de ton compte. On t'envoie un lien pour définir un nouveau mot de passe.
+                                </p>
+                            </div>
+                        </div>
+                        <form onSubmit={handleSendResetEmail} className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="forgot-email">Email du compte</Label>
+                                <Input
+                                    id="forgot-email"
+                                    type="email"
+                                    placeholder="votre@email.com"
+                                    value={forgotEmail}
+                                    onChange={(e) => dispatch({ type: 'SET_FORGOT_EMAIL', value: e.target.value })}
+                                    required
+                                    autoFocus
+                                    disabled={loading}
+                                    className={authInputClass}
+                                />
+                            </div>
+                            <Button type="submit" className={authPrimaryButtonClass} disabled={loading}>
+                                <Mail className="mr-2 h-4 w-4" />
+                                {loading ? 'Envoi en cours...' : 'Envoyer le lien'}
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={backToLoginView}
+                                disabled={loading}
+                                className="h-11 w-full rounded-lg border-border/60 bg-background/55"
+                            >
+                                <ArrowLeft className="mr-2 h-4 w-4" />
+                                Retour à la connexion
+                            </Button>
+                        </form>
+                    </div>
+                ) : view === 'forgot-sent' ? (
+                    <div className="mt-2 space-y-5">
+                        <div className="flex flex-col items-center gap-3 text-center">
+                            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/15 ring-1 ring-emerald-500/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                                <CheckCircle2 className="h-6 w-6 text-emerald-400" />
+                            </div>
+                            <div className="space-y-1">
+                                <h3 className="text-lg font-semibold tracking-tight">Email envoyé !</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    On a envoyé un lien de réinitialisation à
+                                    <span className="ml-1 font-medium text-foreground">{forgotEmail}</span>.
+                                </p>
+                                <p className="text-xs text-muted-foreground/80">
+                                    Vérifie ta boîte de réception (et les spams). Le lien est valable pendant un temps limité.
+                                </p>
+                            </div>
+                        </div>
+                        <Button onClick={backToLoginView} className={authPrimaryButtonClass}>
+                            <ArrowLeft className="mr-2 h-4 w-4" />
+                            Retour à la connexion
+                        </Button>
+                    </div>
                 ) : (
                     <Tabs value={activeTab} onValueChange={(v) => dispatch({ type: 'SET_ACTIVE_TAB', value: v })} className="w-full">
                         <TabsList className="grid w-full grid-cols-2">
@@ -621,7 +739,17 @@ export default function AuthDialog({ open, onOpenChange, defaultTab }: AuthDialo
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="login-password">Mot de passe</Label>
+                                    <div className="flex items-center justify-between">
+                                        <Label htmlFor="login-password">Mot de passe</Label>
+                                        <button
+                                            type="button"
+                                            onClick={openForgotPasswordView}
+                                            disabled={loading || discordLoading}
+                                            className="text-xs text-muted-foreground transition-colors hover:text-primary hover:underline disabled:opacity-50 disabled:hover:no-underline cursor-pointer"
+                                        >
+                                            Mot de passe oublié ?
+                                        </button>
+                                    </div>
                                     <Input
                                         id="login-password"
                                         type="password"

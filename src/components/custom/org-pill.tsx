@@ -11,7 +11,7 @@ import {
     subscribeActiveBanner,
 } from "@/components/custom/titlebar-banner-coordinator";
 
-const ORG_NAME_FALLBACK = "Aureus Steelworks";
+const ORG_NAME_FALLBACK = "VECTARIS CORP.";
 const ORG_TAG = "Fret · Transport · Commerce · Passagers";
 const ORG_SID = "ARSW";
 const ORG_DISCORD_URL = "https://discord.gg/BfGpnUCGPZ";
@@ -33,7 +33,9 @@ function openLink(url: string) {
 
 export function OrgPill() {
     const [open, setOpen] = useState(false);
-    const [name, setName] = useState<string>(ORG_NAME_FALLBACK);
+    // Le nom est figé sur ORG_NAME_FALLBACK ; on ignore le guild Discord
+    // pour éviter qu'un renaming Discord ne casse l'affichage côté appli.
+    const name = ORG_NAME_FALLBACK;
     const [iconUrl, setIconUrl] = useState<string | null>(null);
     const [members, setMembers] = useState<number | null>(null);
     const [online, setOnline] = useState<number | null>(null);
@@ -56,7 +58,7 @@ export function OrgPill() {
                     codeOrUrl: ORG_DISCORD_INVITE,
                 });
                 if (cancelled) return;
-                if (info.guildName) setName(info.guildName);
+                // On ignore info.guildName : le nom affiché reste figé sur ORG_NAME_FALLBACK.
                 if (info.guildIconUrl) setIconUrl(info.guildIconUrl);
                 if (info.approximateMemberCount != null) setMembers(info.approximateMemberCount);
                 if (info.approximatePresenceCount != null) setOnline(info.approximatePresenceCount);

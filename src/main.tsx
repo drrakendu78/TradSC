@@ -10,6 +10,7 @@ import { SecurityWarning } from "@/components/custom/SecurityWarning";
 import { ErrorBoundary } from "@/components/custom/ErrorBoundary";
 import { SplashScreen } from "@/components/custom/SplashScreen";
 import OnboardingWizard from "@/components/custom/onboarding/OnboardingWizard";
+import { CacheCleanupPrompt } from "@/components/custom/cache-cleanup-prompt";
 import { useCompanionBridge } from "@/hooks/useCompanionBridge";
 import { useShaderCacheAutoCleanOnBoot } from "@/hooks/useShaderCacheAutoClean";
 import { isTauri } from "@/utils/tauri-helpers";
@@ -128,6 +129,7 @@ function App() {
               clics sur le footer du wizard ("Suivant"). */}
           {!isOverlay && showOnboarding === false && <BorderBeam duration={8} size={150} colorFrom="#FAFAFA" colorTo="#FAFAFA" />}
           {!isOverlay && showOnboarding === false && <BorderBeam delay={4} duration={8} size={150} colorFrom="#FAFAFA" colorTo="#FAFAFA" />}
+          {!isOverlay && showOnboarding === false && <CacheCleanupPrompt />}
         </>
       )}
     </>

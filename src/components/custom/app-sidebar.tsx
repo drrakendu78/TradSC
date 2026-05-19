@@ -56,7 +56,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { CompanionCard } from "@/components/custom/CompanionCard";
-import { AUTO_CLEAN_OBSOLETE_CACHES_KEY, runShaderCacheAutoClean } from "@/hooks/useShaderCacheAutoClean";
+import { AUTO_CLEAN_OBSOLETE_CACHES_KEY, AUTO_CLEAN_PROMPT_DISMISSED_KEY, runShaderCacheAutoClean } from "@/hooks/useShaderCacheAutoClean";
 import { useTranslationStatus } from "@/hooks/useTranslationStatus";
 
 interface NavigationItem {
@@ -2107,6 +2107,27 @@ function SettingsContent() {
                                 <p className="text-sm text-muted-foreground">
                                     Supprime les caches Star Citizen qui ne correspondent plus à une version installée (ex : cache 4.7.0 supprimé après passage à 4.8.0). Lancé au démarrage et avant chaque ouverture du RSI Launcher.
                                 </p>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        try {
+                                            localStorage.removeItem(AUTO_CLEAN_PROMPT_DISMISSED_KEY);
+                                            localStorage.removeItem('startradfr_auto_clear_last_seen_majors');
+                                            localStorage.removeItem('startradfr_auto_clear_last_seen_versions');
+                                        } catch {}
+                                        toast({
+                                            title: 'Modale réactivée',
+                                            description: "Redémarrage de l'application...",
+                                        });
+                                        setTimeout(() => {
+                                            window.location.reload();
+                                        }, 500);
+                                    }}
+                                    className="mt-2 inline-flex w-fit items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/12 px-3 py-1.5 text-xs font-semibold text-emerald-300 shadow-[0_2px_8px_-2px_rgba(52,211,153,0.4)] transition-all hover:border-emerald-400/60 hover:bg-emerald-500/20 hover:text-emerald-200"
+                                >
+                                    <RotateCcw className="h-3.5 w-3.5" />
+                                    Réinitialiser le choix "Ne plus me demander"
+                                </button>
                             </div>
                             <div className="flex items-center gap-2">
                                 {autoCleanRunning && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}

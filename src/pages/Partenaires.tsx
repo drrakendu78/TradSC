@@ -15,9 +15,12 @@ import {
     Twitch,
     Youtube,
     LayoutGrid,
+    Package,
 } from "lucide-react";
 import { IconBrandDiscord } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
+import { m, AnimatePresence } from "framer-motion";
+import blackbirdLogo from "@/assets/partners/blackbird.png";
 import { openExternalCustom } from "@/utils/external";
 import { isTauri } from "@/utils/tauri-helpers";
 
@@ -41,7 +44,7 @@ interface TwitchStatusInfo {
     fromCache: boolean;
 }
 
-type PartnerCat = "organisation" | "streamer" | "discord" | "sponsor" | "site";
+type PartnerCat = "organisation" | "streamer" | "discord" | "sponsor" | "boutique" | "site";
 type LinkType = "org" | "twitch" | "youtube" | "discord" | "web";
 
 interface Partner {
@@ -84,7 +87,7 @@ const ST = {
 };
 
 const PARTNERS: Partner[] = [
-    { id: "p1", name: "Aureus Steelworks", cat: "organisation", tag: "ORG · Fret · Transport · Commerce · Passagers", desc: "Organisation francophone de fret, transport (cargo et passagers) et commerce. Sim en développement actif au sein du Verse.", since: "2026-05-17", verified: true, hue: 45, link: "https://robertsspaceindustries.com/en/orgs/ARSW", linkType: "org", discordInvite: "https://discord.gg/BfGpnUCGPZ" },
+    { id: "p1", name: "VECTARIS CORP.", cat: "organisation", tag: "ORG · Fret · Transport · Commerce · Passagers", desc: "Organisation francophone de fret, transport (cargo et passagers) et commerce. Sim en développement actif au sein du Verse.", since: "2026-05-17", verified: true, hue: 45, link: "https://robertsspaceindustries.com/en/orgs/ARSW", linkType: "org", discordInvite: "https://discord.gg/BfGpnUCGPZ" },
     { id: "p2", name: "Artics001", cat: "streamer", tag: "Twitch · Star Citizen FR", desc: "Streamer francophone Star Citizen — fondateur du HUB, tutos, événements communautaires et lives réguliers depuis Stanton.", live: false, since: "2026-05-17", verified: true, hue: 200, link: "https://www.twitch.tv/artics001", linkType: "twitch" },
     { id: "p3", name: "Le HUB", cat: "discord", tag: "Projet communautaire · Base-building", desc: "Le Hub est une communauté francophone ouverte dédiée à Star Citizen, pensée comme un espace de rencontre, d'entraide et de coopération entre joueurs, issus de tous les milieux. Son objectif : rassembler nouveaux venus, vétérans, créateurs de contenu, rôlistes, commerçants, explorateurs, combattants et corpos autour d'une vision commune — construire une véritable expérience communautaire persistante dans le Verse.", since: "2026-05-17", verified: true, hue: 200, link: "https://discord.gg/75gpShnHx", linkType: "discord", featured: true },
     { id: "s-erkul", name: "Erkul Games", cat: "site", tag: "Site · DPS calculator", desc: "Calculateur DPS, builds vaisseaux et armes. Référence absolue pour comparer ses configs avant le combat.", since: "2024-01-01", verified: true, hue: 220, link: "https://www.erkul.games", linkType: "web" },
@@ -103,6 +106,7 @@ const PARTNERS: Partner[] = [
     { id: "s-spviewer", name: "SP Viewer", cat: "site", tag: "Site · Ship viewer", desc: "Visualiseur 3D des vaisseaux Star Citizen avec specs détaillées.", since: "2024-01-01", verified: true, hue: 280, link: "https://www.spviewer.eu", linkType: "web" },
     { id: "s-scwiki", name: "Star Citizen Wiki", cat: "site", tag: "Site · Encyclopédie", desc: "Wiki officiel de référence — vaisseaux, lore, systèmes, items. Source canonique de la communauté.", since: "2024-01-01", verified: true, hue: 5, link: "https://starcitizen.tools", linkType: "web" },
     { id: "s-polytool", name: "PolyTool SC", cat: "site", tag: "Site · Outil communautaire", desc: "Suite d'outils SC dont StarTrad utilise les global.ini auto-syncés comme source canonique des traductions CIG.", since: "2024-01-01", verified: true, hue: 310, link: "https://github.com/GerbyTV/PolyToolSC", linkType: "web" },
+    { id: "b-blackbird", name: "BlackBird", cat: "boutique", tag: "Boutique · Supports joystick 3D", desc: "Créateur indépendant qui imprime en 3D des supports de joystick pour chaises gaming et setups sim. Qualité artisanale, idéal pour les pilotes Star Citizen.", since: "2026-05-19", verified: true, hue: 45, link: "https://www.etsy.com/fr/listing/4325499582/support-pour-joystick", linkType: "web", logo: blackbirdLogo, featured: true },
 ];
 
 const CAT_INFO: Record<PartnerCat, { label: string; short: string; icon: React.ComponentType<{ size?: number | string }>; color: string }> = {
@@ -110,6 +114,7 @@ const CAT_INFO: Record<PartnerCat, { label: string; short: string; icon: React.C
     streamer: { label: "Streamers", short: "Streamers", icon: Twitch, color: ST.rose },
     discord: { label: "Discord", short: "Discord", icon: IconBrandDiscord, color: ST.cyan },
     sponsor: { label: "Sponsors", short: "Sponsors", icon: Star, color: ST.green },
+    boutique: { label: "Boutiques & Makers", short: "Boutiques", icon: Package, color: ST.amber },
     site: { label: "Sites", short: "Sites", icon: ExternalLink, color: ST.green },
 };
 
@@ -1541,8 +1546,34 @@ export default function Partenaires() {
         [liveMembers, livePresence, discordIcons, twitchInfo]
     );
 
-    const hero = useMemo(() => partners.find((p) => p.featured) ?? partners[0], [partners]);
+    // Tous les partenaires marqués featured : on tourne entre eux en hero
+    const featuredPartners = useMemo(
+        () => partners.filter((p) => p.featured),
+        [partners]
+    );
+    const [heroIndex, setHeroIndex] = useState(0);
+    // `manualTick` permet de reset l'interval quand l'user clique un dot
+    const [manualTick, setManualTick] = useState(0);
+    // Rotation lente entre les featured (toutes les 8s) — désactivée s'il n'y en a qu'un
+    useEffect(() => {
+        if (featuredPartners.length <= 1) return;
+        const id = window.setInterval(() => {
+            setHeroIndex((i) => (i + 1) % featuredPartners.length);
+        }, 8000);
+        return () => window.clearInterval(id);
+    }, [featuredPartners.length, manualTick]);
+    // Reset l'index si la liste change et qu'on est out of bounds
+    useEffect(() => {
+        if (heroIndex >= featuredPartners.length) setHeroIndex(0);
+    }, [featuredPartners.length, heroIndex]);
+
+    const hero = featuredPartners[heroIndex] ?? partners[0];
     const heroOnline = livePresence[hero.id];
+
+    const goToHero = (idx: number) => {
+        setHeroIndex(idx);
+        setManualTick((t) => t + 1); // reset l'interval pour pas switch trop vite après clic
+    };
     const selected = selectedId ? partners.find((p) => p.id === selectedId) ?? null : null;
 
     const matchSearch = (p: Partner) => {
@@ -1792,7 +1823,13 @@ export default function Partenaires() {
                 style={{ flex: 1, overflowY: "auto", padding: "20px 32px 32px", minHeight: 0 }}
             >
                 {showHero && (
-                    <article
+                    <AnimatePresence mode="wait">
+                    <m.article
+                        key={hero.id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.22, ease: "easeOut" }}
                         onClick={() => setSelectedId(hero.id)}
                         data-no-drag
                         role="button"
@@ -1904,6 +1941,10 @@ export default function Partenaires() {
                                 position: "relative",
                             }}
                         >
+                            {/* Stats box (membres / online) — uniquement pour les cats avec
+                                une vraie communauté (orga, discord, streamer). Pour les
+                                boutiques/sponsors/sites c'est pas pertinent. */}
+                            {(hero.cat === "organisation" || hero.cat === "discord" || hero.cat === "streamer") && (
                             <div
                                 style={{
                                     display: "flex",
@@ -1990,6 +2031,7 @@ export default function Partenaires() {
                                     </div>
                                 </div>
                             </div>
+                            )}
                             <button
                                 data-no-drag
                                 onClick={(e) => {
@@ -2018,7 +2060,52 @@ export default function Partenaires() {
                                 <ArrowUpRight size={14} strokeWidth={2} />
                             </button>
                         </div>
-                    </article>
+                    </m.article>
+                    </AnimatePresence>
+                )}
+                {showHero && featuredPartners.length > 1 && (
+                    <div
+                        data-no-drag
+                        style={{
+                            display: "flex",
+                            gap: 8,
+                            justifyContent: "center",
+                            alignItems: "center",
+                            marginTop: -16,
+                            marginBottom: tab === "all" ? 12 : 24,
+                            position: "relative",
+                            zIndex: 2,
+                        }}
+                    >
+                        {featuredPartners.map((p, idx) => {
+                            const active = idx === heroIndex;
+                            return (
+                                <button
+                                    key={p.id}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        goToHero(idx);
+                                    }}
+                                    aria-label={`Afficher ${p.name}`}
+                                    aria-current={active}
+                                    title={p.name}
+                                    style={{
+                                        cursor: "pointer",
+                                        background: active
+                                            ? `oklch(0.7 0.17 ${p.hue})`
+                                            : "rgba(255,255,255,0.18)",
+                                        border: "1px solid " + (active ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.10)"),
+                                        width: active ? 22 : 8,
+                                        height: 8,
+                                        borderRadius: 999,
+                                        padding: 0,
+                                        transition: "width .25s ease, background .25s ease",
+                                        boxShadow: active ? `0 0 8px oklch(0.7 0.17 ${p.hue} / 0.6)` : "none",
+                                    }}
+                                />
+                            );
+                        })}
+                    </div>
                 )}
 
                 {(tab === "all" || tab === "organisation") && inReel("organisation").length > 0 && (
@@ -2056,6 +2143,37 @@ export default function Partenaires() {
                             <div style={{ display: "flex", gap: 14 }}>
                                 {inReel("streamer").map((p) => (
                                     <StreamerCard key={p.id} p={p} onClick={() => setSelectedId(p.id)} />
+                                ))}
+                            </div>
+                        )}
+                    </ReelRow>
+                )}
+                {(tab === "all" || tab === "boutique") && (
+                    <ReelRow
+                        icon={Package}
+                        title="Boutiques & Makers"
+                        subtitle="Artisans et créateurs de la communauté"
+                        wrap={tab === "boutique"}
+                    >
+                        {inReel("boutique").length === 0 ? (
+                            <div
+                                style={{
+                                    padding: "18px 0 4px",
+                                    fontSize: 12,
+                                    color: ST.textFaint,
+                                    fontStyle: "italic",
+                                }}
+                            >
+                                Aucune boutique pour le moment.
+                            </div>
+                        ) : tab === "boutique" ? (
+                            inReel("boutique").map((p) => (
+                                <SponsorChip key={p.id} p={p} onClick={() => setSelectedId(p.id)} />
+                            ))
+                        ) : (
+                            <div style={{ display: "flex", gap: 12 }}>
+                                {inReel("boutique").map((p) => (
+                                    <SponsorChip key={p.id} p={p} onClick={() => setSelectedId(p.id)} />
                                 ))}
                             </div>
                         )}
