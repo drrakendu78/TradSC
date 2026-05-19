@@ -16,7 +16,6 @@ import {
     useDetectObsoleteCachesOnBoot,
     clearCacheFolders,
     acknowledgeMajorsFingerprint,
-    setAutoCleanEnabled,
 } from '@/hooks/useShaderCacheAutoClean';
 
 /// Modale qui apparaît au boot si une nouvelle version *majeure* de SC a été
@@ -33,12 +32,12 @@ export function CacheCleanupPrompt() {
     const handleDelete = async () => {
         setLoading(true);
         try {
+            // clearCacheFolders supprime + acknowledge la fingerprint courante.
+            // Comportement : modal réapparaît à la prochaine major SC, peu importe
+            // que la case soit cochée ou non (la sémantique de la case est juste
+            // "acknowledge cette version" — la deletion + acknowledge revient au
+            // même résultat).
             const result = await clearCacheFolders(detection.folders, detection.currentMajorsFingerprint);
-            if (neverAsk) {
-                // L'user confirme + ne plus demander → on active l'auto-clean silencieux
-                // pour les futures major versions.
-                setAutoCleanEnabled(true);
-            }
             toast({
                 title: 'Caches obsolètes supprimés',
                 description: `${result.cleared.length} cache(s) (versions ${result.cleared.join(', ')}) — ${result.freedMb.toFixed(0)} Mo libérés.`,
@@ -57,12 +56,12 @@ export function CacheCleanupPrompt() {
     };
 
     const handleKeep = () => {
-        // On marque la fingerprint comme vue pour ne pas re-prompter sur cette même
-        // major change. Le prochain prompt apparaîtra à la prochaine major bump,
-        // QUE la checkbox soit cochée ou non — l'user a choisi "Garder", donc on
-        // re-demande sur la prochaine major (la checkbox ne s'applique qu'à
-        // "Supprimer", pour activer le mode silencieux).
-        acknowledgeMajorsFingerprint(detection.currentMajorsFingerprint);
+        console.log('[cache-debug] handleKeep neverAsk=', neverAsk, 'fingerprint=', detection.currentMajorsFingerprint);
+        if (neverAsk) {
+            console.log('[cache-debug] storing fingerprint:', detection.currentMajorsFingerprint);
+            acknowledgeMajorsFingerprint(detection.currentMajorsFingerprint);
+            console.log('[cache-debug] after store, localStorage =', localStorage.getItem('startradfr_auto_clear_last_seen_majors'));
+        }
         dismiss();
     };
 
@@ -111,7 +110,7 @@ export function CacheCleanupPrompt() {
                         htmlFor="never-ask"
                         className="cursor-pointer text-sm font-normal text-muted-foreground"
                     >
-                        Toujours supprimer automatiquement à l'avenir (sans redemander)
+                        Ne plus me redemander pour cette version (modal réapparaîtra à la prochaine Alpha SC)
                     </Label>
                 </div>
 

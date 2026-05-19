@@ -194,8 +194,16 @@ export async function detectObsoleteCaches(opts: RunAutoCleanOptions = {}): Prom
         invoke<string>('get_cache_informations').catch(() => '{"folders":[]}'),
     ]);
 
+    // Le Rust `get_star_citizen_versions` retourne `VersionPaths { versions: HashMap }`
+    // qui serialise en `{ versions: { LIVE: {...}, PTU: {...} } }`. On unwrap le
+    // wrapper si présent. Avant ce fix, `Object.values(versions)` itérait le wrapper
+    // et installedMajors restait vide, ce qui faisait tomber la safety guard.
+    const versionsMap: Record<string, RawVersionInfo> =
+        ((versions as any)?.versions as Record<string, RawVersionInfo>) ??
+        (versions as Record<string, RawVersionInfo>);
+
     const installedVersions = new Set<string>();
-    for (const v of Object.values(versions)) {
+    for (const v of Object.values(versionsMap)) {
         if (v && typeof v.game_version === 'string' && v.game_version.length > 0) {
             installedVersions.add(v.game_version);
         }
@@ -215,6 +223,7 @@ export async function detectObsoleteCaches(opts: RunAutoCleanOptions = {}): Prom
     }
 
     const lastSeen = readLastSeenMajorsFingerprint();
+    const isFirstBoot = lastSeen === null;
     let majorChanged = lastSeen !== currentMajorsFingerprint;
     // En force test, on simule une major change pour déclencher la modale.
     if (forceTest) majorChanged = true;
@@ -240,11 +249,13 @@ export async function detectObsoleteCaches(opts: RunAutoCleanOptions = {}): Prom
         const cacheVersion = m[1];
         const cacheMajor = extractMajor(cacheVersion);
         if (!cacheMajor) continue;
-        // Mode normal : garde le cache si sa "major" (X.Y) est encore installée.
-        // Ex : cache 4.9.0 conservé tant qu'un 4.9.x est installé, mais
-        // supprimable dès qu'on passe à 4.10 ou 5.0.
-        // Mode force test : on prend TOUT pour pouvoir tester la modale.
-        if (!forceTest && installedMajors.has(cacheMajor)) continue;
+        // Au premier boot (lastSeen null) ou en force test, on liste TOUS les
+        // caches SC pour que l'user puisse choisir (philosophie: laisser le
+        // choix au moins une fois). Sur les boots suivants après une major
+        // change, on ne liste que les caches dont la major n'est plus
+        // installée (vraiment obsolètes).
+        const showAll = isFirstBoot || forceTest;
+        if (!showAll && installedMajors.has(cacheMajor)) continue;
 
         const weightMb = parseWeightMb(folder.weight);
         folders.push({
@@ -340,17 +351,22 @@ export function useDetectObsoleteCachesOnBoot(): {
     const [detection, setDetection] = useState<DetectionResult | null>(null);
 
     useEffect(() => {
+        console.log('[cache-debug] HOOK mount, autoClean=', isAutoCleanEnabled(), 'dismissed=', isPromptDismissed());
         // Si l'auto silent est ON → useShaderCacheAutoCleanOnBoot gère, pas de modale.
-        if (isAutoCleanEnabled()) return;
+        if (isAutoCleanEnabled()) { console.log('[cache-debug] HOOK bail: autoClean ON'); return; }
         // Si l'user a coché "ne plus me demander" → respect du choix, rien.
-        if (isPromptDismissed()) return;
+        if (isPromptDismissed()) { console.log('[cache-debug] HOOK bail: promptDismissed'); return; }
 
         let cancelled = false;
         detectObsoleteCaches()
             .then((result) => {
+                console.log('[cache-debug] HOOK then: cancelled=', cancelled, 'majorChanged=', result.majorChanged, 'folders=', result.folders.length, 'fingerprint=', result.currentMajorsFingerprint);
                 if (cancelled) return;
                 if (result.majorChanged && result.folders.length > 0) {
+                    console.log('[cache-debug] HOOK setDetection CALLED');
                     setDetection(result);
+                } else {
+                    console.log('[cache-debug] HOOK setDetection SKIPPED');
                 }
             })
             .catch((error) => {
