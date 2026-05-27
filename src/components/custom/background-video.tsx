@@ -79,7 +79,7 @@ export function BackgroundVideo() {
                 try {
                     youtubePlayerRef.current.destroy();
                 } catch (e) {
-                    console.log('Erreur lors de la destruction du player YouTube:', e);
+                    console.warn('Erreur lors de la destruction du player YouTube:', e);
                 }
             }
         };
@@ -254,7 +254,7 @@ export function BackgroundVideo() {
                     try {
                         youtubePlayerRef.current.destroy();
                     } catch (e) {
-                        console.log('Erreur lors de la destruction du player YouTube:', e);
+                        console.warn('Erreur lors de la destruction du player YouTube:', e);
                     }
                     youtubePlayerRef.current = null;
                 }
@@ -370,7 +370,7 @@ export function BackgroundVideo() {
                     resumeAll();
                 }
             } catch (error) {
-                console.log('Impossible de vérifier l\'état de la fenêtre:', error);
+                console.warn('Impossible de vérifier l\'état de la fenêtre:', error);
             }
         };
 

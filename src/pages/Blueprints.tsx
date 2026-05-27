@@ -632,23 +632,15 @@ export default function Blueprints({ isOverlayEmbed = false }: BlueprintsProps =
     // Update le cache disque ; les prochains loads bénéficient des nouvelles classes.
     useEffect(() => {
         const t = setTimeout(() => {
-            invoke<number>("blueprints_refresh_erkul_classes")
-                .then((n) => {
-                    if (n > 0) {
-                        console.log(`[blueprints] erkul classes loaded: ${n}`);
-                    }
-                })
-                .catch((e) =>
-                    console.warn("[blueprints] erkul refresh failed:", e),
-                );
+            invoke<number>("blueprints_refresh_erkul_classes").catch((e) =>
+                console.warn("[blueprints] erkul refresh failed:", e),
+            );
             // Telecharge les global.ini canoniques (PolyTool) en arriere-plan.
             // Garantit la meme couverture FR/EN pour tous les users, peu importe
             // le pack de traduction qu'ils ont installe (StarTrad, Circuspes, etc.)
-            invoke("blueprints_refresh_polytool_globals")
-                .then(() => console.log("[blueprints] polytool globals refreshed"))
-                .catch((e) =>
-                    console.warn("[blueprints] polytool refresh failed:", e),
-                );
+            invoke("blueprints_refresh_polytool_globals").catch((e) =>
+                console.warn("[blueprints] polytool refresh failed:", e),
+            );
         }, 3000);
         return () => clearTimeout(t);
     }, []);
@@ -816,7 +808,6 @@ export default function Blueprints({ isOverlayEmbed = false }: BlueprintsProps =
                     }
                     if (added > 0) {
                         persistOwned(next);
-                        console.log(`[blueprints] auto-cocheé ${added} schéma(s) depuis le watcher`);
                     }
                     return added > 0 ? next : prev;
                 });
@@ -905,7 +896,6 @@ export default function Blueprints({ isOverlayEmbed = false }: BlueprintsProps =
     }, []);
 
     const selectBlueprint = useCallback(async (entry: BlueprintSummary) => {
-        console.log("[blueprints] click row:", entry.blueprintId, "id:", entry.id);
         setSelectedBlueprintId(entry.blueprintId);
         setDetail(null);
         setDetailError(null);
@@ -914,22 +904,18 @@ export default function Blueprints({ isOverlayEmbed = false }: BlueprintsProps =
             // Si on vient de scunpacked, id est null : on résout via sc-craft search
             let numericId = entry.id;
             if (numericId == null) {
-                console.log("[blueprints] resolving sc-craft id for", entry.blueprintId);
                 numericId = await invoke<number | null>("blueprint_resolve_sc_craft_id", {
                     blueprintId: entry.blueprintId,
                 });
-                console.log("[blueprints] resolved to:", numericId);
                 if (numericId == null) {
                     throw new Error(
                         "Ce blueprint n'est pas référencé dans sc-craft.tools — détails enrichis indisponibles.",
                     );
                 }
             }
-            console.log("[blueprints] fetching detail id:", numericId);
             const value = await invoke<BlueprintDetail>("blueprint_detail", {
                 blueprintInternalId: numericId,
             });
-            console.log("[blueprints] detail loaded:", value?.blueprintId);
             setDetail(value);
         } catch (e) {
             const message = typeof e === "string" ? e : (e as Error)?.message ?? String(e);

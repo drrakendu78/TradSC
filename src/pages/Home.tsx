@@ -837,7 +837,6 @@ function Home() {
                 // Utiliser le dialogue natif Tauri
                 const { save } = await import('@tauri-apps/plugin-dialog');
 
-                console.log('[Export] Ouverture du dialogue de sauvegarde...');
                 const filePath = await save({
                     title: 'Exporter les préférences',
                     defaultPath: `startradfr_preferences_${new Date().toISOString().split('T')[0]}.json`,
@@ -846,19 +845,14 @@ function Home() {
                         extensions: ['json']
                     }]
                 });
-                console.log('[Export] Chemin sélectionné:', filePath);
 
                 if (filePath) {
-                    console.log('[Export] Écriture du fichier...');
                     await tauriInvoke('write_text_file', { path: filePath, content: json });
-                    console.log('[Export] Fichier écrit avec succès');
                     toast({
                         title: 'Export réussi',
                         description: 'Vos préférences ont été exportées.',
                         variant: 'success',
                     });
-                } else {
-                    console.log('[Export] Dialogue annulé par l\'utilisateur');
                 }
             } else {
                 // Fallback pour navigateur

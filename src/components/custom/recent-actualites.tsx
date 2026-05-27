@@ -157,8 +157,6 @@ export default function RecentActualites({ max = 3 }: { max?: number }) {
             return;
         }
 
-        console.log('Opening URL:', finalUrl);
-
         try {
             await invoke("open_external", { url: finalUrl.trim() });
         } catch (error) {

@@ -945,10 +945,9 @@ const OverlayHub = () => {
     };
 
     const handleOpenAllTools = () => {
-        // Pour l'instant : popover géré côté <OverlayHubBar> (le bouton
-        // LayoutGrid ouvre un Radix Popover, le contenu est à enrichir
-        // plus tard). Ici juste un placeholder côté wrapper.
-        console.log("[OverlayHub] open all tools (popover handled by bar)");
+        // Popover géré côté <OverlayHubBar> (le bouton LayoutGrid ouvre
+        // un Radix Popover). Ce handler reste un placeholder côté wrapper
+        // au cas où on veut ajouter une logique cross-overlay plus tard.
     };
 
 
