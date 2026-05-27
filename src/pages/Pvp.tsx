@@ -2,7 +2,7 @@ import { m } from "framer-motion";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Play, RotateCcw, Loader2, Map as MapIcon, X, PictureInPicture2 } from "lucide-react";
+import { RefreshCw, Play, RotateCcw, Loader2, Map as MapIcon, X, PictureInPicture2, Pencil } from "lucide-react";
 import { IconSwords } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -522,14 +522,12 @@ export default function Pvp({ isOverlayEmbed = false }: PvpProps) {
         setSelfTimers((prev) => {
             const timer = prev.get(timerId);
             if (!timer) return prev;
-            if (clamped >= timer.duration) {
-                // Temps custom ≥ durée totale → équivalent à un redémarrage normal
-                return prev;
-            }
 
             // startedAt à rebours : si on veut clamped sec restants sur un timer
             // de duration sec, on simule que le timer a été lancé il y a
-            // (duration - clamped) secondes.
+            // (duration - clamped) secondes. Pour des valeurs > duration,
+            // startedAt sera dans le futur, mais le calcul du remaining au
+            // reload reste cohérent.
             const now = Date.now();
             const startedAt = now - (timer.duration - clamped) * 1000;
 
@@ -927,9 +925,10 @@ function TimerRemainingButton({
                 <button
                     type="button"
                     title="Cliquer pour définir un temps restant personnalisé"
-                    className={`w-12 cursor-pointer text-right font-mono text-[12px] tabular-nums transition-colors hover:text-primary ${getTimerColor(timer.remaining, timer.running || isComplete)}`}
+                    className={`group/timer flex w-[60px] cursor-pointer items-center justify-end gap-1 font-mono text-[12px] tabular-nums transition-colors hover:text-primary ${getTimerColor(timer.remaining, timer.running || isComplete)}`}
                 >
-                    {formatTimeShort(timer.remaining)}
+                    <Pencil className="h-2.5 w-2.5 opacity-40 transition-opacity group-hover/timer:opacity-100" />
+                    <span>{formatTimeShort(timer.remaining)}</span>
                 </button>
             </Popover.Trigger>
             <Popover.Portal>
@@ -947,7 +946,6 @@ function TimerRemainingButton({
                             <input
                                 type="number"
                                 min="0"
-                                max={Math.floor(timer.duration / 60)}
                                 value={minutes}
                                 onChange={(e) => setMinutes(e.target.value)}
                                 aria-label="Minutes"
@@ -971,9 +969,6 @@ function TimerRemainingButton({
                                 OK
                             </button>
                         </div>
-                        <span className="text-[9px] text-muted-foreground/50">
-                            Max : {Math.floor(timer.duration / 60)} min
-                        </span>
                     </form>
                 </Popover.Content>
             </Popover.Portal>
