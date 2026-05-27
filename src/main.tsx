@@ -7,7 +7,6 @@ import "./index.css";
 import { ThemeProvider } from "@/components/utils/theme-provider";
 import { BorderBeam } from "@/components/magicui/border-beam";
 import { SecurityWarning } from "@/components/custom/SecurityWarning";
-import AdminElevateButton from "@/components/custom/AdminElevateButton";
 import { ErrorBoundary } from "@/components/custom/ErrorBoundary";
 import { SplashScreen } from "@/components/custom/SplashScreen";
 import OnboardingWizard from "@/components/custom/onboarding/OnboardingWizard";
@@ -149,10 +148,11 @@ function App() {
             <SecurityWarning onContinue={() => {}} />
           )}
           <AppRouter />
-          {/* On masque les widgets fixed (admin button, BorderBeam) quand le
-              wizard est actif : ils s'affichent par-dessus et bloquent les
-              clics sur le footer du wizard ("Suivant"). */}
-          {!isOverlay && showOnboarding === false && <AdminElevateButton />}
+          {/* On masque les widgets fixed (BorderBeam) quand le wizard est
+              actif : ils s'affichent par-dessus et bloquent les clics sur
+              le footer du wizard ("Suivant"). AdminElevateButton retiré
+              du bundle store car restart_as_admin refuse l'élévation
+              depuis WindowsApps. */}
           {!isOverlay && showOnboarding === false && <BorderBeam duration={8} size={150} colorFrom="#FAFAFA" colorTo="#FAFAFA" />}
           {!isOverlay && showOnboarding === false && <BorderBeam delay={4} duration={8} size={150} colorFrom="#FAFAFA" colorTo="#FAFAFA" />}
           {!isOverlay && showOnboarding === false && <CacheCleanupPrompt />}
