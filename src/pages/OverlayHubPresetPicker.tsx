@@ -99,9 +99,7 @@ const OverlayHubPresetPicker = () => {
 
     return (
         // bg matche la couleur effective du hub (rgba(8,12,17,0.75) sur fond
-        // dark ≈ #080c11) pour cohérence visuelle. La fenêtre OS est opaque
-        // mais le rendu donne l'illusion qu'elle est faite de la même
-        // matière que le hub.
+        // dark ≈ #080c11) pour cohérence visuelle.
         <div className="flex h-screen w-screen items-center justify-center bg-[#080c11] p-2">
             <div className="rounded-lg border border-white/[0.10] bg-[#080c11] p-2.5">
                 {/* Petit séparateur cyan style HUD comme la categories du hub */}

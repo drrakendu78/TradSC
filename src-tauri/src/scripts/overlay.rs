@@ -335,6 +335,9 @@ pub async fn open_overlay_hub(app_handle: AppHandle) -> Result<(), String> {
     let mut created_win = None;
 
     for _ in 0..2 {
+        // visible(false) : créé caché pour pouvoir strip les styles Win32
+        // AVANT que la window soit montrée → évite le flash de title bar
+        // visible jusqu'à ce que l'user interagisse avec le hub.
         match WebviewWindowBuilder::new(&app_handle, label, WebviewUrl::App(hub_url.into()))
             .title("Overlay Hub")
             .inner_size(OVERLAY_HUB_WIDTH, OVERLAY_HUB_HEIGHT)
@@ -345,6 +348,7 @@ pub async fn open_overlay_hub(app_handle: AppHandle) -> Result<(), String> {
             .always_on_top(true)
             .skip_taskbar(true)
             .resizable(false)
+            .visible(false)
             .build()
         {
             Ok(win) => {
@@ -373,6 +377,12 @@ pub async fn open_overlay_hub(app_handle: AppHandle) -> Result<(), String> {
     // ci-dessous et on voit un cadre arrondi ~8 px DWM **derrière** la pill
     // exacte (mismatch visible). DONOTROUND laisse SetWindowRgn piloter
     // seul la forme de la fenêtre.
+    //
+    // ÉGALEMENT : strip Win32 WS_CAPTION/WS_BORDER/WS_DLGFRAME/WS_THICKFRAME
+    // pour que la title bar Windows ne soit JAMAIS rendue, même si Windows
+    // déclenche un repaint inattendu (focus change, IME, etc.). Sans ce
+    // strip, le SetWindowRgn clip visuellement mais la title bar peut
+    // flasher quand l'user clique sur le hub ou vient de l'ouvrir.
     #[cfg(target_os = "windows")]
     unsafe {
         use windows::Win32::Graphics::Dwm::{
@@ -380,12 +390,31 @@ pub async fn open_overlay_hub(app_handle: AppHandle) -> Result<(), String> {
         };
         if let Ok(hwnd_raw) = win.hwnd() {
             let h = HWND(hwnd_raw.0 as *mut _);
+
+            // Strip title bar + bordures Win32
+            let style = GetWindowLongW(h, GWL_STYLE);
+            let stripped = style
+                & !(WS_CAPTION.0 as i32)
+                & !(WS_BORDER.0 as i32)
+                & !(WS_DLGFRAME.0 as i32)
+                & !(WS_THICKFRAME.0 as i32);
+            let _ = SetWindowLongW(h, GWL_STYLE, stripped);
+
+            // Désactive le round-corner DWM
             let pref = DWMWCP_DONOTROUND;
             let _ = DwmSetWindowAttribute(
                 h,
                 DWMWA_WINDOW_CORNER_PREFERENCE,
                 &pref as *const _ as *const _,
                 std::mem::size_of_val(&pref) as u32,
+            );
+
+            // Force le repaint avec les nouveaux styles appliqués
+            let _ = SetWindowPos(
+                h,
+                HWND_TOP,
+                0, 0, 0, 0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
             );
         }
     }
@@ -398,6 +427,13 @@ pub async fn open_overlay_hub(app_handle: AppHandle) -> Result<(), String> {
     // l'API GDI historique). Si le crénelage devient gênant, alternative
     // = DWMWA_WINDOW_CORNER_PREFERENCE seul (bords lisses mais radius
     // limité à ~8 px Windows 11+).
+    // On montre la fenêtre. Styles Win32 strippés et DWM round désactivés,
+    // donc PAS de title bar / round corner visible.
+    let _ = win.show();
+
+    // SetWindowRgn DOIT être appliqué APRÈS show() car outer_size() retourne
+    // 0×0 sur une fenêtre encore hidden → région nulle = fenêtre invisible.
+    // On l'applique post-show pour avoir les vraies dimensions.
     #[cfg(target_os = "windows")]
     apply_hub_pill_region(&win);
 
@@ -1664,11 +1700,11 @@ pub fn release_overlay_focus(app_handle: AppHandle) -> Result<(), String> {
 // ─────────────────────────────────────────────────────────────────────────
 
 const HUB_PRESET_PICKER_LABEL: &str = "overlay_hub_preset_picker";
-// Dimensions : 3 cellules de 28 px + gaps 4 px + padding 16 px + label
-// "POSITION" 20 px + border = ~130 px en hauteur, ~110 px en largeur. On
-// prend un peu de marge pour éviter la coupure au bas.
+// Dimensions : outer p-2 (16 px) + inner p-2.5 (20 px) + header POSITION
+// (~28 px avec mb-2) + grid panel p-1 (8 px) + 3 rows × 28 px (h-7) +
+// 2 gaps × 4 px = ~172 px. On prend 180 pour la marge anti-coupure.
 const HUB_PRESET_PICKER_WIDTH: f64 = 120.0;
-const HUB_PRESET_PICKER_HEIGHT: f64 = 140.0;
+const HUB_PRESET_PICKER_HEIGHT: f64 = 180.0;
 
 #[command]
 pub async fn toggle_hub_preset_picker(
@@ -1699,10 +1735,11 @@ pub async fn toggle_hub_preset_picker(
     // de titre Windows pendant le bref instant où la window est créée
     // avec décorations par défaut puis decorations(false) est appliqué.
     // On la montre après tout setup (set_shadow, etc.).
-    // transparent(false) : la picker est un rectangle plein, on n'a pas
-    // besoin de transparence. Et `transparent: true` sur Windows 11 +
-    // always_on_top force une shadow DWM impossible à enlever (même avec
-    // DWMNCRP_DISABLED). En passant en opaque, plus de glow autour.
+    // transparent(false) : la picker est un rectangle plein opaque. On a
+    // essayé transparent(true) + SetWindowRgn pour matcher le hub, mais
+    // ça donne un rendu Windows XP-style chelou sur les windows toplevel.
+    // Avec transparent: false on a un petit flash de la window OS au
+    // moment de show(), mais sinon c'est propre.
     let build_result = WebviewWindowBuilder::new(
         &app_handle,
         HUB_PRESET_PICKER_LABEL,
@@ -1738,7 +1775,7 @@ pub async fn toggle_hub_preset_picker(
     #[cfg(target_os = "windows")]
     unsafe {
         use windows::Win32::Graphics::Dwm::{
-            DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_DONOTROUND,
+            DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND,
         };
         if let Ok(hwnd_raw) = win.hwnd() {
             let h = HWND(hwnd_raw.0 as *mut _);
@@ -1760,9 +1797,10 @@ pub async fn toggle_hub_preset_picker(
                 ex_style | WS_EX_NOACTIVATE.0 as i32,
             );
 
-            // Désactive le DWM round-corner par défaut. SetWindowRgn
-            // ci-dessous va donner notre propre arrondi plus prononcé.
-            let pref = DWMWCP_DONOTROUND;
+            // Coins arrondis Windows 11 natifs (~8 px). SetWindowRgn ne
+            // marche pas avec transparent: false sur Windows 11 (la window
+            // garde son rectangle plein), donc on s'appuie sur DWM.
+            let pref = DWMWCP_ROUND;
             let _ = DwmSetWindowAttribute(
                 h,
                 DWMWA_WINDOW_CORNER_PREFERENCE,
@@ -1785,29 +1823,9 @@ pub async fn toggle_hub_preset_picker(
         }
     }
 
-    // Maintenant que tout est configuré, on affiche.
+    // Maintenant que tout est configuré (styles strippés + SetWindowRgn
+    // appliqué), on affiche. Aucun flash de title bar ou rectangle.
     let _ = win.show();
-
-    // SetWindowRgn doit être appliqué APRÈS show() pour que outer_size()
-    // renvoie la vraie taille de la fenêtre (sinon 0×0 = région nulle =
-    // window totalement invisible). Découpe la fenêtre en rectangle
-    // arrondi (~16 px de radius) pour un look "card" qui matche le hub.
-    #[cfg(target_os = "windows")]
-    unsafe {
-        use windows::Win32::Graphics::Gdi::{CreateRoundRectRgn, SetWindowRgn};
-        if let Ok(hwnd_raw) = win.hwnd() {
-            let h = HWND(hwnd_raw.0 as *mut _);
-            if let Ok(size) = win.outer_size() {
-                let w_px = size.width.max(1) as i32;
-                let h_px = size.height.max(1) as i32;
-                let corner = 20;
-                let rgn = CreateRoundRectRgn(0, 0, w_px + 1, h_px + 1, corner, corner);
-                if !rgn.is_invalid() {
-                    let _ = SetWindowRgn(h, rgn, true);
-                }
-            }
-        }
-    }
 
     Ok(())
 }
