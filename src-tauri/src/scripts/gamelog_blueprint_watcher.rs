@@ -408,6 +408,11 @@ pub fn start_internal(state: &GamelogWatcherState, app: AppHandle) -> Result<(),
     cfg.enabled = true;
     save_config(&app, &cfg)?;
 
+    // Notifie tous les frontends (page Blueprints, overlay détaché,
+    // sidebar Paramètres, etc.) que le watcher a changé d'état, pour
+    // qu'ils refresh leur affichage sans avoir besoin d'un poll.
+    let _ = app.emit("gamelog-watcher:status_changed", true);
+
     Ok(())
 }
 
@@ -436,6 +441,9 @@ fn stop_internal(state: &GamelogWatcherState, app: &AppHandle) -> Result<(), Str
     let mut cfg = load_config(app)?;
     cfg.enabled = false;
     save_config(app, &cfg)?;
+
+    // Cf. start_internal — notifie les frontends de la transition.
+    let _ = app.emit("gamelog-watcher:status_changed", false);
 
     Ok(())
 }

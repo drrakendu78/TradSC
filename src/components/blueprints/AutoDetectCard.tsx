@@ -136,11 +136,21 @@ export function AutoDetectCard() {
                 description: event.payload.productName,
             });
         });
+        // Sync entre les multiples instances du composant (page Blueprints +
+        // overlay détaché + sidebar Paramètres → Services). Quand n'importe
+        // quelle instance déclenche start/stop, le backend émet
+        // `gamelog-watcher:status_changed` et toutes les instances refresh
+        // leur statut pour montrer le bon badge Actif/Arrêté et le bon
+        // bouton Démarrer/Arrêter sans poll.
+        const unlistenStatus = listen<boolean>("gamelog-watcher:status_changed", () => {
+            refresh();
+        });
         return () => {
             unlistenLog.then((f) => f());
             unlistenBlueprint.then((f) => f());
+            unlistenStatus.then((f) => f());
         };
-    }, [toast]);
+    }, [toast, refresh]);
 
     // Auto-scroll log feed to bottom on new entry
     useEffect(() => {
