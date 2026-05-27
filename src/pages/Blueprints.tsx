@@ -21,6 +21,7 @@ import {
     Tag,
     Briefcase,
     X,
+    PictureInPicture2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -430,12 +431,97 @@ function systemBadgeColor(system: string | null): string {
     }
 }
 
-export default function Blueprints() {
+interface BlueprintsProps {
+    /** Si true, page rendue en mode overlay détaché (fenêtre Tauri séparée,
+     *  route /overlay-blueprints). Active fond transparent + cache l'auto-detect
+     *  card pour gagner de la place. Sinon (false, par défaut), rendu normal
+     *  dans l'app principale avec un bouton "Open Overlay" supplémentaire. */
+    isOverlayEmbed?: boolean;
+}
+
+export default function Blueprints({ isOverlayEmbed = false }: BlueprintsProps = {}) {
     const { toast } = useToast();
     const [config, setConfig] = useState<ConfigPayload | null>(null);
     const [blueprints, setBlueprints] = useState<BlueprintSummary[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
+    // Track si l'overlay détaché est ouvert. Pour l'instant on n'affiche pas
+    // de placeholder (l'user peut utiliser les 2 en parallèle), mais on garde
+    // le state pour pouvoir l'utiliser plus tard (re-focus button, etc.).
+    const [, setIsDetachedToOverlay] = useState(false);
+
+    // Mode overlay : force le body/html transparent pour que la fenêtre
+    // Tauri laisse voir le jeu derrière. Même pattern que Pvp.tsx.
+    useEffect(() => {
+        if (!isOverlayEmbed) return;
+        const html = document.documentElement;
+        const body = document.body;
+        const root = document.getElementById("root");
+        const prevHtmlBg = html.style.background;
+        const prevBodyBg = body.style.background;
+        const prevRootBg = root?.style.background ?? "";
+        html.style.setProperty("background", "transparent", "important");
+        body.style.setProperty("background", "transparent", "important");
+        if (root) root.style.setProperty("background", "transparent", "important");
+        const style = document.createElement("style");
+        style.id = "blueprints-overlay-transparent-fix";
+        style.textContent = `
+            html, body, #root {
+                background: transparent !important;
+                background-color: transparent !important;
+            }
+            #root::before {
+                display: none !important;
+                background: transparent !important;
+            }
+        `;
+        document.head.appendChild(style);
+        return () => {
+            style.remove();
+            html.style.background = prevHtmlBg;
+            body.style.background = prevBodyBg;
+            if (root) root.style.background = prevRootBg;
+        };
+    }, [isOverlayEmbed]);
+
+    // Listen close de l'overlay détaché → revient au mode normal embed dans
+    // l'app principale (sans nécessité de refresh manuel).
+    useEffect(() => {
+        if (isOverlayEmbed) return;
+        let unlisten: (() => void) | undefined;
+        listen<{ id: string }>("overlay_closed", (event) => {
+            if (event.payload?.id !== "blueprints") return;
+            setIsDetachedToOverlay(false);
+        })
+            .then((fn) => { unlisten = fn; })
+            .catch(console.error);
+        return () => {
+            if (unlisten) unlisten();
+        };
+    }, [isOverlayEmbed]);
+
+    const handleOpenOverlay = useCallback(async () => {
+        try {
+            const overlayUrl = `${window.location.origin}${window.location.pathname}#/overlay-blueprints`;
+            await invoke("open_overlay", {
+                id: "blueprints",
+                url: overlayUrl,
+                x: 120.0,
+                y: 120.0,
+                width: 1100.0,
+                height: 820.0,
+                opacity: 1.0,
+            });
+            if (!isOverlayEmbed) setIsDetachedToOverlay(true);
+        } catch (error) {
+            console.error(error);
+            toast({
+                title: "Erreur overlay",
+                description: "Impossible d'ouvrir Blueprints en overlay.",
+                variant: "destructive",
+            });
+        }
+    }, [isOverlayEmbed, toast]);
     const [search, setSearch] = useState("");
     const [locationFilter, setLocationFilter] = useState<string>("all");
     const [contractorFilter, setContractorFilter] = useState<string>("all");
@@ -945,6 +1031,18 @@ export default function Blueprints() {
                                     )}
                                 </div>
                             )}
+                            {!isOverlayEmbed && (
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={handleOpenOverlay}
+                                    className="h-8 gap-1.5 rounded-lg border border-border/50 bg-background/22 px-3 text-[11.5px] text-foreground/85 transition-all hover:border-primary/35 hover:bg-[hsl(var(--primary)/0.10)] hover:text-foreground"
+                                    title="Ouvrir Blueprints en overlay (par-dessus le jeu)"
+                                >
+                                    <PictureInPicture2 className="h-3.5 w-3.5" />
+                                    Overlay
+                                </Button>
+                            )}
                             <Button
                                 size="sm"
                                 variant="ghost"
@@ -964,8 +1062,9 @@ export default function Blueprints() {
                     <div className="mt-3 h-px w-full bg-gradient-to-r from-primary/25 via-border/40 to-transparent" />
                 </section>
 
-                {/* AUTO-DETECT SERVICE */}
-                <AutoDetectCard />
+                {/* AUTO-DETECT SERVICE — caché en mode overlay (déjà géré
+                 *  par le toggle dans Paramètres, occupe trop de place ici). */}
+                {!isOverlayEmbed && <AutoDetectCard />}
 
                 {/* FILTERS */}
                 <section className="relative overflow-hidden rounded-2xl border border-border/45 bg-[hsl(var(--background)/0.16)] shadow-[0_10px_26px_rgba(0,0,0,0.10)] backdrop-blur-xl">

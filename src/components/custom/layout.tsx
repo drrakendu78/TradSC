@@ -21,6 +21,7 @@ const OVERLAY_ROUTES = new Set([
     '/overlay-hub',
     '/overlay-webview-bar',
     '/overlay-hub-preset-picker',
+    '/overlay-blueprints',
 ]);
 
 const ROUTE_LABELS: Record<string, string> = {

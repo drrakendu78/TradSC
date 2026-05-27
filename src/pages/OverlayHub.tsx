@@ -133,6 +133,7 @@ const ID_TO_CATEGORY: Record<string, OverlayHubCategory> = {
     crafter: "crafting",
     "sc-craft-tools": "crafting",
     "scdb-space": "crafting",
+    blueprints: "crafting",
     scmdb: "database",
     verseguide: "database",
     finder: "database",
@@ -160,6 +161,7 @@ const ICONKEY_TO_LUCIDE: Record<string, string> = {
     route: "route",
     pickaxe: "pickaxe",
     shield: "shield-check",
+    blueprints: "book-open",
 };
 
 function mapToHubTools(items: OverlayHubItem[], activeIds: Set<string>): OverlayHubTool[] {

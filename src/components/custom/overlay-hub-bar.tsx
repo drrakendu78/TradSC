@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import {
+    BookOpen,
     Crosshair,
     Database,
     Eye,
@@ -82,6 +83,7 @@ const ICONS: Record<string, LucideIcon> = {
     plane: Plane,
     eye: Eye,
     truck: Truck,
+    "book-open": BookOpen,
 };
 
 // Labels courts mono pour chaque catégorie (affichés en uppercase 9 px).

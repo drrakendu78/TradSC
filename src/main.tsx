@@ -50,7 +50,8 @@ function App() {
       window.location.hash.includes("/pvp-overlay") ||
       window.location.hash.includes("/overlay-hub") ||
       window.location.hash.includes("/overlay-webview-bar") ||
-      window.location.hash.includes("/overlay-hub-preset-picker");
+      window.location.hash.includes("/overlay-hub-preset-picker") ||
+      window.location.hash.includes("/overlay-blueprints");
     if (isOverlayWin || !isTauri()) {
       setShowOnboarding(false);
       return;
