@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow, LogicalPosition, LogicalSize } from "@tauri-apps/api/window";
 import { OverlayActionBar } from "@/components/custom/overlay-action-bar";
+import { saveOverlayGeometry } from "@/utils/overlay-geometry-store";
 
 interface WebviewGeometry {
     x: number;
@@ -78,6 +79,7 @@ const OverlayWebviewBar = () => {
         let lastY = NaN;
         let lastW = NaN;
         let lastH = NaN;
+        let persistTimer: number | null = null;
         const tick = async () => {
             if (cancelled) return;
             try {
@@ -101,6 +103,29 @@ const OverlayWebviewBar = () => {
                     await win
                         .setSize(new LogicalSize(Math.round(geo.width), Math.round(geo.height)))
                         .catch(() => undefined);
+
+                    // Persistance (Discord thread #2) : sauve la geo perçue
+                    // (bar + webview combinés) avec debounce 400 ms pour ne
+                    // pas hammerer localStorage à chaque frame de drag.
+                    if (persistTimer !== null) {
+                        window.clearTimeout(persistTimer);
+                    }
+                    persistTimer = window.setTimeout(() => {
+                        persistTimer = null;
+                        invoke<[number, number, number, number]>(
+                            "get_webview_overlay_perceived_geometry",
+                            { id },
+                        )
+                            .then(([px, py, pw, ph]) => {
+                                saveOverlayGeometry(id, {
+                                    x: px,
+                                    y: py,
+                                    width: pw,
+                                    height: ph,
+                                });
+                            })
+                            .catch(() => undefined);
+                    }, 400);
                 }
             } catch {
                 // Webview parent fermée → cette bar va être fermée par le backend aussi.
@@ -110,6 +135,7 @@ const OverlayWebviewBar = () => {
         tick();
         return () => {
             cancelled = true;
+            if (persistTimer !== null) window.clearTimeout(persistTimer);
             window.clearInterval(interval);
         };
     }, [id]);

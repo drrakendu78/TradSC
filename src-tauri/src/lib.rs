@@ -72,7 +72,7 @@ use scripts::offline_cache::{
     get_translation_cache_info, open_translation_cache_folder, cache_all_installed_translations,
 };
 use scripts::overlay::{
-    open_overlay_hub, toggle_overlay_hub, is_overlay_hub_open, set_overlay_hub_mode, get_overlay_hub_mode, is_overlay_open, open_overlay, open_webview_overlay, close_overlay, close_webview_overlay, set_overlay_size, set_window_opacity, set_overlay_interaction, ensure_overlay_control, toggle_overlay_interactive, release_overlay_focus, webview_overlay_reload, webview_overlay_set_opacity, webview_overlay_set_hidden, get_webview_overlay_geometry, toggle_hub_preset_picker, close_hub_preset_picker,
+    open_overlay_hub, toggle_overlay_hub, is_overlay_hub_open, set_overlay_hub_mode, get_overlay_hub_mode, is_overlay_open, open_overlay, open_webview_overlay, close_overlay, close_webview_overlay, set_overlay_size, set_overlay_window_position, set_window_opacity, set_overlay_interaction, ensure_overlay_control, toggle_overlay_interactive, release_overlay_focus, webview_overlay_reload, webview_overlay_set_opacity, webview_overlay_set_hidden, get_webview_overlay_geometry, get_webview_overlay_perceived_geometry, toggle_hub_preset_picker, close_hub_preset_picker,
 };
 use scripts::companion_server::{
     companion_broadcast, companion_send, get_companion_info, start_companion_server,
@@ -724,6 +724,7 @@ pub fn run() {
             close_overlay,
             close_webview_overlay,
             set_overlay_size,
+            set_overlay_window_position,
             set_window_opacity,
             set_overlay_interaction,
             ensure_overlay_control,
@@ -733,6 +734,7 @@ pub fn run() {
             webview_overlay_set_opacity,
             webview_overlay_set_hidden,
             get_webview_overlay_geometry,
+            get_webview_overlay_perceived_geometry,
             toggle_hub_preset_picker,
             close_hub_preset_picker,
             start_companion_server,
