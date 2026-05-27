@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
@@ -19,6 +19,19 @@ const OverlayControl = () => {
     // État initial : interactive = true → overlay focusable, œil gris.
     const [interactive, setInteractive] = useState(true);
     const [loading, setLoading] = useState(false);
+
+    // Safety net : si `loading` reste bloqué (ex : invoke jamais résolu),
+    // on force le reset après 2 secondes. Évite l'œil "grisé non-cliquable"
+    // permanent si jamais l'invoke `toggle_overlay_interactive` ne résout
+    // pas pour une raison X.
+    useEffect(() => {
+        if (!loading) return;
+        const timer = window.setTimeout(() => {
+            console.warn("[OverlayControl] loading stuck > 2s, force reset");
+            setLoading(false);
+        }, 2000);
+        return () => window.clearTimeout(timer);
+    }, [loading]);
 
     const toggle = async () => {
         if (!id || loading) return;
