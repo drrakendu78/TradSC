@@ -202,11 +202,73 @@ pub fn get_star_citizen_versions() -> VersionPaths {
     VersionPaths { versions }
 }
 
-/// Trouve le chemin du RSI Launcher s'il est installé
+/// Cherche `RSI Launcher\RSI Launcher.exe` à proximité d'un chemin de jeu
+/// donné, en remontant les parents successifs jusqu'à 5 niveaux. Utilisé
+/// par `find_rsi_launcher_path` step 0 pour gérer les installs custom où
+/// le dossier `Roberts Space Industries\` n'existe pas (ex: pticopate qui
+/// a `D:\Games\RSI Games\StarCitizen\LIVE` et `D:\Games\RSI Launcher\`).
+///
+/// Layout standard SC : jeu = `<X>\Roberts Space Industries\StarCitizen\LIVE`
+/// → 2 remontées (`<X>\Roberts Space Industries\`) → trouve launcher ✓.
+/// Layout pticopate : jeu = `D:\Games\RSI Games\StarCitizen\LIVE` →
+/// 3 remontées (`D:\Games\`) → trouve `D:\Games\RSI Launcher\` ✓.
+///
+/// Max 5 niveaux pour éviter une recherche jusqu'à la racine drive.
+fn find_launcher_near_game(game_path: &str) -> Option<String> {
+    let mut current = Path::new(game_path).parent();
+    for _ in 0..5 {
+        if let Some(parent) = current {
+            let candidate = parent.join("RSI Launcher").join("RSI Launcher.exe");
+            if candidate.exists() {
+                return Some(candidate.to_string_lossy().to_string());
+            }
+            current = parent.parent();
+        } else {
+            break;
+        }
+    }
+    None
+}
+
+/// Trouve le chemin du RSI Launcher s'il est installé.
+///
+/// 4 stratégies en fallback (ordre du plus fiable au moins fiable) :
+///
+/// **0. Déduction depuis le chemin du JEU** (ajouté pour pticopate +
+///    amnexiatm — Discord thread #1506590303539171340). La détection du jeu
+///    utilise une regex `StarCitizen\\` qui ne dépend pas du dossier parent
+///    `Roberts Space Industries\`, donc elle MARCHE même pour les installs
+///    custom (ex: `D:\Games\RSI Games\StarCitizen\LIVE`). On remonte les
+///    parents du chemin du jeu et on cherche `RSI Launcher\RSI Launcher.exe`
+///    à chaque niveau (max 5 niveaux pour éviter la remontée à la racine).
+///    Cas pticopate : jeu `D:\Games\RSI Games\StarCitizen\LIVE` → parent
+///    `D:\Games\` contient `RSI Launcher\` → trouvé ✓.
+///
+/// **1. Logs RSI** : regex sur `Roberts Space Industries\\` (ne trouve QUE
+///    les installs standards).
+///
+/// **2. Chemins hardcodés C:\Program Files[(x86)]\Roberts Space Industries\...** (ne marche QUE pour install C: standard).
+///
+/// **3. Registry Windows** HKLM + HKCU `Uninstall\*` cherchant `DisplayName`
+///    contenant "RSI Launcher" (échoue si pas d'install via setup officiel).
 fn find_rsi_launcher_path() -> Option<String> {
+    let log_lines = get_launcher_log_list();
+
+    // 0. Déduction depuis le chemin du jeu. Récupère le premier chemin
+    //    valide via la regex StarCitizen\\ (qui marche même sans dossier
+    //    parent Roberts Space Industries). Remonte les parents et cherche
+    //    RSI Launcher\RSI Launcher.exe à côté.
+    if !log_lines.is_empty() {
+        let game_paths = get_game_install_path(&log_lines, true);
+        for game_path in &game_paths {
+            if let Some(launcher) = find_launcher_near_game(game_path) {
+                return Some(launcher);
+            }
+        }
+    }
+
     // 1. D'abord, essayer de trouver via les logs RSI (comme pour la détection du jeu)
     // Le launcher est dans le même dossier parent que StarCitizen
-    let log_lines = get_launcher_log_list();
     if !log_lines.is_empty() {
         // Expression régulière pour extraire le chemin Roberts Space Industries
         let re = match Regex::new(r"([a-zA-Z]:\\(?:[^\\]+\\)*Roberts Space Industries)\\") {
