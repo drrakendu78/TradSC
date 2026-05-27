@@ -22,6 +22,7 @@ import {
     Briefcase,
     X,
     PictureInPicture2,
+    ArrowUpDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +37,13 @@ import {
     SelectItem,
     SelectTrigger,
 } from "@/components/ui/select";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuTrigger,
+    DropdownMenuRadioGroup,
+    DropdownMenuRadioItem,
+} from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { AutoDetectCard } from "@/components/blueprints/AutoDetectCard";
@@ -118,8 +126,19 @@ interface ConfigPayload {
 }
 
 const OWNED_STORAGE_KEY = "blueprints_owned_v2";
+const OWNED_TS_STORAGE_KEY = "blueprints_owned_ts_v1";
 const LANG_STORAGE_KEY = "blueprints_lang";
 const ONLY_OWNED_STORAGE_KEY = "blueprints_only_owned";
+const SORT_MODE_STORAGE_KEY = "blueprints_sort_mode_v1";
+
+/**
+ * Modes de tri proposés dans le picker en haut à droite de la toolbar.
+ * Le mode "unlocked-desc" requiert les timestamps stockés dans
+ * `OWNED_TS_STORAGE_KEY` — les blueprints owned AVANT l'introduction
+ * de ce tracking ont ts=0 et apparaîtront tout en bas (= "ancien").
+ */
+type SortMode = "alpha-asc" | "alpha-desc" | "unlocked-desc" | "category";
+const DEFAULT_SORT_MODE: SortMode = "alpha-asc";
 
 function loadOwned(): Set<string> {
     try {
@@ -140,6 +159,47 @@ function persistOwned(owned: Set<string>) {
     } catch {
         // ignore
     }
+}
+
+/**
+ * Timestamps de déblocage par blueprintId. Map persisté en localStorage,
+ * lu/écrit en parallèle de `OWNED_STORAGE_KEY` (pas couplé pour éviter de
+ * casser la migration legacy v2 → v3). Stocké en ms depuis epoch.
+ */
+function loadOwnedTimestamps(): Record<string, number> {
+    try {
+        const raw = localStorage.getItem(OWNED_TS_STORAGE_KEY);
+        if (!raw) return {};
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+            const out: Record<string, number> = {};
+            for (const [k, v] of Object.entries(parsed)) {
+                if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
+            }
+            return out;
+        }
+        return {};
+    } catch {
+        return {};
+    }
+}
+
+function persistOwnedTimestamps(map: Record<string, number>) {
+    try {
+        localStorage.setItem(OWNED_TS_STORAGE_KEY, JSON.stringify(map));
+    } catch {
+        // ignore
+    }
+}
+
+function loadSortMode(): SortMode {
+    try {
+        const raw = localStorage.getItem(SORT_MODE_STORAGE_KEY);
+        if (raw === "alpha-asc" || raw === "alpha-desc" || raw === "unlocked-desc" || raw === "category") {
+            return raw;
+        }
+    } catch { /* ignore */ }
+    return DEFAULT_SORT_MODE;
 }
 
 /// Normalise un nom pour matching robuste : lowercase, sans accents, sans
@@ -544,6 +604,47 @@ export default function Blueprints({ isOverlayEmbed = false }: BlueprintsProps =
         }
     });
     const [owned, setOwned] = useState<Set<string>>(() => loadOwned());
+
+    // Timestamps de déblocage par blueprintId (tracker séparé pour le mode
+    // de tri "unlocked-desc"). Les owned legacy (avant introduction du
+    // tracking) ont 0 → apparaissent tout en bas du tri par déblocage.
+    const [ownedTimestamps, setOwnedTimestamps] = useState<Record<string, number>>(() => loadOwnedTimestamps());
+    // Helper : enregistre les ts pour les blueprints nouvellement ajoutés.
+    // Si ts undefined, on prend Date.now() (= clic user / cloud merge).
+    const recordOwnedTimestamps = useCallback((ids: Iterable<string>, ts?: number) => {
+        const stamp = ts ?? Date.now();
+        setOwnedTimestamps((prev) => {
+            const next = { ...prev };
+            let touched = false;
+            for (const id of ids) {
+                if (!(id in next)) {
+                    next[id] = stamp;
+                    touched = true;
+                }
+            }
+            if (touched) persistOwnedTimestamps(next);
+            return touched ? next : prev;
+        });
+    }, []);
+    const clearOwnedTimestamp = useCallback((id: string) => {
+        setOwnedTimestamps((prev) => {
+            if (!(id in prev)) return prev;
+            const next = { ...prev };
+            delete next[id];
+            persistOwnedTimestamps(next);
+            return next;
+        });
+    }, []);
+
+    // Mode de tri actif (Alpha A→Z par défaut). Persisté en localStorage.
+    const [sortMode, setSortModeState] = useState<SortMode>(() => loadSortMode());
+    const setSortMode = useCallback((mode: SortMode) => {
+        setSortModeState(mode);
+        try {
+            localStorage.setItem(SORT_MODE_STORAGE_KEY, mode);
+        } catch { /* ignore */ }
+    }, []);
+
     const [selectedBlueprintId, setSelectedBlueprintId] = useState<string | null>(null);
     const [detail, setDetail] = useState<BlueprintDetail | null>(null);
     const [detailLoading, setDetailLoading] = useState(false);
@@ -733,15 +834,19 @@ export default function Blueprints({ isOverlayEmbed = false }: BlueprintsProps =
             }
             setOwned((prev) => {
                 const merged = new Set(prev);
-                let added = 0;
+                const newIds: string[] = [];
                 for (const id of cloudOwned) {
                     if (!merged.has(id)) {
                         merged.add(id);
-                        added++;
+                        newIds.push(id);
                     }
                 }
-                if (added > 0) {
+                if (newIds.length > 0) {
                     persistOwned(merged);
+                    // Pour les blueprints qui viennent du cloud sans ts
+                    // associé, on stamp à `now()` à la première sync sur
+                    // cette machine. C'est une approximation acceptable.
+                    recordOwnedTimestamps(newIds);
                 }
                 return merged;
             });
@@ -796,21 +901,29 @@ export default function Blueprints({ isOverlayEmbed = false }: BlueprintsProps =
                     blueprints: { productName: string; ts: number }[];
                 }>("gamelog_blueprints_load");
                 if (cancelled) return;
+                // On collecte les (id, ts) en parallèle pour pouvoir stamp
+                // chaque blueprint nouvellement coché avec le ts d'origine
+                // du Game.log (plus fidèle que Date.now()).
+                const newEntries: Array<{ id: string; ts: number }> = [];
                 setOwned((prev) => {
                     const next = new Set(prev);
-                    let added = 0;
                     for (const detected of store.blueprints) {
                         const id = matchProductName(detected.productName, blueprints);
                         if (id && !next.has(id)) {
                             next.add(id);
-                            added++;
+                            newEntries.push({ id, ts: detected.ts });
                         }
                     }
-                    if (added > 0) {
+                    if (newEntries.length > 0) {
                         persistOwned(next);
                     }
-                    return added > 0 ? next : prev;
+                    return newEntries.length > 0 ? next : prev;
                 });
+                // Stamp chaque détecté avec son propre ts (hors du setter
+                // pour éviter de recalculer l'ordre dans le batch React).
+                for (const { id, ts } of newEntries) {
+                    recordOwnedTimestamps([id], ts);
+                }
             } catch (e) {
                 console.warn("[blueprints] auto-tick sync failed:", e);
             }
@@ -840,6 +953,8 @@ export default function Blueprints({ isOverlayEmbed = false }: BlueprintsProps =
                     persistOwned(next);
                     return next;
                 });
+                // Stamp avec le ts du Game.log (plus précis que Date.now()).
+                recordOwnedTimestamps([id], event.payload.ts);
             },
         );
 
@@ -847,7 +962,7 @@ export default function Blueprints({ isOverlayEmbed = false }: BlueprintsProps =
             cancelled = true;
             unlistenPromise.then((f) => f());
         };
-    }, [blueprints, toast]);
+    }, [blueprints, toast, recordOwnedTimestamps]);
 
     const categoryOptions = useMemo(() => {
         const set = new Set<string>();
@@ -860,33 +975,70 @@ export default function Blueprints({ isOverlayEmbed = false }: BlueprintsProps =
 
     const displayedBlueprints = useMemo(() => {
         const q = search.trim().toLowerCase();
-        return blueprints
-            .filter((b) => {
-                if (onlyOwned && !owned.has(b.blueprintId)) return false;
-                if (categoryFilter !== "all" && categoryKey(b.category) !== categoryFilter)
-                    return false;
-                if (q) {
-                    const hay = [
-                        b.blueprintId,
-                        b.nameEn,
-                        b.nameFr ?? "",
-                        b.category ?? "",
-                    ]
-                        .join(" ")
-                        .toLowerCase();
-                    if (!hay.includes(q)) return false;
-                }
-                return true;
-            })
-            // Tri alpha par défaut sur le nom FR (ou EN si pas de trad),
-            // avec localeCompare français pour gérer correctement accents
-            // et casse. Demande explicite des users (#blueprints).
-            .sort((a, b) => {
-                const an = a.nameFr ?? a.nameEn ?? a.blueprintId;
-                const bn = b.nameFr ?? b.nameEn ?? b.blueprintId;
-                return an.localeCompare(bn, "fr", { sensitivity: "base" });
-            });
-    }, [blueprints, onlyOwned, owned, categoryFilter, search]);
+        const filtered = blueprints.filter((b) => {
+            if (onlyOwned && !owned.has(b.blueprintId)) return false;
+            if (categoryFilter !== "all" && categoryKey(b.category) !== categoryFilter)
+                return false;
+            if (q) {
+                const hay = [
+                    b.blueprintId,
+                    b.nameEn,
+                    b.nameFr ?? "",
+                    b.category ?? "",
+                ]
+                    .join(" ")
+                    .toLowerCase();
+                if (!hay.includes(q)) return false;
+            }
+            return true;
+        });
+
+        // Comparateur alpha sur le nom FR (fallback EN puis ID). localeCompare
+        // français + sensitivity:"base" → ignore accents et casse.
+        const cmpAlpha = (a: typeof filtered[0], b: typeof filtered[0]) => {
+            const an = a.nameFr ?? a.nameEn ?? a.blueprintId;
+            const bn = b.nameFr ?? b.nameEn ?? b.blueprintId;
+            return an.localeCompare(bn, "fr", { sensitivity: "base" });
+        };
+
+        switch (sortMode) {
+            case "alpha-desc":
+                return filtered.sort((a, b) => cmpAlpha(b, a));
+            case "unlocked-desc":
+                // Comportement attendu en 3 paliers :
+                //   1) owned avec ts → en haut, triés desc par ts (récents d'abord)
+                //   2) owned sans ts (legacy, cochés avant ce tracking) → après
+                //      le palier 1, alpha
+                //   3) non-owned → tout en bas, alpha
+                // Sans ce groupement, l'user qui a TOUS ses blueprints
+                // legacy verrait un tri identique à l'alpha (rien ne bouge).
+                return filtered.sort((a, b) => {
+                    const aOwned = owned.has(a.blueprintId);
+                    const bOwned = owned.has(b.blueprintId);
+                    if (aOwned !== bOwned) return aOwned ? -1 : 1;
+                    if (aOwned && bOwned) {
+                        const at = ownedTimestamps[a.blueprintId];
+                        const bt = ownedTimestamps[b.blueprintId];
+                        if (at != null && bt != null) return bt - at;
+                        if (at != null) return -1;
+                        if (bt != null) return 1;
+                    }
+                    return cmpAlpha(a, b);
+                });
+            case "category":
+                // Groupe par catégorie alpha, puis alpha dans chaque catégorie.
+                return filtered.sort((a, b) => {
+                    const ac = (a.category ?? "").toLowerCase();
+                    const bc = (b.category ?? "").toLowerCase();
+                    const catCmp = ac.localeCompare(bc, "fr", { sensitivity: "base" });
+                    if (catCmp !== 0) return catCmp;
+                    return cmpAlpha(a, b);
+                });
+            case "alpha-asc":
+            default:
+                return filtered.sort(cmpAlpha);
+        }
+    }, [blueprints, onlyOwned, owned, categoryFilter, search, sortMode, ownedTimestamps]);
 
     const total = Math.max(blueprints.length, config?.totalBlueprints ?? 0);
     const ownedCount = useMemo(
@@ -898,12 +1050,17 @@ export default function Blueprints({ isOverlayEmbed = false }: BlueprintsProps =
     const toggleOwned = useCallback((blueprintId: string) => {
         setOwned((prev) => {
             const next = new Set(prev);
-            if (next.has(blueprintId)) next.delete(blueprintId);
-            else next.add(blueprintId);
+            if (next.has(blueprintId)) {
+                next.delete(blueprintId);
+                clearOwnedTimestamp(blueprintId);
+            } else {
+                next.add(blueprintId);
+                recordOwnedTimestamps([blueprintId]);
+            }
             persistOwned(next);
             return next;
         });
-    }, []);
+    }, [clearOwnedTimestamp, recordOwnedTimestamps]);
 
     const selectBlueprint = useCallback(async (entry: BlueprintSummary) => {
         setSelectedBlueprintId(entry.blueprintId);
@@ -1086,6 +1243,31 @@ export default function Blueprints({ isOverlayEmbed = false }: BlueprintsProps =
                                 </button>
                             )}
                         </div>
+                        {/* Picker mode de tri — icône compacte avec menu déroulant */}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger
+                                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border transition-colors ${
+                                    sortMode !== DEFAULT_SORT_MODE
+                                        ? "border-primary/55 bg-[hsl(var(--primary)/0.14)] text-primary"
+                                        : "border-input bg-transparent text-muted-foreground hover:bg-accent hover:text-foreground"
+                                }`}
+                                title="Trier les blueprints"
+                                aria-label="Trier les blueprints"
+                            >
+                                <ArrowUpDown className="h-3 w-3" />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" className="text-xs">
+                                <DropdownMenuRadioGroup
+                                    value={sortMode}
+                                    onValueChange={(v) => setSortMode(v as SortMode)}
+                                >
+                                    <DropdownMenuRadioItem value="alpha-asc">Alpha A → Z</DropdownMenuRadioItem>
+                                    <DropdownMenuRadioItem value="alpha-desc">Alpha Z → A</DropdownMenuRadioItem>
+                                    <DropdownMenuRadioItem value="unlocked-desc">Déblocage récent</DropdownMenuRadioItem>
+                                    <DropdownMenuRadioItem value="category">Par catégorie</DropdownMenuRadioItem>
+                                </DropdownMenuRadioGroup>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                         <CompactSelect
                             icon={<MapPin className="h-3 w-3" />}
                             placeholder="Système"
