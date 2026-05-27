@@ -57,6 +57,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { CompanionCard } from "@/components/custom/CompanionCard";
 import { AUTO_CLEAN_PROMPT_DISMISSED_KEY, AUTO_CLEAN_TOGGLE_UI_KEY, FORCE_CACHE_CLEANUP_MODAL_EVENT } from "@/hooks/useShaderCacheAutoClean";
+import {
+    BLUEPRINT_SOUND_CHANGED_EVENT,
+    isBlueprintSoundEnabled,
+    setBlueprintSoundEnabled,
+} from "@/hooks/useGlobalBlueprintToast";
 import { useTranslationStatus } from "@/hooks/useTranslationStatus";
 
 interface NavigationItem {
@@ -1588,6 +1593,33 @@ function SettingsContent() {
     // Persisté côté backend dans gamelog_watcher.json (app_config_dir).
     const [gamelogAutoStart, setGamelogAutoStart] = useState(false);
     const [gamelogAutoStartLoading, setGamelogAutoStartLoading] = useState(false);
+
+    // Toggle "Son des notifications schéma" — ne mute QUE le son joué
+    // via HTML5 Audio. La notif visuelle (Windows native + fallback
+    // toast in-app) reste affichée dans tous les cas. Default true,
+    // persisté en localStorage via les helpers du hook
+    // useGlobalBlueprintToast.
+    const [blueprintSoundOn, setBlueprintSoundOn] = useState<boolean>(() => isBlueprintSoundEnabled());
+    useEffect(() => {
+        const onChanged = (e: Event) => {
+            const detail = (e as CustomEvent<{ enabled: boolean }>).detail;
+            if (typeof detail?.enabled === "boolean") {
+                setBlueprintSoundOn(detail.enabled);
+            }
+        };
+        window.addEventListener(BLUEPRINT_SOUND_CHANGED_EVENT, onChanged as EventListener);
+        return () => window.removeEventListener(BLUEPRINT_SOUND_CHANGED_EVENT, onChanged as EventListener);
+    }, []);
+    const handleBlueprintSoundToggle = useCallback((next: boolean) => {
+        setBlueprintSoundOn(next);
+        setBlueprintSoundEnabled(next);
+        toast({
+            title: next ? "Son des notifications activé" : "Son des notifications désactivé",
+            description: next
+                ? "Vous entendrez un ding sci-fi à chaque schéma détecté."
+                : "Les notifications resteront affichées, mais sans son.",
+        });
+    }, [toast]);
     useEffect(() => {
         invoke<{ autoStart: boolean; enabled: boolean }>('gamelog_watcher_load_config')
             .then((cfg) => setGamelogAutoStart(!!cfg.autoStart))
@@ -2220,6 +2252,19 @@ function SettingsContent() {
                                 checked={gamelogAutoStart}
                                 onCheckedChange={handleGamelogAutoStartToggle}
                                 disabled={gamelogAutoStartLoading}
+                            />
+                        </div>
+
+                        <div className={settingRowClass}>
+                            <div className={settingInfoClass}>
+                                <span className="text-sm font-medium">Son des notifications schéma</span>
+                                <p className="text-sm text-muted-foreground">Joue un son sci-fi à chaque nouveau schéma détecté en jeu. Désactivez pour des notifications silencieuses (la notif reste affichée dans tous les cas).</p>
+                            </div>
+                            <Switch
+                                id="blueprint-sound"
+                                aria-label="Son des notifications schéma"
+                                checked={blueprintSoundOn}
+                                onCheckedChange={handleBlueprintSoundToggle}
                             />
                         </div>
 
