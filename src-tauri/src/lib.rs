@@ -33,7 +33,7 @@ use scripts::cloud_backup::{
 use scripts::oauth_callback::start_oauth_callback_server;
 use scripts::gamepath::{
     check_rsi_launcher, get_folder_creation_date, get_launcher_activity_status,
-    get_star_citizen_versions, launch_rsi_launcher,
+    get_rsi_launcher_download_url, get_star_citizen_versions, launch_rsi_launcher,
 };
 use scripts::graphics_settings::{
     get_graphics_renderer, set_graphics_renderer,
@@ -72,7 +72,7 @@ use scripts::offline_cache::{
     get_translation_cache_info, open_translation_cache_folder, cache_all_installed_translations,
 };
 use scripts::overlay::{
-    open_overlay_hub, toggle_overlay_hub, is_overlay_hub_open, set_overlay_hub_mode, get_overlay_hub_mode, is_overlay_open, open_overlay, open_webview_overlay, close_overlay, close_webview_overlay, set_overlay_size, set_window_opacity, set_overlay_interaction, ensure_overlay_control, toggle_overlay_interactive, release_overlay_focus, webview_overlay_reload, webview_overlay_set_opacity, webview_overlay_set_hidden, get_webview_overlay_geometry,
+    open_overlay_hub, toggle_overlay_hub, is_overlay_hub_open, set_overlay_hub_mode, get_overlay_hub_mode, is_overlay_open, open_overlay, open_webview_overlay, close_overlay, close_webview_overlay, set_overlay_size, set_window_opacity, set_overlay_interaction, ensure_overlay_control, toggle_overlay_interactive, release_overlay_focus, webview_overlay_reload, webview_overlay_set_opacity, webview_overlay_set_hidden, get_webview_overlay_geometry, toggle_hub_preset_picker, close_hub_preset_picker,
 };
 use scripts::companion_server::{
     companion_broadcast, companion_send, get_companion_info, start_companion_server,
@@ -686,6 +686,7 @@ pub fn run() {
             get_launcher_activity_status,
             launch_rsi_launcher,
             get_folder_creation_date,
+            get_rsi_launcher_download_url,
             get_app_stats,
             get_playtime,
             debug_game_paths,
@@ -732,6 +733,8 @@ pub fn run() {
             webview_overlay_set_opacity,
             webview_overlay_set_hidden,
             get_webview_overlay_geometry,
+            toggle_hub_preset_picker,
+            close_hub_preset_picker,
             start_companion_server,
             stop_companion_server,
             get_companion_info,

@@ -10,8 +10,9 @@ use windows::Win32::Foundation::{BOOL, HWND, LPARAM};
 use windows::Win32::UI::WindowsAndMessaging::{
     EnumWindows, GetForegroundWindow, GetWindowLongW, GetWindowTextW, IsWindowVisible,
     SetForegroundWindow, SetLayeredWindowAttributes, SetWindowLongW, SetWindowPos,
-    GWL_EXSTYLE, HWND_TOP, LWA_ALPHA, SWP_NOACTIVATE, SWP_NOSIZE,
-    WS_EX_LAYERED, WS_EX_NOACTIVATE,
+    GWL_EXSTYLE, GWL_STYLE, HWND_TOP, LWA_ALPHA, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE,
+    SWP_NOSIZE, SWP_NOZORDER, WS_BORDER, WS_CAPTION, WS_DLGFRAME, WS_EX_LAYERED,
+    WS_EX_NOACTIVATE, WS_THICKFRAME,
 };
 
 /// Hauteur (en px logiques) de la mini-fenêtre `OverlayWebviewBar` qui se
@@ -1607,6 +1608,171 @@ pub fn release_overlay_focus(app_handle: AppHandle) -> Result<(), String> {
     #[cfg(not(target_os = "windows"))]
     {
         let _ = app_handle;
+    }
+    Ok(())
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Mini-fenêtre Tauri dédiée pour le sélecteur de position du hub overlay
+// (route /overlay-hub-preset-picker). Spawnée à la demande par le bouton
+// Move dans la bar du hub. Window séparée (vs dropdown inline) parce que
+// la fenêtre du hub a une pill SetWindowRgn qui ne supporte pas bien
+// l'agrandissement dynamique pour un dropdown — visuellement cassé.
+// ─────────────────────────────────────────────────────────────────────────
+
+const HUB_PRESET_PICKER_LABEL: &str = "overlay_hub_preset_picker";
+// Dimensions : 3 cellules de 28 px + gaps 4 px + padding 16 px + label
+// "POSITION" 20 px + border = ~130 px en hauteur, ~110 px en largeur. On
+// prend un peu de marge pour éviter la coupure au bas.
+const HUB_PRESET_PICKER_WIDTH: f64 = 120.0;
+const HUB_PRESET_PICKER_HEIGHT: f64 = 140.0;
+
+#[command]
+pub async fn toggle_hub_preset_picker(
+    app_handle: AppHandle,
+    anchor_x: i32,
+    anchor_y: i32,
+) -> Result<(), String> {
+    // Si la fenêtre est déjà ouverte, on la ferme (toggle).
+    if let Some(win) = app_handle.get_webview_window(HUB_PRESET_PICKER_LABEL) {
+        let _ = win.close();
+        return Ok(());
+    }
+
+    // anchor_x/y sont déjà en pixels PHYSIQUES écran (calculés côté JS via
+    // hub.outerPosition() + button rect * dpr). On les utilise tels quels
+    // via .position() qui interprète comme logical pixels par défaut → on
+    // convertit en logical ici via la scale du moniteur principal.
+    let scale = app_handle
+        .get_webview_window("main")
+        .and_then(|w| w.scale_factor().ok())
+        .unwrap_or(1.0);
+    let logical_x = (anchor_x as f64) / scale;
+    let logical_y = (anchor_y as f64) / scale;
+
+    let url = "index.html#/overlay-hub-preset-picker".to_string();
+
+    // Créé invisible (`visible(false)`) pour éviter le flash de la barre
+    // de titre Windows pendant le bref instant où la window est créée
+    // avec décorations par défaut puis decorations(false) est appliqué.
+    // On la montre après tout setup (set_shadow, etc.).
+    // transparent(false) : la picker est un rectangle plein, on n'a pas
+    // besoin de transparence. Et `transparent: true` sur Windows 11 +
+    // always_on_top force une shadow DWM impossible à enlever (même avec
+    // DWMNCRP_DISABLED). En passant en opaque, plus de glow autour.
+    let build_result = WebviewWindowBuilder::new(
+        &app_handle,
+        HUB_PRESET_PICKER_LABEL,
+        WebviewUrl::App(url.into()),
+    )
+    .title("Hub Preset Picker")
+    .inner_size(HUB_PRESET_PICKER_WIDTH, HUB_PRESET_PICKER_HEIGHT)
+    .position(logical_x, logical_y)
+    .decorations(false)
+    .shadow(false)
+    .transparent(false)
+    .always_on_top(true)
+    .skip_taskbar(true)
+    .resizable(false)
+    .visible(false)
+    .build();
+    let win = build_result.map_err(|e| e.to_string())?;
+
+    // Re-set explicitement les flags qui peuvent être ignorés au build.
+    let _ = win.set_decorations(false);
+    let _ = win.set_shadow(false);
+
+    // Strip TOUT le chrome Windows (title bar + bordures + shadow DWM)
+    // via Win32 : Tauri `decorations(false)` + `shadow(false)` ne
+    // suffisent pas sur Windows 11 pour les windows transparent +
+    // always_on_top. On retire manuellement les styles WS_CAPTION,
+    // WS_BORDER, WS_DLGFRAME, WS_THICKFRAME, puis on désactive le
+    // round-corner DWM (DWMWCP_DONOTROUND) ET la non-client area
+    // rendering qui ajoute la shadow grise visible autour. Enfin on
+    // ajoute WS_EX_NOACTIVATE pour ne pas voler le focus du hub.
+    // SWP_FRAMECHANGED force le repaint immédiat pour appliquer
+    // tous ces styles.
+    #[cfg(target_os = "windows")]
+    unsafe {
+        use windows::Win32::Graphics::Dwm::{
+            DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_DONOTROUND,
+        };
+        if let Ok(hwnd_raw) = win.hwnd() {
+            let h = HWND(hwnd_raw.0 as *mut _);
+
+            // Strip title bar + bordures
+            let style = GetWindowLongW(h, GWL_STYLE);
+            let stripped = style
+                & !(WS_CAPTION.0 as i32)
+                & !(WS_BORDER.0 as i32)
+                & !(WS_DLGFRAME.0 as i32)
+                & !(WS_THICKFRAME.0 as i32);
+            let _ = SetWindowLongW(h, GWL_STYLE, stripped);
+
+            // Ajoute WS_EX_NOACTIVATE
+            let ex_style = GetWindowLongW(h, GWL_EXSTYLE);
+            let _ = SetWindowLongW(
+                h,
+                GWL_EXSTYLE,
+                ex_style | WS_EX_NOACTIVATE.0 as i32,
+            );
+
+            // Désactive le DWM round-corner par défaut. SetWindowRgn
+            // ci-dessous va donner notre propre arrondi plus prononcé.
+            let pref = DWMWCP_DONOTROUND;
+            let _ = DwmSetWindowAttribute(
+                h,
+                DWMWA_WINDOW_CORNER_PREFERENCE,
+                &pref as *const _ as *const _,
+                std::mem::size_of_val(&pref) as u32,
+            );
+
+            // Force le repaint pour appliquer les nouveaux styles
+            // (sinon la title bar et la shadow restent visibles
+            // jusqu'au prochain repaint déclenché).
+            let _ = SetWindowPos(
+                h,
+                HWND_TOP,
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
+            );
+        }
+    }
+
+    // Maintenant que tout est configuré, on affiche.
+    let _ = win.show();
+
+    // SetWindowRgn doit être appliqué APRÈS show() pour que outer_size()
+    // renvoie la vraie taille de la fenêtre (sinon 0×0 = région nulle =
+    // window totalement invisible). Découpe la fenêtre en rectangle
+    // arrondi (~16 px de radius) pour un look "card" qui matche le hub.
+    #[cfg(target_os = "windows")]
+    unsafe {
+        use windows::Win32::Graphics::Gdi::{CreateRoundRectRgn, SetWindowRgn};
+        if let Ok(hwnd_raw) = win.hwnd() {
+            let h = HWND(hwnd_raw.0 as *mut _);
+            if let Ok(size) = win.outer_size() {
+                let w_px = size.width.max(1) as i32;
+                let h_px = size.height.max(1) as i32;
+                let corner = 20;
+                let rgn = CreateRoundRectRgn(0, 0, w_px + 1, h_px + 1, corner, corner);
+                if !rgn.is_invalid() {
+                    let _ = SetWindowRgn(h, rgn, true);
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+#[command]
+pub async fn close_hub_preset_picker(app_handle: AppHandle) -> Result<(), String> {
+    if let Some(win) = app_handle.get_webview_window(HUB_PRESET_PICKER_LABEL) {
+        let _ = win.close();
     }
     Ok(())
 }
