@@ -860,23 +860,32 @@ export default function Blueprints({ isOverlayEmbed = false }: BlueprintsProps =
 
     const displayedBlueprints = useMemo(() => {
         const q = search.trim().toLowerCase();
-        return blueprints.filter((b) => {
-            if (onlyOwned && !owned.has(b.blueprintId)) return false;
-            if (categoryFilter !== "all" && categoryKey(b.category) !== categoryFilter)
-                return false;
-            if (q) {
-                const hay = [
-                    b.blueprintId,
-                    b.nameEn,
-                    b.nameFr ?? "",
-                    b.category ?? "",
-                ]
-                    .join(" ")
-                    .toLowerCase();
-                if (!hay.includes(q)) return false;
-            }
-            return true;
-        });
+        return blueprints
+            .filter((b) => {
+                if (onlyOwned && !owned.has(b.blueprintId)) return false;
+                if (categoryFilter !== "all" && categoryKey(b.category) !== categoryFilter)
+                    return false;
+                if (q) {
+                    const hay = [
+                        b.blueprintId,
+                        b.nameEn,
+                        b.nameFr ?? "",
+                        b.category ?? "",
+                    ]
+                        .join(" ")
+                        .toLowerCase();
+                    if (!hay.includes(q)) return false;
+                }
+                return true;
+            })
+            // Tri alpha par défaut sur le nom FR (ou EN si pas de trad),
+            // avec localeCompare français pour gérer correctement accents
+            // et casse. Demande explicite des users (#blueprints).
+            .sort((a, b) => {
+                const an = a.nameFr ?? a.nameEn ?? a.blueprintId;
+                const bn = b.nameFr ?? b.nameEn ?? b.blueprintId;
+                return an.localeCompare(bn, "fr", { sensitivity: "base" });
+            });
     }, [blueprints, onlyOwned, owned, categoryFilter, search]);
 
     const total = Math.max(blueprints.length, config?.totalBlueprints ?? 0);
