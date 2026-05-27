@@ -1062,9 +1062,10 @@ export default function Blueprints({ isOverlayEmbed = false }: BlueprintsProps =
                     <div className="mt-3 h-px w-full bg-gradient-to-r from-primary/25 via-border/40 to-transparent" />
                 </section>
 
-                {/* AUTO-DETECT SERVICE — caché en mode overlay (déjà géré
-                 *  par le toggle dans Paramètres, occupe trop de place ici). */}
-                {!isOverlayEmbed && <AutoDetectCard />}
+                {/* AUTO-DETECT SERVICE — visible aussi en mode overlay
+                 *  (l'user veut pouvoir voir l'état détecté + importer
+                 *  directement depuis l'overlay sans revenir à l'app). */}
+                <AutoDetectCard />
 
                 {/* FILTERS */}
                 <section className="relative overflow-hidden rounded-2xl border border-border/45 bg-[hsl(var(--background)/0.16)] shadow-[0_10px_26px_rgba(0,0,0,0.10)] backdrop-blur-xl">
