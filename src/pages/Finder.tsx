@@ -1,94 +1,26 @@
 import { m } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
-import { ExternalLink, RefreshCw, Loader2, PictureInPicture2 } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import openExternal from "@/utils/external";
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { ToolPageHeader } from "@/components/custom/tool-page-header";
 
 const FINDER_URL = "https://finder.cstone.space/";
 
-interface OverlayClosedPayload {
-    id: string;
-}
-
+/**
+ * Finder — wrapper iframe vers Cornerstone Finder, uniformisé sous le
+ * design ToolPageHeader (cohérent avec SC Trade Routes / ScExternalTool).
+ */
 export default function Finder() {
     const [isLoading, setIsLoading] = useState(true);
     const [hasError, setHasError] = useState(false);
-    const [isDetachedToOverlay, setIsDetachedToOverlay] = useState(false);
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const { toast } = useToast();
 
     useEffect(() => {
-        const forceHeight = () => {
-            const html = document.documentElement;
-            const body = document.body;
-            const root = document.getElementById("root");
-
-            if (html) {
-                html.style.setProperty("height", "100vh", "important");
-                html.style.setProperty("max-height", "100vh", "important");
-                html.style.setProperty("min-height", "100vh", "important");
-                html.style.setProperty("overflow", "hidden", "important");
-            }
-            if (body) {
-                body.style.setProperty("height", "100vh", "important");
-                body.style.setProperty("max-height", "100vh", "important");
-                body.style.setProperty("min-height", "100vh", "important");
-                body.style.setProperty("overflow", "hidden", "important");
-            }
-            if (root) {
-                root.style.setProperty("height", "100vh", "important");
-                root.style.setProperty("max-height", "100vh", "important");
-                root.style.setProperty("min-height", "100vh", "important");
-                root.style.setProperty("overflow", "hidden", "important");
-            }
-        };
-
-        forceHeight();
-
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                if (mutation.type === "attributes" && mutation.attributeName === "style") {
-                    const target = mutation.target as HTMLElement;
-                    if (
-                        target === document.documentElement ||
-                        target === document.body ||
-                        target === document.getElementById("root")
-                    ) {
-                        forceHeight();
-                    }
-                }
-            });
-        });
-
-        observer.observe(document.documentElement, { attributes: true, attributeFilter: ["style"], attributeOldValue: true });
-        observer.observe(document.body, { attributes: true, attributeFilter: ["style"], attributeOldValue: true });
-        const root = document.getElementById("root");
-        if (root) observer.observe(root, { attributes: true, attributeFilter: ["style"], attributeOldValue: true });
-
-        const interval = setInterval(forceHeight, 50);
-
-        return () => {
-            observer.disconnect();
-            clearInterval(interval);
-        };
-    }, []);
-
-    useEffect(() => {
-        let unlisten: (() => void) | undefined;
-        const setup = async () => {
-            unlisten = await listen<OverlayClosedPayload>("overlay_closed", (event) => {
-                if (event.payload?.id !== "finder") return;
-                setIsDetachedToOverlay(false);
-                setIsLoading(true);
-                setHasError(false);
-            });
-        };
-        setup().catch(console.error);
-        return () => {
-            if (unlisten) unlisten();
-        };
+        const timeout = setTimeout(() => setIsLoading(false), 12000);
+        return () => clearTimeout(timeout);
     }, []);
 
     const handleLoad = () => {
@@ -101,24 +33,15 @@ export default function Finder() {
         setHasError(true);
         toast({
             title: "Erreur de chargement",
-            description: "Impossible de charger le Finder. Verifiez votre connexion internet.",
+            description: "Impossible de charger le Finder. Vérifiez votre connexion internet.",
             variant: "destructive",
         });
     };
 
     const handleRefresh = () => {
-        if (isDetachedToOverlay) {
-            setIsDetachedToOverlay(false);
-            setIsLoading(true);
-            setHasError(false);
-            return;
-        }
-
         setIsLoading(true);
         setHasError(false);
-        if (iframeRef.current) {
-            iframeRef.current.src = FINDER_URL;
-        }
+        if (iframeRef.current) iframeRef.current.src = FINDER_URL;
     };
 
     const handleOpenExternal = async () => {
@@ -140,9 +63,6 @@ export default function Finder() {
                 height: 700.0,
                 opacity: 1.0,
             });
-            setIsDetachedToOverlay(true);
-            setIsLoading(false);
-            setHasError(false);
         } catch (error) {
             console.error(error);
         }
@@ -150,115 +70,52 @@ export default function Finder() {
 
     return (
         <m.div
-            initial={{ opacity: 0, x: 100 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.2, ease: [0, 0.71, 0.2, 1.01] }}
-            className="flex w-full h-full flex-col relative overflow-hidden"
-            style={{ maxHeight: "100%", height: "100%", minHeight: 0, flex: "1 1 0%", position: "relative", overflow: "hidden" }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: "easeOut" }}
+            className="flex h-full w-full flex-col overflow-hidden"
         >
-            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 flex gap-1.5">
-                <button
-                    onClick={handleRefresh}
-                    className="flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-background/80 text-foreground/80 backdrop-blur-md shadow-sm transition-all hover:border-primary/50 hover:bg-primary/15 hover:text-primary"
-                    title="Rafraichir"
-                >
-                    <RefreshCw className="h-3.5 w-3.5" />
-                </button>
-                <button
-                    onClick={handleOpenOverlay}
-                    className="flex h-8 items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-3 text-[11.5px] text-foreground/80 backdrop-blur-md shadow-sm transition-all hover:border-primary/50 hover:bg-primary/15 hover:text-primary"
-                    title="Detacher en overlay"
-                >
-                    <PictureInPicture2 className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Overlay</span>
-                </button>
-                <button
-                    onClick={handleOpenExternal}
-                    className="flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-background/80 text-foreground/80 backdrop-blur-md shadow-sm transition-all hover:border-primary/50 hover:bg-primary/15 hover:text-primary"
-                    title="Ouvrir dans le navigateur"
-                >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                </button>
-            </div>
+            <ToolPageHeader
+                icon={Search}
+                iconClassName="text-cyan-500"
+                toolName="Finder"
+                detail="Cornerstone"
+                onRefresh={handleRefresh}
+                onOpenOverlay={handleOpenOverlay}
+                onOpenExternal={handleOpenExternal}
+            />
 
-            {!isDetachedToOverlay && isLoading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm z-20">
-                    <div className="flex flex-col items-center gap-3">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                        <p className="text-sm text-muted-foreground">Chargement du Finder...</p>
-                    </div>
-                </div>
-            )}
-
-            {!isDetachedToOverlay && hasError && (
-                <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm z-20">
-                    <div className="flex flex-col items-center gap-4 p-6 bg-card rounded-lg border border-border shadow-lg max-w-md">
-                        <p className="text-sm text-muted-foreground text-center">Impossible de charger le Finder.</p>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={handleRefresh}
-                                className="flex h-8 items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-3 text-[11.5px] text-foreground/80 backdrop-blur-md shadow-sm transition-all hover:border-primary/50 hover:bg-primary/15 hover:text-primary"
-                            >
-                                <RefreshCw className="h-3.5 w-3.5" />
-                                Reessayer
-                            </button>
-                            <button
-                                onClick={handleOpenExternal}
-                                className="flex h-8 items-center gap-1.5 rounded-full border border-primary/40 bg-primary/15 px-3 text-[11.5px] text-primary backdrop-blur-md shadow-sm transition-all hover:border-primary/60 hover:bg-primary/25"
-                            >
-                                <ExternalLink className="h-3.5 w-3.5" />
-                                Ouvrir dans le navigateur
-                            </button>
+            <div className="relative min-h-0 flex-1 overflow-hidden">
+                {isLoading && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/50 backdrop-blur-sm">
+                        <div className="flex flex-col items-center gap-3">
+                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                            <p className="text-sm text-muted-foreground">Chargement du Finder...</p>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
 
-            {isDetachedToOverlay ? (
-                <div className="absolute top-2 left-2 right-0 bottom-2 flex items-center justify-center p-6">
-                    <div className="max-w-md w-full rounded-lg border border-border bg-card/60 backdrop-blur-sm p-5 text-center space-y-3">
-                        <p className="text-sm text-muted-foreground">Finder est detache en overlay pour eviter le rendu en double.</p>
-                        <div className="flex items-center justify-center gap-2">
-                            <button
-                                onClick={handleRefresh}
-                                className="flex h-8 items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-3 text-[11.5px] text-foreground/80 backdrop-blur-md shadow-sm transition-all hover:border-primary/50 hover:bg-primary/15 hover:text-primary"
-                            >
-                                Recharger dans l'app
-                            </button>
-                            <button
-                                onClick={handleOpenOverlay}
-                                className="flex h-8 items-center gap-1.5 rounded-full border border-primary/40 bg-primary/15 px-3 text-[11.5px] text-primary backdrop-blur-md shadow-sm transition-all hover:border-primary/60 hover:bg-primary/25"
-                            >
-                                Re-focus overlay
-                            </button>
+                {hasError && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/50 p-6 backdrop-blur-sm">
+                        <div className="max-w-md rounded-lg border border-border bg-card/80 p-5 text-center shadow-lg backdrop-blur-md">
+                            <p className="text-sm text-muted-foreground">
+                                Impossible de charger le Finder dans l'application.
+                            </p>
                         </div>
                     </div>
-                </div>
-            ) : (
+                )}
+
                 <iframe
                     ref={iframeRef}
                     src={FINDER_URL}
-                    className="w-full h-full border-0 flex-1 min-h-0"
+                    className="block h-full w-full border-0"
                     title="Cornerstone Finder"
-                    allow="fullscreen"
+                    allow="clipboard-read; clipboard-write; fullscreen"
+                    referrerPolicy="no-referrer-when-downgrade"
                     onLoad={handleLoad}
                     onError={handleError}
-                    style={{
-                        position: "absolute",
-                        top: "0.5rem",
-                        left: "0.5rem",
-                        right: 0,
-                        bottom: "0.5rem",
-                        width: "calc(100% - 0.5rem)",
-                        height: "calc(100% - 1rem)",
-                        maxHeight: "100%",
-                        maxWidth: "100%",
-                        overflow: "auto",
-                        display: "block",
-                        flexShrink: 0,
-                    }}
                 />
-            )}
+            </div>
         </m.div>
     );
 }
