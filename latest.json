@@ -1,11 +1,11 @@
 {
-    "version":  "4.2.6",
-    "notes":  "v4.2.6 - Fix critique du nettoyage des caches shaders SC. Le mode 'auto silent' qui pouvait supprimer sans afficher la modale a été retiré (causait des suppressions au boot sans demander). Les toggles 'Nettoyage automatique' dans l'onboarding et la sidebar déclenchent maintenant l'affichage de la modale (au lieu de supprimer direct) et persistent leur état correctement. Migration automatique au premier boot post-install pour repartir d'un état propre (clés localStorage `startradfr_*` legacy + fichiers de config dans AppData/Roaming sont remis à zéro).",
-    "pub_date":  "2026-05-19T19:55:00.000Z",
+    "version":  "4.2.7",
+    "notes":  "v4.2.7 - Auto-détection blueprints (Game.log watcher) avec notifications Windows natives + son custom. Refonte complète overlay in-game (hub avec coins Win11, oeil cliquable, sélecteur 9 presets, persistance position/taille). Outils SC réorganisés en 5 sous-dossiers + SC Trade Routes ajouté. Design unifié sur 5 pages outils. Timers PVP custom au clic. Companion LAN : sources perso + vue Blueprints. Fixes : user.cfg merge (Vulkan préservé), launcher non détecté (dossiers custom). Voir GitHub release pour la liste complète.",
+    "pub_date":  "2026-05-27T19:05:18.734Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRb1BzLzdHaFk1RlE4ZnN4b2Rmb0VOdEc1bU1PeERnWHBTNXg0VVdUQmxQejJXVmxmTFlFeTFPSldEdkMxMHR3OTZzc09vSnYxNUNiTXBIWFIwYUFHWkpoVTdnRWNNUlFRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5MjIwNDUwCWZpbGU6U3RhclRyYWQgRlJfNC4yLjZfeDY0LXNldHVwLmV4ZQo5ZFN4TUZkOWNEenRvNkF2MEJLWWREM0EvVXBtSWhrU2QzSU1PU3FudTNWZUVPSzZQVTBielNDb1RtV0xvTjBucktpWWp0cy9RQkdDYzM5V1pZOFZBUT09Cg==",
-                                             "url":  "https://github.com/drrakendu78/TradSC/releases/download/v4.2.6/StarTrad.FR_4.2.6_x64-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRb1BzLzdHaFk1RlR1KzBlNDhpMWtob2xYajFsN1pBWWEwbXk0S3hLcm9COGFqcnJOTSs2UVJ3dzdjYUd3SDArZ0srT2pycnk1TDdjdWV2S1E0TEkvQTlhOFczRVFBWHdRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5OTA4NTkzCWZpbGU6U3RhclRyYWQgRlJfNC4yLjdfeDY0LXNldHVwLmV4ZQpQYUMvZkZpQ1ZtV3AwZ1FRNU9SSHBaRWpmQjJ2RVRmLy9HbjhueG54emMreDZFWXpTeW9PNk1vbHhVQU9jWmxSS3c0VVpTOGJaWFBpZDZXbE80Y09DZz09Cg==",
+                                             "url":  "https://github.com/drrakendu78/TradSC/releases/download/v4.2.7/StarTrad.FR_4.2.7_x64-setup.exe"
                                          }
                   }
 }
