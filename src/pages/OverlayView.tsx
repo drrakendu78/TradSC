@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { OverlayActionBar } from "@/components/custom/overlay-action-bar";
 
 const OverlayView = () => {
@@ -60,13 +59,18 @@ const OverlayView = () => {
     // Bouton œil = control window externe (spawnée par Rust) qui se positionne
     // PILE sur le placeholder de la bar. Comme c'est une window indépendante
     // (pas child) elle ne suit pas auto-magiquement les déplacements de
-    // l'overlay parent → on ré-anchore à chaque onMoved/onResized du parent.
+    // l'overlay parent.
+    //
+    // Stratégie : on appelle `ensure_overlay_control` pour STOCKER l'anchor
+    // côté Rust (et créer/positionner la window initialement). Ensuite, le
+    // backend hook les events Moved/Resized du parent overlay et re-positionne
+    // l'œil EN LOCAL (sans IPC) pour éliminer le drift visible en drag rapide.
+    //
+    // On re-call ensure_overlay_control uniquement quand le PLACEHOLDER change
+    // de position relative dans le parent (rare : smart collapse / resize de
+    // la bar). Pas besoin d'écouter onMoved/onResized du parent côté frontend.
     useEffect(() => {
         if (!id) return;
-        const win = getCurrentWindow();
-        let unlistenMoved: (() => void) | undefined;
-        let unlistenResized: (() => void) | undefined;
-
         const reanchor = () => {
             const placeholder = document.querySelector(
                 "[data-click-through-anchor]",
@@ -88,22 +92,20 @@ const OverlayView = () => {
         // Premier spawn au mount, avec un délai pour que le layout soit stable.
         const initial = window.setTimeout(reanchor, 50);
 
-        // Re-anchor à chaque déplacement / redimensionnement.
-        win.onMoved(() => reanchor())
-            .then((fn) => {
-                unlistenMoved = fn;
-            })
-            .catch(() => undefined);
-        win.onResized(() => reanchor())
-            .then((fn) => {
-                unlistenResized = fn;
-            })
-            .catch(() => undefined);
+        // Observe la taille/position du placeholder : si la bar collapse
+        // ou si un autre item bouge, on met à jour l'anchor stocké.
+        const placeholder = document.querySelector(
+            "[data-click-through-anchor]",
+        ) as HTMLElement | null;
+        let observer: ResizeObserver | undefined;
+        if (placeholder) {
+            observer = new ResizeObserver(() => reanchor());
+            observer.observe(placeholder);
+        }
 
         return () => {
             window.clearTimeout(initial);
-            if (unlistenMoved) unlistenMoved();
-            if (unlistenResized) unlistenResized();
+            observer?.disconnect();
         };
     }, [id]);
 

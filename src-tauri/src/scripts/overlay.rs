@@ -1,13 +1,16 @@
 use tauri::{command, AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use tokio::time::{sleep, Duration};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Mutex, OnceLock};
+use std::collections::HashMap;
 
 #[cfg(target_os = "windows")]
 use windows::Win32::Foundation::{BOOL, HWND, LPARAM};
 #[cfg(target_os = "windows")]
 use windows::Win32::UI::WindowsAndMessaging::{
     EnumWindows, GetForegroundWindow, GetWindowLongW, GetWindowTextW, IsWindowVisible,
-    SetForegroundWindow, SetLayeredWindowAttributes, SetWindowLongW, GWL_EXSTYLE, LWA_ALPHA,
+    SetForegroundWindow, SetLayeredWindowAttributes, SetWindowLongW, SetWindowPos,
+    GWL_EXSTYLE, HWND_TOP, LWA_ALPHA, SWP_NOACTIVATE, SWP_NOSIZE,
     WS_EX_LAYERED, WS_EX_NOACTIVATE,
 };
 
@@ -103,6 +106,107 @@ const OVERLAY_HUB_WIDTH: f64 = 90.0;
 const OVERLAY_HUB_HEIGHT: f64 = 42.0;
 const OVERLAY_HUB_TOP_OFFSET: f64 = 10.0;
 static OVERLAY_HUB_EDIT_MODE: AtomicBool = AtomicBool::new(true);
+
+/// Anchors physiques (x, y, w, h relatives au parent) du bouton œil
+/// par overlay. Permet au backend de re-positionner la control window
+/// SANS aller-retour IPC quand le parent fire Moved/Resized — ce qui
+/// élimine la latence/drift visible quand on drag rapidement la fenêtre
+/// parent. La frontend met à jour cette map via `ensure_overlay_control` ;
+/// le backend la consulte dans le handler `on_window_event` du parent.
+#[derive(Clone, Copy)]
+struct ControlAnchor {
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+}
+
+fn control_anchors() -> &'static Mutex<HashMap<String, ControlAnchor>> {
+    static STORE: OnceLock<Mutex<HashMap<String, ControlAnchor>>> = OnceLock::new();
+    STORE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn store_control_anchor(control_label: &str, anchor: ControlAnchor) {
+    if let Ok(mut map) = control_anchors().lock() {
+        map.insert(control_label.to_string(), anchor);
+    }
+}
+
+fn load_control_anchor(control_label: &str) -> Option<ControlAnchor> {
+    control_anchors()
+        .lock()
+        .ok()
+        .and_then(|map| map.get(control_label).copied())
+}
+
+fn clear_control_anchor(control_label: &str) {
+    if let Ok(mut map) = control_anchors().lock() {
+        map.remove(control_label);
+    }
+}
+
+/// Re-positionne la control window de l'overlay (id, overlay_type)
+/// si elle existe ET si elle a un anchor stocké. Appelée par le
+/// `on_window_event` du parent overlay lors d'un Moved/Resized.
+/// No-op silencieux si pas d'anchor (oeil pas encore initialisé) ou
+/// si la control window est cachée.
+///
+/// Implem Windows : Win32 SetWindowPos en SYNCHRONE avec les flags
+/// NOACTIVATE | NOSIZE | NOZORDER, qui bypass complètement l'IPC
+/// async de Tauri. Sinon, à 60+ Hz pendant un drag, les set_position
+/// Tauri saturent la queue d'events de la webview de l'oeil → React
+/// ne peut plus traiter les clics → l'œil paraît grisé/désactivé.
+/// SetWindowPos avec NOACTIVATE ne touche ni le focus ni le z-order.
+/// Fallback Tauri set_position sur non-Windows.
+fn resync_control_window(app_handle: &AppHandle, id: &str, overlay_type: &str) {
+    let target_label = overlay_target_label(id, overlay_type);
+    let control_label = overlay_control_label(id, overlay_type);
+    let anchor = match load_control_anchor(&control_label) {
+        Some(a) => a,
+        None => return,
+    };
+    let target = match app_handle.get_webview_window(&target_label) {
+        Some(t) => t,
+        None => return,
+    };
+    let control = match app_handle.get_webview_window(&control_label) {
+        Some(c) => c,
+        None => return,
+    };
+    let (pos, _w, _h) = control_geometry(
+        &target,
+        Some(anchor.x),
+        Some(anchor.y),
+        Some(anchor.width),
+        Some(anchor.height),
+    );
+
+    #[cfg(target_os = "windows")]
+    unsafe {
+        if let Ok(hwnd_raw) = control.hwnd() {
+            let h = HWND(hwnd_raw.0 as *mut _);
+            // HWND_TOP + PAS de SWP_NOZORDER : bring l'œil au-dessus de la
+            // pile topmost (le parent overlay, lui aussi always_on_top,
+            // passe devant l'œil quand l'user le drag → l'œil paraît
+            // grisé/désactivé). En le re-promouvant à chaque move, il
+            // reste visible et cliquable. SWP_NOACTIVATE = pas de focus.
+            let _ = SetWindowPos(
+                h,
+                HWND_TOP,
+                pos.x,
+                pos.y,
+                0,
+                0,
+                SWP_NOSIZE | SWP_NOACTIVATE,
+            );
+            return;
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = control.set_position(pos);
+    }
+}
 
 #[derive(Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -533,9 +637,11 @@ pub async fn open_overlay(
 
     let app_handle_for_events = app_handle.clone();
     let id_for_events = id.clone();
-    win.on_window_event(move |event| {
-        if matches!(event, tauri::WindowEvent::Destroyed) {
+    win.on_window_event(move |event| match event {
+        tauri::WindowEvent::Destroyed => {
             close_overlay_control_window(&app_handle_for_events, &id_for_events, "iframe");
+            let control_label = overlay_control_label(&id_for_events, "iframe");
+            clear_control_anchor(&control_label);
             let _ = app_handle_for_events.emit(
                 "overlay_closed",
                 OverlayClosedPayload {
@@ -544,6 +650,13 @@ pub async fn open_overlay(
                 },
             );
         }
+        // Sync œil sans IPC : à chaque déplacement/resize du parent, on
+        // re-positionne la control window depuis l'anchor stocké
+        // (sans aller-retour JS). Élimine le drift visible en drag.
+        tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_) => {
+            resync_control_window(&app_handle_for_events, &id_for_events, "iframe");
+        }
+        _ => {}
     });
 
     let _ = win.set_ignore_cursor_events(false);
@@ -793,6 +906,8 @@ pub async fn open_webview_overlay(
         match event {
             tauri::WindowEvent::Destroyed => {
                 close_overlay_control_window(&app_handle_for_events, &id_for_events, "webview");
+                let control_label = overlay_control_label(&id_for_events, "webview");
+                clear_control_anchor(&control_label);
                 close_webview_bar(&app_handle_for_events, &id_for_events);
                 let _ = app_handle_for_events.emit(
                     "overlay_closed",
@@ -804,6 +919,9 @@ pub async fn open_webview_overlay(
             }
             tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_) => {
                 let _ = reposition_webview_bar(&app_handle_for_events, &id_for_events);
+                // Sync œil sans IPC : re-positionne l'oeil depuis
+                // l'anchor stocké en mémoire (élimine le drift IPC).
+                resync_control_window(&app_handle_for_events, &id_for_events, "webview");
             }
             _ => {}
         }
@@ -906,6 +1024,23 @@ fn set_overlay_interaction_internal(
     target
         .set_ignore_cursor_events(true)
         .map_err(|e| e.to_string())?;
+
+    // Si on reçoit un anchor explicite, on le stocke pour que les
+    // handlers Moved/Resized du parent puissent re-positionner l'œil
+    // localement (sans IPC) lors d'un drag.
+    if let (Some(ax), Some(ay), Some(aw), Some(ah)) =
+        (anchor_x, anchor_y, anchor_width, anchor_height)
+    {
+        store_control_anchor(
+            &control_label,
+            ControlAnchor {
+                x: ax,
+                y: ay,
+                width: aw,
+                height: ah,
+            },
+        );
+    }
 
     let (anchored_pos, control_width, control_height) = control_geometry(
         &target,
@@ -1336,6 +1471,19 @@ pub async fn ensure_overlay_control(
         .get_webview_window(&target_label)
         .ok_or_else(|| format!("Window '{}' not found", target_label))?;
 
+    // Stocke l'anchor pour que les handlers Moved/Resized du parent
+    // overlay puissent re-positionner l'œil sans aller-retour IPC
+    // (responsable du "drift / wanders" visible en drag rapide).
+    store_control_anchor(
+        &control_label,
+        ControlAnchor {
+            x: anchor_x,
+            y: anchor_y,
+            width: anchor_width,
+            height: anchor_height,
+        },
+    );
+
     let (anchored_pos, control_width, control_height) = control_geometry(
         &target,
         Some(anchor_x),
@@ -1462,3 +1610,5 @@ pub fn release_overlay_focus(app_handle: AppHandle) -> Result<(), String> {
     }
     Ok(())
 }
+
+
