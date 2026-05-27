@@ -3,12 +3,23 @@ use tokio::time::{sleep, Duration};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 #[cfg(target_os = "windows")]
-use windows::Win32::Foundation::HWND;
+use windows::Win32::Foundation::{BOOL, HWND, LPARAM};
 #[cfg(target_os = "windows")]
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetWindowLongW, SetLayeredWindowAttributes, SetWindowLongW, GWL_EXSTYLE, LWA_ALPHA,
-    WS_EX_LAYERED,
+    EnumWindows, GetForegroundWindow, GetWindowLongW, GetWindowTextW, IsWindowVisible,
+    SetForegroundWindow, SetLayeredWindowAttributes, SetWindowLongW, GWL_EXSTYLE, LWA_ALPHA,
+    WS_EX_LAYERED, WS_EX_NOACTIVATE,
 };
+
+/// Hauteur (en px logiques) de la mini-fenêtre `OverlayWebviewBar` qui se
+/// colle au-dessus de chaque webview overlay (sites externes qui refusent
+/// l'iframe : SP Viewer, UEX, AllSky, Protixit, etc.). Cette constante est
+/// la source de vérité partagée entre `open_webview_overlay` (décale la
+/// webview de +36 en Y), `spawn_webview_bar` / `reposition_webview_bar`
+/// (positionnent la bar 36 px au-dessus de la webview) et
+/// `get_webview_overlay_geometry` (retourne la zone que la bar doit
+/// occuper). Doit rester aligné avec le LogicalSize côté `OverlayWebviewBar.tsx`.
+pub const WEBVIEW_BAR_HEIGHT: f64 = 36.0;
 
 fn overlay_target_label(id: &str, overlay_type: &str) -> String {
     match overlay_type {
@@ -251,10 +262,110 @@ pub async fn open_overlay_hub(app_handle: AppHandle) -> Result<(), String> {
 
     let _ = win.set_ignore_cursor_events(false);
     let _ = win.set_shadow(false);
+
+    // Windows 11+ : DÉSACTIVER explicitement le round-corner DWM
+    // (DWMWCP_DONOTROUND), sinon il se superpose au clipping SetWindowRgn
+    // ci-dessous et on voit un cadre arrondi ~8 px DWM **derrière** la pill
+    // exacte (mismatch visible). DONOTROUND laisse SetWindowRgn piloter
+    // seul la forme de la fenêtre.
+    #[cfg(target_os = "windows")]
+    unsafe {
+        use windows::Win32::Graphics::Dwm::{
+            DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_DONOTROUND,
+        };
+        if let Ok(hwnd_raw) = win.hwnd() {
+            let h = HWND(hwnd_raw.0 as *mut _);
+            let pref = DWMWCP_DONOTROUND;
+            let _ = DwmSetWindowAttribute(
+                h,
+                DWMWA_WINDOW_CORNER_PREFERENCE,
+                &pref as *const _ as *const _,
+                std::mem::size_of_val(&pref) as u32,
+            );
+        }
+    }
+
+    // SetWindowRgn : découpe la fenêtre Tauri en pill exacte qui matche
+    // le `rounded-full` du hub à l'intérieur. Plus aucun bord rectangulaire
+    // visible. Re-appliqué sur chaque event Resized car le ResizeObserver
+    // côté frontend change la taille à chaque hover/collapse de catégorie.
+    // Trade-off connu : les bords arrondis sont pixelisés (pas d'AA, c'est
+    // l'API GDI historique). Si le crénelage devient gênant, alternative
+    // = DWMWA_WINDOW_CORNER_PREFERENCE seul (bords lisses mais radius
+    // limité à ~8 px Windows 11+).
+    #[cfg(target_os = "windows")]
+    apply_hub_pill_region(&win);
+
+    let app_for_hub = app_handle.clone();
+    win.on_window_event(move |event| {
+        if matches!(event, tauri::WindowEvent::Resized(_)) {
+            #[cfg(target_os = "windows")]
+            if let Some(w) = app_for_hub.get_webview_window(OVERLAY_HUB_LABEL) {
+                apply_hub_pill_region(&w);
+            }
+            #[cfg(not(target_os = "windows"))]
+            let _ = &app_for_hub;
+        }
+    });
+
     if edit_mode {
         let _ = win.set_focus();
     }
     Ok(())
+}
+
+/// Découpe la fenêtre du hub en pill arrondie via `SetWindowRgn`.
+/// Doit être ré-appelé à chaque resize car la région est figée en pixels
+/// physiques et ne suit pas le contenu.
+#[cfg(target_os = "windows")]
+fn apply_hub_pill_region(win: &tauri::WebviewWindow) {
+    // SetWindowRgn et CreateRoundRectRgn vivent tous deux dans
+    // Win32::Graphics::Gdi (et non Win32::UI::WindowsAndMessaging).
+    use windows::Win32::Graphics::Gdi::{CreateRoundRectRgn, SetWindowRgn};
+
+    let size = match win.outer_size() {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("[hub-pill] outer_size failed: {e}");
+            return;
+        }
+    };
+    let hwnd_raw = match win.hwnd() {
+        Ok(h) => h,
+        Err(e) => {
+            eprintln!("[hub-pill] hwnd failed: {e}");
+            return;
+        }
+    };
+    let width = size.width as i32;
+    let height = size.height as i32;
+    if width <= 0 || height <= 0 {
+        eprintln!("[hub-pill] zero-sized window {width}x{height}, skip");
+        return;
+    }
+    // Pour un vrai pill (rounded-full → radius = min(w,h)/2), CreateRoundRectRgn
+    // prend la largeur ET la hauteur de l'ellipse du coin. On utilise
+    // `min(width, height)` pour que la pill s'adapte automatiquement à
+    // l'orientation : horizontal → pill horizontale (corner = height),
+    // vertical → pill verticale (corner = width). Vital quand le hub
+    // bascule en orientation verticale pour les presets left/right.
+    let corner = width.min(height);
+    unsafe {
+        let h = HWND(hwnd_raw.0 as *mut _);
+        // CreateRoundRectRgn utilise une convention [x1,x2[, [y1,y2[ comme
+        // pour Rectangle GDI, d'où le `+1` sur les bornes droite/basse.
+        let rgn = CreateRoundRectRgn(0, 0, width + 1, height + 1, corner, corner);
+        if rgn.is_invalid() {
+            eprintln!("[hub-pill] CreateRoundRectRgn returned invalid");
+            return;
+        }
+        // SetWindowRgn prend ownership de HRGN, donc pas de DeleteObject.
+        // Retourne un i32 : non-zero = success, zero = failure.
+        let result = SetWindowRgn(h, rgn, true);
+        eprintln!(
+            "[hub-pill] SetWindowRgn applied: size={width}x{height} corner={corner} result={result}"
+        );
+    }
 }
 
 #[command]
@@ -500,10 +611,16 @@ pub async fn open_webview_overlay(
     let opacity_pct = ((opacity.clamp(0.1, 1.0)) * 100.0) as u32;
     let id_js = id.replace('\\', "\\\\").replace('\'', "\\'");
 
+    // Init script injecté dans la webview parent. Son rôle est UNIQUEMENT
+    // de forcer la transparence du site embarqué + appliquer l'opacité
+    // initiale. La bar de contrôle vit dans une fenêtre Tauri séparée
+    // (`OverlayWebviewBar.tsx`, route `/overlay-webview-bar`) qui flotte
+    // 36 px au-dessus de cette webview. Donc PAS de bar HTML injectée ici
+    // (l'ancien code la créait → doublon avec la mini-fenêtre React).
     let init_script = format!(
         r#"
         (function() {{
-            if (document.getElementById('__wv_overlay_bar')) return;
+            if (document.getElementById('__wv_overlay_transparency')) return;
 
             function forceTransparentRoots() {{
                 var roots = [
@@ -593,105 +710,12 @@ pub async fn open_webview_overlay(
                     document.documentElement.appendChild(scrollbarStyle);
                 }}
 
-                var bar = document.createElement('div');
-                bar.id = '__wv_overlay_bar';
-                bar.style.cssText = 'position:fixed;top:0;left:0;right:0;height:24px;z-index:999999;display:flex;align-items:center;gap:4px;padding:0 6px;background:linear-gradient(to bottom,rgba(0,0,0,0.5),transparent);cursor:move;user-select:none;';
-
-                var grip = document.createElement('span');
-                grip.style.cssText = 'color:rgba(255,255,255,0.5);font-size:10px;pointer-events:none;';
-                grip.textContent = '\u22EE\u22EE';
-                bar.appendChild(grip);
-
-                var slider = document.createElement('input');
-                slider.type = 'range';
-                slider.min = '10';
-                slider.max = '100';
-                slider.value = '{opacity_pct}';
-                slider.style.cssText = 'width:64px;height:4px;cursor:pointer;accent-color:rgba(255,255,255,0.7);margin-right:auto;';
-                slider.title = 'Opacite';
-                bar.appendChild(slider);
-
-                var lockIconSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:10px !important;height:10px !important;min-width:10px !important;max-width:10px !important;min-height:10px !important;max-height:10px !important;display:block !important;flex:0 0 auto !important;transform:none !important;transition:none !important;animation:none !important;max-inline-size:none !important;"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M9 11V8a3.5 3.5 0 0 1 6-1.8"></path></svg>';
-                var eyeIconSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:11px !important;height:11px !important;min-width:11px !important;max-width:11px !important;min-height:11px !important;max-height:11px !important;display:block !important;flex:0 0 auto !important;transform:none !important;transition:none !important;animation:none !important;max-inline-size:none !important;"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7"></path><circle cx="12" cy="12" r="3"></circle></svg>';
-                var eyeOffIconSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:11px !important;height:11px !important;min-width:11px !important;max-width:11px !important;min-height:11px !important;max-height:11px !important;display:block !important;flex:0 0 auto !important;transform:none !important;transition:none !important;animation:none !important;max-inline-size:none !important;"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7"></path><circle cx="12" cy="12" r="3"></circle><line x1="3" y1="3" x2="21" y2="21"></line></svg>';
-                var hidden = false;
-
-                var gameBtn = document.createElement('button');
-                gameBtn.style.cssText = 'box-sizing:border-box;width:20px;height:20px;min-width:20px;max-width:20px;min-height:20px;max-height:20px;flex:0 0 20px;padding:0;margin:0;line-height:1;font-size:0;border:1px solid rgba(148,197,255,0.28);border-radius:3px;background:linear-gradient(to bottom,rgba(28,52,72,0.96),rgba(18,34,49,0.96));box-shadow:inset 0 1px 0 rgba(148,197,255,0.15),0 1px 4px rgba(0,0,0,0.45);cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(241,245,249,0.95);appearance:none;-webkit-appearance:none;outline:none;transform:none;transition:none;animation:none;overflow:hidden;';
-                gameBtn.title = 'Mode edit actif - clic pour mode jeu';
-                gameBtn.innerHTML = lockIconSvg;
-                bar.appendChild(gameBtn);
-
-                var hideBtn = document.createElement('button');
-                hideBtn.style.cssText = 'box-sizing:border-box;width:20px;height:20px;min-width:20px;max-width:20px;min-height:20px;max-height:20px;flex:0 0 20px;padding:0;margin:0;line-height:1;font-size:0;border:1px solid rgba(252,211,77,0.28);border-radius:3px;background:linear-gradient(to bottom,rgba(72,54,25,0.95),rgba(45,35,16,0.95));box-shadow:inset 0 1px 0 rgba(252,211,77,0.14),0 1px 4px rgba(0,0,0,0.45);cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(255,251,235,0.95);appearance:none;-webkit-appearance:none;outline:none;transform:none;animation:none;';
-                bar.appendChild(hideBtn);
-
-                function renderHideButton() {{
-                    hideBtn.innerHTML = hidden ? eyeIconSvg : eyeOffIconSvg;
-                    hideBtn.title = hidden ? 'Afficher' : 'Masquer';
-                }}
-                renderHideButton();
-
-                hideBtn.addEventListener('mouseenter', function() {{
-                    hideBtn.style.background = 'linear-gradient(to bottom,rgba(82,61,29,0.95),rgba(54,42,20,0.95))';
-                }});
-                hideBtn.addEventListener('mouseleave', function() {{
-                    hideBtn.style.background = 'linear-gradient(to bottom,rgba(72,54,25,0.95),rgba(45,35,16,0.95))';
-                }});
-
-                var closeBtn = document.createElement('button');
-                closeBtn.style.cssText = 'width:20px;height:20px;border:none;border-radius:3px;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.7);font-size:12px;';
-                closeBtn.title = 'Fermer';
-                closeBtn.textContent = '\u2715';
-                bar.appendChild(closeBtn);
-
-                document.documentElement.appendChild(bar);
-
-                bar.addEventListener('mousedown', function(e) {{
-                    e.preventDefault();
-                    if (window.__TAURI_INTERNALS__) {{
-                        window.__TAURI_INTERNALS__.invoke('plugin:window|start_dragging');
-                    }}
-                }});
-
-                slider.addEventListener('mousedown', function(e) {{ e.stopPropagation(); }});
-                slider.addEventListener('input', function() {{
-                    document.body.style.opacity = this.value / 100;
-                }});
-
-                hideBtn.addEventListener('mousedown', function(e) {{ e.stopPropagation(); }});
-                hideBtn.addEventListener('click', function() {{
-                    hidden = !hidden;
-                    document.body.style.visibility = hidden ? 'hidden' : 'visible';
-                    renderHideButton();
-                }});
-
-                gameBtn.addEventListener('pointerdown', function(e) {{ e.preventDefault(); e.stopPropagation(); }});
-                gameBtn.addEventListener('mousedown', function(e) {{ e.preventDefault(); e.stopPropagation(); }});
-                gameBtn.addEventListener('click', function() {{
-                    if (window.__TAURI_INTERNALS__) {{
-                        var rect = gameBtn.getBoundingClientRect();
-                        var dpr = window.devicePixelRatio || 1;
-                        window.__TAURI_INTERNALS__.invoke('set_overlay_interaction', {{
-                            id: '{overlay_id}',
-                            overlayType: 'webview',
-                            interactive: false,
-                            anchorX: Math.round(rect.left * dpr),
-                            anchorY: Math.round(rect.top * dpr),
-                            anchorWidth: Math.round(rect.width * dpr),
-                            anchorHeight: Math.round(rect.height * dpr)
-                        }});
-                    }}
-                }});
-
-                closeBtn.addEventListener('mousedown', function(e) {{ e.stopPropagation(); }});
-                closeBtn.addEventListener('click', function() {{
-                    if (window.__TAURI_INTERNALS__) {{
-                        window.__TAURI_INTERNALS__.invoke('close_webview_overlay', {{
-                            id: '{overlay_id}'
-                        }});
-                    }}
-                }});
+                // NOTE: l'ancienne bar HTML inject\u00E9e ici a \u00E9t\u00E9 retir\u00E9e.
+                // La bar de contr\u00F4le est maintenant rendue par une mini-fen\u00EAtre
+                // Tauri React s\u00E9par\u00E9e (`OverlayWebviewBar.tsx`) qui flotte
+                // 36 px au-dessus de cette webview \u2014 cf. `spawn_webview_bar`
+                // dans ce m\u00EAme fichier. Ne PAS r\u00E9injecter de bar ici sous
+                // peine de doublon visuel.
 
                 document.body.style.opacity = {opacity_pct} / 100;
 
@@ -708,12 +732,19 @@ pub async fn open_webview_overlay(
         overlay_id = id_js
     );
 
+
+    // Réserve 36 px en haut pour la bar React (`OverlayWebviewBar.tsx`) qui
+    // viendra se coller au-dessus. La taille demandée par l'user (`height`)
+    // = bar 36 + contenu (height-36), pour que la zone visuelle totale
+    // corresponde à ce qui a été commandé.
+    let webview_height = (height - WEBVIEW_BAR_HEIGHT).max(120.0);
+
     let mut last_err = None;
     let mut created_win = None;
     for _ in 0..2 {
         match WebviewWindowBuilder::new(&app_handle, &label, WebviewUrl::External(parsed_url.clone()))
             .title(format!("Overlay - {}", id))
-            .inner_size(width, height)
+            .inner_size(width, webview_height)
             .center()
             .decorations(false)
             .shadow(false)
@@ -742,20 +773,44 @@ pub async fn open_webview_overlay(
         last_err.unwrap_or_else(|| "Failed to create webview overlay window".to_string())
     })?;
 
+    // Après création, décale la webview de +36 px en Y. Comme `.center()`
+    // calcule la position à partir de inner_size(width, webview_height), on
+    // pousse manuellement la webview vers le bas pour libérer la bande où
+    // la bar va se placer. Net visuel : ensemble [bar 36 + webview h-36]
+    // centré verticalement à peu de chose près.
+    if let Ok(pos) = win.outer_position() {
+        let scale = win.scale_factor().unwrap_or(1.0);
+        let new_y_logical = (pos.y as f64 / scale) + WEBVIEW_BAR_HEIGHT;
+        let _ = win.set_position(tauri::LogicalPosition::new(
+            pos.x as f64 / scale,
+            new_y_logical,
+        ));
+    }
+
     let app_handle_for_events = app_handle.clone();
     let id_for_events = id.clone();
     win.on_window_event(move |event| {
-        if matches!(event, tauri::WindowEvent::Destroyed) {
-            close_overlay_control_window(&app_handle_for_events, &id_for_events, "webview");
-            let _ = app_handle_for_events.emit(
-                "overlay_closed",
-                OverlayClosedPayload {
-                    id: id_for_events.clone(),
-                    overlay_type: "webview".to_string(),
-                },
-            );
+        match event {
+            tauri::WindowEvent::Destroyed => {
+                close_overlay_control_window(&app_handle_for_events, &id_for_events, "webview");
+                close_webview_bar(&app_handle_for_events, &id_for_events);
+                let _ = app_handle_for_events.emit(
+                    "overlay_closed",
+                    OverlayClosedPayload {
+                        id: id_for_events.clone(),
+                        overlay_type: "webview".to_string(),
+                    },
+                );
+            }
+            tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_) => {
+                let _ = reposition_webview_bar(&app_handle_for_events, &id_for_events);
+            }
+            _ => {}
         }
     });
+
+    // Spawn la mini-bar React au-dessus de la webview, fire-and-forget.
+    let _ = spawn_webview_bar(&app_handle, &id, &win);
 
     #[cfg(target_os = "windows")]
     {
@@ -894,6 +949,21 @@ fn set_overlay_interaction_internal(
 
         let _ = control.set_shadow(false);
         let _ = control.set_size(tauri::PhysicalSize::new(control_width, control_height));
+
+        // Marque la window comme NON-ACTIVATABLE → tous les clics dessus
+        // sont délivrés immédiatement comme mousedown sans phase
+        // d'activation (Windows ne va pas "consommer" le premier clic
+        // pour focuser la window). Sans ce flag, il faut 2 clics pour
+        // déclencher le retour en mode édition.
+        #[cfg(target_os = "windows")]
+        unsafe {
+            if let Ok(hwnd_raw) = control.hwnd() {
+                let h = HWND(hwnd_raw.0 as *mut _);
+                let cur = GetWindowLongW(h, GWL_EXSTYLE);
+                let _ = SetWindowLongW(h, GWL_EXSTYLE, cur | WS_EX_NOACTIVATE.0 as i32);
+            }
+        }
+
         if focus_target {
             let _ = control.set_focus();
         }
@@ -972,6 +1042,423 @@ pub async fn set_overlay_size(
     if let Some(win) = app_handle.get_webview_window(&label) {
         win.set_size(tauri::LogicalSize::new(width, height))
             .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Webview overlay helpers (piloter une webview depuis sa bar React)
+// ─────────────────────────────────────────────────────────────────────────
+// La mini-bar React qui flotte au-dessus de chaque webview overlay (route
+// `/overlay-webview-bar`) appelle ces commandes pour reload / opacity /
+// hide / etc. — la bar elle-même n'a pas accès à la webview parent
+// directement (deux windows distinctes), donc tout transite par le backend.
+
+fn webview_overlay_bar_label(id: &str) -> String {
+    format!("wvoverlay_bar_{}", id)
+}
+
+#[command]
+pub fn webview_overlay_reload(app_handle: AppHandle, id: String) -> Result<(), String> {
+    let label = overlay_target_label(&id, "webview");
+    let win = app_handle
+        .get_webview_window(&label)
+        .ok_or_else(|| format!("Webview '{}' not found", label))?;
+    // WebviewWindow expose `eval` directement (combine Window + Webview).
+    win.eval("window.location.reload()")
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[command]
+pub fn webview_overlay_set_opacity(
+    app_handle: AppHandle,
+    id: String,
+    opacity: f64,
+) -> Result<(), String> {
+    let label = overlay_target_label(&id, "webview");
+    let win = app_handle
+        .get_webview_window(&label)
+        .ok_or_else(|| format!("Webview '{}' not found", label))?;
+    let clamped = opacity.clamp(0.1, 1.0);
+    #[cfg(target_os = "windows")]
+    unsafe {
+        let hwnd_raw = win.hwnd().map_err(|e| e.to_string())?;
+        let h = HWND(hwnd_raw.0 as *mut _);
+        let alpha = (clamped * 255.0) as u8;
+        let _ = SetLayeredWindowAttributes(h, windows::Win32::Foundation::COLORREF(0), alpha, LWA_ALPHA);
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = win;
+    }
+    Ok(())
+}
+
+#[derive(serde::Serialize)]
+pub struct WebviewOverlayGeometry {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+}
+
+#[command]
+pub fn get_webview_overlay_geometry(
+    app_handle: AppHandle,
+    id: String,
+) -> Result<WebviewOverlayGeometry, String> {
+    let label = overlay_target_label(&id, "webview");
+    let win = app_handle
+        .get_webview_window(&label)
+        .ok_or_else(|| format!("Webview '{}' not found", label))?;
+    let pos = win.outer_position().map_err(|e| e.to_string())?;
+    let size = win.outer_size().map_err(|e| e.to_string())?;
+    let scale = win.scale_factor().unwrap_or(1.0);
+    // Retourne la zone que la BAR doit occuper (et NON celle de la webview).
+    // La bar `OverlayWebviewBar.tsx` polle cette commande toutes les 100 ms
+    // et applique directement le résultat via setPosition/setSize. La bar
+    // est placée 36 px au-dessus de la webview pour ne pas masquer son
+    // contenu (cf. `spawn_webview_bar` / `reposition_webview_bar`).
+    Ok(WebviewOverlayGeometry {
+        x: pos.x as f64 / scale,
+        y: (pos.y as f64 / scale) - WEBVIEW_BAR_HEIGHT,
+        width: size.width as f64 / scale,
+        height: WEBVIEW_BAR_HEIGHT,
+    })
+}
+
+#[command]
+pub fn webview_overlay_set_hidden(
+    app_handle: AppHandle,
+    id: String,
+    hidden: bool,
+) -> Result<(), String> {
+    let label = overlay_target_label(&id, "webview");
+    let win = app_handle
+        .get_webview_window(&label)
+        .ok_or_else(|| format!("Webview '{}' not found", label))?;
+    if hidden {
+        win.hide().map_err(|e| e.to_string())?;
+    } else {
+        win.show().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+/// Spawn la mini-bar React au-dessus d'une webview overlay. Suit la
+/// position/taille de la webview parent via les events `onMoved`/`onResized`
+/// configurés au call-site (open_webview_overlay).
+fn spawn_webview_bar(
+    app_handle: &AppHandle,
+    id: &str,
+    target_win: &tauri::WebviewWindow,
+) -> Result<(), String> {
+    let bar_label = webview_overlay_bar_label(id);
+    if app_handle.get_webview_window(&bar_label).is_some() {
+        return Ok(());
+    }
+    let pos = target_win
+        .outer_position()
+        .map_err(|e| e.to_string())?;
+    let size = target_win.outer_size().map_err(|e| e.to_string())?;
+    let scale = target_win.scale_factor().unwrap_or(1.0);
+    let bar_width_logical = size.width as f64 / scale;
+    let bar_height_logical = WEBVIEW_BAR_HEIGHT;
+    // La bar se place 36 px AU-DESSUS de la webview parent (et non par-dessus
+    // les 36 premiers pixels du contenu). `open_webview_overlay` a déjà
+    // décalé la webview de +36 en Y au moment de sa création, donc
+    // `webview.y - 36` retombe sur le bord supérieur de la zone réservée.
+    let bar_x_logical = pos.x as f64 / scale;
+    let bar_y_logical = (pos.y as f64 / scale) - WEBVIEW_BAR_HEIGHT;
+
+    let url = format!(
+        "index.html#/overlay-webview-bar?id={}",
+        urlencoding::encode(id)
+    );
+
+    let bar = WebviewWindowBuilder::new(
+        app_handle,
+        &bar_label,
+        WebviewUrl::App(url.into()),
+    )
+    .title(format!("Overlay Bar - {}", id))
+    .inner_size(bar_width_logical, bar_height_logical)
+    .position(bar_x_logical, bar_y_logical)
+    .decorations(false)
+    .shadow(false)
+    .transparent(true)
+    .always_on_top(true)
+    .skip_taskbar(true)
+    .resizable(false)
+    .focused(false)
+    .build()
+    .map_err(|e| e.to_string())?;
+
+    #[cfg(target_os = "windows")]
+    unsafe {
+        if let Ok(hwnd_raw) = bar.hwnd() {
+            let h = HWND(hwnd_raw.0 as *mut _);
+            let cur = GetWindowLongW(h, GWL_EXSTYLE);
+            let _ = SetWindowLongW(h, GWL_EXSTYLE, cur | WS_EX_NOACTIVATE.0 as i32);
+        }
+    }
+
+    // Drag synchronisé bar → webview : quand l'utilisateur drag la bar (via
+    // `data-tauri-drag-region` côté React), la window-bar reçoit `Moved`
+    // pour chaque pas. On déplace la webview parent en miroir, 36 px en
+    // dessous, pour que l'ensemble se comporte comme une vraie title bar.
+    // La symétrique (webview drag → bar suit) est déjà gérée par les
+    // events Moved/Resized configurés dans `open_webview_overlay`.
+    // La garde anti-boucle est dans `sync_webview_to_bar_pos` : skip si la
+    // webview est déjà à la bonne position (tolérance 2 px).
+    let app_handle_for_drag = app_handle.clone();
+    let id_for_drag = id.to_string();
+    bar.on_window_event(move |event| {
+        if let tauri::WindowEvent::Moved(new_pos) = event {
+            sync_webview_to_bar_pos(&app_handle_for_drag, &id_for_drag, *new_pos);
+        }
+    });
+
+    Ok(())
+}
+
+/// Helper appelé quand la bar bouge (drag user) : déplace la webview
+/// parent pour qu'elle reste collée 36 px en dessous. Skip si la webview
+/// est déjà à la bonne position (tolérance 2 px en physical pixels)
+/// pour éviter la boucle infinie avec `reposition_webview_bar`.
+fn sync_webview_to_bar_pos(
+    app_handle: &AppHandle,
+    id: &str,
+    bar_pos: tauri::PhysicalPosition<i32>,
+) {
+    let target_label = overlay_target_label(id, "webview");
+    let target = match app_handle.get_webview_window(&target_label) {
+        Some(t) => t,
+        None => return,
+    };
+    let scale = target.scale_factor().unwrap_or(1.0);
+    let bar_height_phys = (WEBVIEW_BAR_HEIGHT * scale).round() as i32;
+    let desired_x = bar_pos.x;
+    let desired_y = bar_pos.y + bar_height_phys;
+    if let Ok(cur) = target.outer_position() {
+        if (cur.x - desired_x).abs() <= 2 && (cur.y - desired_y).abs() <= 2 {
+            return;
+        }
+    }
+    let _ = target.set_position(tauri::PhysicalPosition::new(desired_x, desired_y));
+}
+
+fn reposition_webview_bar(app_handle: &AppHandle, id: &str) -> Result<(), String> {
+    let bar_label = webview_overlay_bar_label(id);
+    let bar = app_handle
+        .get_webview_window(&bar_label)
+        .ok_or_else(|| "bar not found".to_string())?;
+    let target_label = overlay_target_label(id, "webview");
+    let target = app_handle
+        .get_webview_window(&target_label)
+        .ok_or_else(|| "target not found".to_string())?;
+    let pos = target.outer_position().map_err(|e| e.to_string())?;
+    let size = target.outer_size().map_err(|e| e.to_string())?;
+    let scale = target.scale_factor().unwrap_or(1.0);
+    // Cf. spawn_webview_bar : la bar est placée 36 px au-dessus du bord
+    // supérieur de la webview pour ne pas chevaucher son contenu.
+    let _ = bar.set_position(tauri::LogicalPosition::new(
+        pos.x as f64 / scale,
+        (pos.y as f64 / scale) - WEBVIEW_BAR_HEIGHT,
+    ));
+    let _ = bar.set_size(tauri::LogicalSize::new(
+        size.width as f64 / scale,
+        WEBVIEW_BAR_HEIGHT,
+    ));
+    Ok(())
+}
+
+fn close_webview_bar(app_handle: &AppHandle, id: &str) {
+    let bar_label = webview_overlay_bar_label(id);
+    if let Some(bar) = app_handle.get_webview_window(&bar_label) {
+        let _ = bar.close();
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Toggle overlay interactive (sans toucher à la control window)
+// ─────────────────────────────────────────────────────────────────────────
+// Variante allégée de set_overlay_interaction utilisée par OverlayControl
+// (le bouton œil système permanent). Cette commande ne fait QUE basculer
+// set_ignore_cursor_events sur l'overlay parent — elle NE déplace pas
+// la control window et NE la cache pas. La control window reste là où
+// `ensure_overlay_control` l'a placée au mount, et gère son propre state
+// visuel (gris/cyan).
+
+#[command]
+pub fn toggle_overlay_interactive(
+    app_handle: AppHandle,
+    id: String,
+    overlay_type: Option<String>,
+    interactive: bool,
+) -> Result<(), String> {
+    let overlay_type = overlay_type.unwrap_or_else(|| "iframe".to_string());
+    let target_label = overlay_target_label(&id, &overlay_type);
+    let target = app_handle
+        .get_webview_window(&target_label)
+        .ok_or_else(|| format!("Window '{}' not found", target_label))?;
+    target
+        .set_ignore_cursor_events(!interactive)
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Ensure overlay control window
+// ─────────────────────────────────────────────────────────────────────────
+// Crée la mini control-window pile sur le placeholder du bouton œil de la
+// bar — SANS modifier l'état interactive de l'overlay parent. Utilisé au
+// mount d'OverlayView pour avoir un bouton œil "système" persistant qui
+// gère lui-même son toggle (et bénéficie de WS_EX_NOACTIVATE → 1 clic
+// même quand la window n'a pas le focus).
+
+#[command]
+pub async fn ensure_overlay_control(
+    app_handle: AppHandle,
+    id: String,
+    overlay_type: Option<String>,
+    anchor_x: f64,
+    anchor_y: f64,
+    anchor_width: f64,
+    anchor_height: f64,
+) -> Result<(), String> {
+    let overlay_type = overlay_type.unwrap_or_else(|| "iframe".to_string());
+    let target_label = overlay_target_label(&id, &overlay_type);
+    let control_label = overlay_control_label(&id, &overlay_type);
+
+    let target = app_handle
+        .get_webview_window(&target_label)
+        .ok_or_else(|| format!("Window '{}' not found", target_label))?;
+
+    let (anchored_pos, control_width, control_height) = control_geometry(
+        &target,
+        Some(anchor_x),
+        Some(anchor_y),
+        Some(anchor_width),
+        Some(anchor_height),
+    );
+
+    if let Some(control) = app_handle.get_webview_window(&control_label) {
+        let _ = control.show();
+        let _ = control.set_size(tauri::PhysicalSize::new(control_width, control_height));
+        let _ = control.set_position(anchored_pos);
+        return Ok(());
+    }
+
+    let control_url = format!(
+        "index.html#/overlay-control?id={}&overlayType={}",
+        urlencoding::encode(&id),
+        urlencoding::encode(&overlay_type)
+    );
+
+    let control = WebviewWindowBuilder::new(
+        &app_handle,
+        &control_label,
+        WebviewUrl::App(control_url.into()),
+    )
+    .title("Overlay Control")
+    .inner_size(control_width as f64, control_height as f64)
+    .position(anchored_pos.x as f64, anchored_pos.y as f64)
+    .decorations(false)
+    .shadow(false)
+    .transparent(true)
+    .always_on_top(true)
+    .skip_taskbar(true)
+    .resizable(false)
+    .build()
+    .map_err(|e| e.to_string())?;
+
+    let _ = control.set_shadow(false);
+    let _ = control.set_size(tauri::PhysicalSize::new(control_width, control_height));
+
+    #[cfg(target_os = "windows")]
+    unsafe {
+        if let Ok(hwnd_raw) = control.hwnd() {
+            let h = HWND(hwnd_raw.0 as *mut _);
+            let cur = GetWindowLongW(h, GWL_EXSTYLE);
+            let _ = SetWindowLongW(h, GWL_EXSTYLE, cur | WS_EX_NOACTIVATE.0 as i32);
+        }
+    }
+
+    Ok(())
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Release overlay focus
+// ─────────────────────────────────────────────────────────────────────────
+// L'utilisateur peut activer le « mode fantôme » sur une fenêtre overlay
+// (icône œil) pour que le focus système (clavier, plein écran exclusif SC)
+// revienne au jeu. Windows interdit normalement à une app de céder le
+// focus arbitrairement, mais on peut le faire en deux temps :
+//   1. Cherche la window « Star Citizen » via EnumWindows (titre exact)
+//   2. Si trouvée → SetForegroundWindow(hwnd_sc)
+//   3. Sinon fallback → SetForegroundWindow sur la main window StarTrad,
+//      qui retire au moins le focus de l'overlay flottant.
+
+#[cfg(target_os = "windows")]
+struct EnumState {
+    sc_hwnd: HWND,
+}
+
+#[cfg(target_os = "windows")]
+unsafe extern "system" fn enum_find_sc(hwnd: HWND, lparam: LPARAM) -> BOOL {
+    let state = &mut *(lparam.0 as *mut EnumState);
+    if !IsWindowVisible(hwnd).as_bool() {
+        return BOOL(1);
+    }
+    let mut buf = [0u16; 256];
+    let len = GetWindowTextW(hwnd, &mut buf);
+    if len <= 0 {
+        return BOOL(1);
+    }
+    let title = String::from_utf16_lossy(&buf[..len as usize]);
+    // Le titre Star Citizen contient typiquement "Star Citizen" tout court.
+    if title.contains("Star Citizen") {
+        state.sc_hwnd = hwnd;
+        return BOOL(0); // arrête l'énumération
+    }
+    BOOL(1)
+}
+
+#[command]
+pub fn release_overlay_focus(app_handle: AppHandle) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    unsafe {
+        // 1. Tentative — focus la window Star Citizen si elle existe.
+        let mut state = EnumState { sc_hwnd: HWND(std::ptr::null_mut()) };
+        let _ = EnumWindows(
+            Some(enum_find_sc),
+            LPARAM(&mut state as *mut EnumState as isize),
+        );
+        if !state.sc_hwnd.0.is_null() {
+            let _ = SetForegroundWindow(state.sc_hwnd);
+            return Ok(());
+        }
+
+        // 2. Fallback — donne le focus à la main window StarTrad. Au moins
+        // l'overlay flottant perd le focus exclusif, ce qui peut suffire
+        // à débloquer les inputs si le jeu est en background.
+        if let Some(main) = app_handle.get_webview_window("main") {
+            if let Ok(hwnd) = main.hwnd() {
+                let main_hwnd = HWND(hwnd.0 as *mut _);
+                let _ = SetForegroundWindow(main_hwnd);
+            }
+        }
+
+        // 3. Signal de debug : log le HWND foreground actuel pour
+        // diagnostiquer les futurs problèmes de focus.
+        let fg = GetForegroundWindow();
+        eprintln!("[release_overlay_focus] foreground après = {:p}", fg.0);
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = app_handle;
     }
     Ok(())
 }

@@ -8,6 +8,7 @@ pub mod cloud_backup;
 pub mod companion_server;
 pub mod config_paths;
 pub mod discord_presence;
+pub mod gamelog_blueprint_watcher;
 pub mod gamepath;
 pub mod graphics_settings;
 pub mod joystick_input;

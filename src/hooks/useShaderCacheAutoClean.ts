@@ -75,6 +75,13 @@ export function ensureLegacyCacheMigration(): Promise<{ mtime: number | null; st
 
 async function migrateLegacyCacheFlags(): Promise<{ mtime: number | null; stored: string | null; wiped: boolean } | null> {
     if (!isTauri()) return null;
+    // DÉSACTIVÉE (dev ET release) — cette migration v4.2.6 vidait
+    // app_config_dir + localStorage à chaque "fresh install detection"
+    // (mtime diff de l'exe). Bug : en dev chaque rebuild trigge le wipe,
+    // et en release certaines updates retombaient dessus aussi. Code
+    // gardé pour historique mais court-circuité par le flag ci-dessous.
+    const MIGRATION_ENABLED: boolean = false;
+    if (!MIGRATION_ENABLED) return null;
     try {
         const mtime = await invoke<number>('get_app_exe_mtime');
         const stored = localStorage.getItem(LAST_EXE_MTIME_KEY);

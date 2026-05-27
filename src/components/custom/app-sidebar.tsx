@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
     X, 
     Settings,
@@ -1467,6 +1467,62 @@ function SettingsContent() {
     });
     const [autoCleanRunning] = useState(false);
 
+    // Auto-démarrer le watcher Game.log (auto-détection des schémas).
+    // Persisté côté backend dans gamelog_watcher.json (app_config_dir).
+    const [gamelogAutoStart, setGamelogAutoStart] = useState(false);
+    const [gamelogAutoStartLoading, setGamelogAutoStartLoading] = useState(false);
+    useEffect(() => {
+        invoke<{ autoStart: boolean; enabled: boolean }>('gamelog_watcher_load_config')
+            .then((cfg) => setGamelogAutoStart(!!cfg.autoStart))
+            .catch((e) => console.warn('[gamelog-bp] load config failed:', e));
+    }, []);
+    // Toggle = action immédiate (start/stop le watcher) ET sauvegarde la
+    // préférence auto-start pour le prochain boot. Si l'action immédiate
+    // échoue (SC pas installé par ex.), on prévient mais on garde la pref
+    // sauvegardée — pas la peine de tout rollback, le user pourra réessayer.
+    const handleGamelogAutoStartToggle = useCallback(async (next: boolean) => {
+        const prev = gamelogAutoStart;
+        setGamelogAutoStart(next);
+        setGamelogAutoStartLoading(true);
+        try {
+            await invoke('gamelog_watcher_save_config', {
+                config: { autoStart: next, enabled: false },
+            });
+            // Action immédiate : start si on active, stop si on désactive
+            try {
+                if (next) {
+                    await invoke('gamelog_watcher_start');
+                } else {
+                    await invoke('gamelog_watcher_stop');
+                }
+                toast({
+                    title: next ? 'Auto-détection activée' : 'Auto-détection désactivée',
+                    description: next
+                        ? 'Le watcher Game.log tourne maintenant et démarrera aussi automatiquement au prochain lancement.'
+                        : 'Le watcher Game.log est arrêté et ne démarrera plus automatiquement.',
+                });
+            } catch (startStopErr) {
+                // La pref est sauvegardée mais le start/stop a échoué (ex: SC
+                // pas installé, fichier Game.log introuvable). On informe sans
+                // rollback du toggle UI — au prochain boot la pref s'appliquera.
+                const msg = typeof startStopErr === 'string'
+                    ? startStopErr
+                    : (startStopErr as Error)?.message ?? String(startStopErr);
+                toast({
+                    title: next ? 'Watcher non démarré' : 'Watcher non arrêté',
+                    description: `${msg}. La préférence est enregistrée et s'appliquera au prochain lancement.`,
+                    variant: 'destructive',
+                });
+            }
+        } catch (e) {
+            const msg = typeof e === 'string' ? e : (e as Error)?.message ?? String(e);
+            toast({ title: 'Sauvegarde échouée', description: msg, variant: 'destructive' });
+            setGamelogAutoStart(prev);
+        } finally {
+            setGamelogAutoStartLoading(false);
+        }
+    }, [gamelogAutoStart, toast]);
+
     // Toggle ON → persiste l'état dans `AUTO_CLEAN_TOGGLE_UI_KEY` (clé dédiée
     // UI, séparée de la clé legacy piégeante) et dispatch l'event qui force
     // l'affichage du modal de cache cleanup immédiatement.
@@ -2034,6 +2090,20 @@ function SettingsContent() {
                                     disabled={discordConnecting}
                                 />
                             </div>
+                        </div>
+
+                        <div className={settingRowClass}>
+                            <div className={settingInfoClass}>
+                                <span className="text-sm font-medium">Auto-détection des schémas</span>
+                                <p className="text-sm text-muted-foreground">Surveille le Game.log de Star Citizen pour cocher automatiquement les schémas débloqués in-game. Aucun risque de bannissement, lecture passive uniquement.</p>
+                            </div>
+                            <Switch
+                                id="gamelog-autostart"
+                                aria-label="Auto-démarrer la détection des schémas"
+                                checked={gamelogAutoStart}
+                                onCheckedChange={handleGamelogAutoStartToggle}
+                                disabled={gamelogAutoStartLoading}
+                            />
                         </div>
 
                         <div className={settingRowClass}>

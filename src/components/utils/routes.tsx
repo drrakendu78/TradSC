@@ -25,6 +25,8 @@ import ScmDb from '@/pages/ScmDb';
 import OverlayView from '@/pages/OverlayView';
 import OverlayControl from '@/pages/OverlayControl';
 import OverlayHub from '@/pages/OverlayHub';
+import OverlayWebviewBar from '@/pages/OverlayWebviewBar';
+import PreviewOverlayBars from '@/pages/PreviewOverlayBars';
 import ScExternalTool from '@/pages/ScExternalTool';
 import { SC_IFRAME_TOOLS } from '@/data/sc-tools';
 
@@ -162,6 +164,8 @@ const AppRouter = () => (
         <Route path='/overlay-view' element={<OverlayView />} />
         <Route path='/overlay-control' element={<OverlayControl />} />
         <Route path='/overlay-hub' element={<OverlayHub />} />
+        <Route path='/overlay-webview-bar' element={<OverlayWebviewBar />} />
+        <Route path='/preview-overlay-bars' element={<PreviewOverlayBars />} />
         {SC_IFRAME_TOOLS.map((tool) => (
           <Route key={tool.id} path={tool.route} element={<ScExternalTool tool={tool} />} />
         ))}

@@ -1,6 +1,7 @@
 import { m } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import {
     BookOpen,
     Check,
@@ -36,6 +37,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { AutoDetectCard } from "@/components/blueprints/AutoDetectCard";
 
 type Lang = "fr" | "en";
 
@@ -137,6 +139,44 @@ function persistOwned(owned: Set<string>) {
     } catch {
         // ignore
     }
+}
+
+/// Normalise un nom pour matching robuste : lowercase, sans accents, sans
+/// espaces/tirets/deux-points. Permet de matcher "Jambes Morozov-SH Thule"
+/// (log) avec "jambes morozov sh thule" ou variantes du catalogue.
+function normalizeName(s: string | null | undefined): string {
+    if (!s) return "";
+    return s
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[̀-ͯ]/g, "")
+        .replace(/[\s\-_:.,/()]+/g, "")
+        .trim();
+}
+
+/// Cherche le blueprintId correspondant à un product_name extrait du Game.log.
+/// Stratégie : match exact normalisé sur nameFr puis nameEn, puis match
+/// "contient" dans les deux sens (catalogue plus court ou plus long que log).
+function matchProductName(
+    productName: string,
+    blueprints: BlueprintSummary[],
+): string | null {
+    const target = normalizeName(productName);
+    if (!target) return null;
+    // 1. Match exact normalisé
+    for (const b of blueprints) {
+        if (normalizeName(b.nameFr) === target || normalizeName(b.nameEn) === target) {
+            return b.blueprintId;
+        }
+    }
+    // 2. Match partiel : catalogue contient log, ou log contient catalogue
+    for (const b of blueprints) {
+        const fr = normalizeName(b.nameFr);
+        const en = normalizeName(b.nameEn);
+        if (fr && (fr.includes(target) || target.includes(fr))) return b.blueprintId;
+        if (en && (en.includes(target) || target.includes(en))) return b.blueprintId;
+    }
+    return null;
 }
 
 function formatDuration(totalSeconds: number | null | undefined): string {
@@ -663,6 +703,74 @@ export default function Blueprints() {
         };
     }, []);
 
+    // Auto-tick depuis le watcher Game.log :
+    //   - au mount (quand catalogue chargé) on matche les détectés persistés
+    //     avec sc-craft et on push dans owned (union, jamais de décochage)
+    //   - en live on écoute gamelog-watcher:blueprint pour cocher direct
+    // Le matching utilise normalizeName + fallback "contient" (cf. helpers).
+    useEffect(() => {
+        if (blueprints.length === 0) return;
+        let cancelled = false;
+
+        const syncFromStore = async () => {
+            try {
+                const store = await invoke<{
+                    blueprints: { productName: string; ts: number }[];
+                }>("gamelog_blueprints_load");
+                if (cancelled) return;
+                setOwned((prev) => {
+                    const next = new Set(prev);
+                    let added = 0;
+                    for (const detected of store.blueprints) {
+                        const id = matchProductName(detected.productName, blueprints);
+                        if (id && !next.has(id)) {
+                            next.add(id);
+                            added++;
+                        }
+                    }
+                    if (added > 0) {
+                        persistOwned(next);
+                        console.log(`[blueprints] auto-cocheé ${added} schéma(s) depuis le watcher`);
+                    }
+                    return added > 0 ? next : prev;
+                });
+            } catch (e) {
+                console.warn("[blueprints] auto-tick sync failed:", e);
+            }
+        };
+
+        syncFromStore();
+
+        const unlistenPromise = listen<{ productName: string; ts: number }>(
+            "gamelog-watcher:blueprint",
+            (event) => {
+                const id = matchProductName(event.payload.productName, blueprints);
+                if (!id) {
+                    console.warn(
+                        `[blueprints] schéma détecté sans match catalogue : ${event.payload.productName}`,
+                    );
+                    return;
+                }
+                setOwned((prev) => {
+                    if (prev.has(id)) return prev;
+                    const next = new Set(prev);
+                    next.add(id);
+                    persistOwned(next);
+                    toast({
+                        title: "Schéma coché automatiquement",
+                        description: event.payload.productName,
+                    });
+                    return next;
+                });
+            },
+        );
+
+        return () => {
+            cancelled = true;
+            unlistenPromise.then((f) => f());
+        };
+    }, [blueprints, toast]);
+
     const categoryOptions = useMemo(() => {
         const set = new Set<string>();
         for (const b of blueprints) {
@@ -855,6 +963,9 @@ export default function Blueprints() {
                     </div>
                     <div className="mt-3 h-px w-full bg-gradient-to-r from-primary/25 via-border/40 to-transparent" />
                 </section>
+
+                {/* AUTO-DETECT SERVICE */}
+                <AutoDetectCard />
 
                 {/* FILTERS */}
                 <section className="relative overflow-hidden rounded-2xl border border-border/45 bg-[hsl(var(--background)/0.16)] shadow-[0_10px_26px_rgba(0,0,0,0.10)] backdrop-blur-xl">
