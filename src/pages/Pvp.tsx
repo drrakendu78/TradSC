@@ -6,6 +6,7 @@ import { RefreshCw, Play, RotateCcw, Loader2, Map as MapIcon, X, PictureInPictur
 import { IconSwords } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import * as Popover from "@radix-ui/react-popover";
 import { useToast } from "@/hooks/use-toast";
 
 // === CONSTANTES ===
@@ -498,6 +499,68 @@ export default function Pvp({ isOverlayEmbed = false }: PvpProps) {
         });
     }, []);
 
+    /**
+     * Démarre un timer avec un temps restant arbitraire (en secondes).
+     * Use case (Discord thread #14 zerodegre) : l'user arrive sur une
+     * imprimante en cours de cooldown et veut set manuellement le temps
+     * restant qu'il observe in-game (ex: 10:00 sur une Tablet de 30min).
+     *
+     * `startedAt` est calculé à rebours pour que la persistance localStorage
+     * fonctionne correctement (au reload, le elapsed depuis startedAt =
+     * duration - remainingSeconds, donc le remaining recalculé est correct).
+     */
+    const setCustomTimerRemaining = useCallback((timerId: string, remainingSeconds: number) => {
+        const clamped = Math.max(1, Math.floor(remainingSeconds));
+
+        // Stop any existing interval
+        const existingInterval = intervalsRef.current.get(timerId);
+        if (existingInterval) {
+            clearInterval(existingInterval);
+            intervalsRef.current.delete(timerId);
+        }
+
+        setSelfTimers((prev) => {
+            const timer = prev.get(timerId);
+            if (!timer) return prev;
+            if (clamped >= timer.duration) {
+                // Temps custom ≥ durée totale → équivalent à un redémarrage normal
+                return prev;
+            }
+
+            // startedAt à rebours : si on veut clamped sec restants sur un timer
+            // de duration sec, on simule que le timer a été lancé il y a
+            // (duration - clamped) secondes.
+            const now = Date.now();
+            const startedAt = now - (timer.duration - clamped) * 1000;
+
+            const intervalId = window.setInterval(() => {
+                setSelfTimers((p) => {
+                    const n = new Map(p);
+                    const t = n.get(timerId);
+                    if (!t || !t.running) return p;
+                    if (t.remaining <= 1) {
+                        const ref = intervalsRef.current.get(timerId);
+                        if (ref) { clearInterval(ref); intervalsRef.current.delete(timerId); }
+                        const updated = new Map(n);
+                        updated.set(timerId, { ...t, remaining: t.duration, running: false, intervalId: null, startedAt: null });
+                        saveTimersToStorage(updated);
+                        return updated;
+                    } else {
+                        n.set(timerId, { ...t, remaining: t.remaining - 1 });
+                        return n;
+                    }
+                });
+            }, 1000);
+
+            intervalsRef.current.set(timerId, intervalId);
+
+            const next = new Map(prev);
+            next.set(timerId, { ...timer, remaining: clamped, running: true, intervalId, startedAt });
+            saveTimersToStorage(next);
+            return next;
+        });
+    }, []);
+
     const handleOpenOverlay = useCallback(async () => {
         try {
             const overlayUrl = `${window.location.origin}${window.location.pathname}#/pvp-overlay`;
@@ -730,10 +793,17 @@ export default function Pvp({ isOverlayEmbed = false }: PvpProps) {
                                                     </div>
                                                 )}
 
-                                                {/* Temps restant */}
-                                                <span className={`w-12 text-right font-mono text-[12px] tabular-nums ${getTimerColor(timer.remaining, timer.running || isComplete)}`}>
-                                                    {formatTimeShort(timer.remaining)}
-                                                </span>
+                                                {/* Temps restant — cliquable :
+                                                 *  ouvre un popover avec input mm:ss
+                                                 *  pour set un temps custom (cas
+                                                 *  où l'user arrive sur une
+                                                 *  imprimante en cours de cooldown,
+                                                 *  Discord thread #14 zerodegre). */}
+                                                <TimerRemainingButton
+                                                    timer={timer}
+                                                    isComplete={isComplete}
+                                                    onSetCustom={(secs) => setCustomTimerRemaining(id, secs)}
+                                                />
                                             </div>
                                         );
                                     })}
@@ -805,5 +875,108 @@ export default function Pvp({ isOverlayEmbed = false }: PvpProps) {
             )}
 
         </m.div>
+    );
+}
+
+/**
+ * Bouton "temps restant" cliquable d'un timer PVP. Affiche le temps en
+ * mm:ss et au clic ouvre un popover avec deux inputs minutes/secondes
+ * pour set un temps perso (Discord thread #14, zerodegre 27/05).
+ *
+ * Cas d'usage : l'user arrive sur une imprimante en cours de cooldown
+ * et observe in-game "il reste 10 min". Au lieu de juste démarrer un
+ * timer de durée complète, il clique sur le temps du timer concerné,
+ * entre 10:00, et le timer reprend à 10:00 → 0:00.
+ */
+function TimerRemainingButton({
+    timer,
+    isComplete,
+    onSetCustom,
+}: {
+    timer: SelfTimer;
+    isComplete: boolean;
+    onSetCustom: (remainingSeconds: number) => void;
+}) {
+    const [open, setOpen] = useState(false);
+    const initialMinutes = Math.floor(timer.remaining / 60);
+    const initialSeconds = timer.remaining % 60;
+    const [minutes, setMinutes] = useState<string>(String(initialMinutes));
+    const [seconds, setSeconds] = useState<string>(String(initialSeconds).padStart(2, "0"));
+
+    // Reset les inputs à la valeur actuelle du timer quand on ouvre.
+    useEffect(() => {
+        if (open) {
+            setMinutes(String(Math.floor(timer.remaining / 60)));
+            setSeconds(String(timer.remaining % 60).padStart(2, "0"));
+        }
+    }, [open, timer.remaining]);
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        const m = parseInt(minutes, 10) || 0;
+        const s = parseInt(seconds, 10) || 0;
+        const total = m * 60 + s;
+        if (total < 1) return;
+        onSetCustom(total);
+        setOpen(false);
+    };
+
+    return (
+        <Popover.Root open={open} onOpenChange={setOpen}>
+            <Popover.Trigger asChild>
+                <button
+                    type="button"
+                    title="Cliquer pour définir un temps restant personnalisé"
+                    className={`w-12 cursor-pointer text-right font-mono text-[12px] tabular-nums transition-colors hover:text-primary ${getTimerColor(timer.remaining, timer.running || isComplete)}`}
+                >
+                    {formatTimeShort(timer.remaining)}
+                </button>
+            </Popover.Trigger>
+            <Popover.Portal>
+                <Popover.Content
+                    side="left"
+                    sideOffset={8}
+                    align="center"
+                    className="z-50 w-44 rounded-md border border-border/50 bg-zinc-950/95 p-3 shadow-lg backdrop-blur"
+                >
+                    <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-cyan-300/70">
+                            Temps restant
+                        </span>
+                        <div className="flex items-center gap-1">
+                            <input
+                                type="number"
+                                min="0"
+                                max={Math.floor(timer.duration / 60)}
+                                value={minutes}
+                                onChange={(e) => setMinutes(e.target.value)}
+                                aria-label="Minutes"
+                                className="h-7 w-12 rounded border border-border/40 bg-background/40 px-1.5 text-center font-mono text-[12px] text-foreground outline-none focus:border-primary/60"
+                                autoFocus
+                            />
+                            <span className="text-[12px] text-muted-foreground">:</span>
+                            <input
+                                type="number"
+                                min="0"
+                                max="59"
+                                value={seconds}
+                                onChange={(e) => setSeconds(e.target.value)}
+                                aria-label="Secondes"
+                                className="h-7 w-12 rounded border border-border/40 bg-background/40 px-1.5 text-center font-mono text-[12px] text-foreground outline-none focus:border-primary/60"
+                            />
+                            <button
+                                type="submit"
+                                className="ml-auto flex h-7 items-center justify-center rounded border border-primary/30 bg-primary/10 px-2 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/20"
+                            >
+                                OK
+                            </button>
+                        </div>
+                        <span className="text-[9px] text-muted-foreground/50">
+                            Max : {Math.floor(timer.duration / 60)} min
+                        </span>
+                    </form>
+                </Popover.Content>
+            </Popover.Portal>
+        </Popover.Root>
     );
 }
