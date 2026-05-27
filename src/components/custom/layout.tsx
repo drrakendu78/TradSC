@@ -20,6 +20,7 @@ const OVERLAY_ROUTES = new Set([
     '/pvp-overlay',
     '/overlay-hub',
     '/overlay-webview-bar',
+    '/overlay-hub-preset-picker',
 ]);
 
 const ROUTE_LABELS: Record<string, string> = {

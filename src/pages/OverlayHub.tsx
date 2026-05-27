@@ -931,6 +931,7 @@ const OverlayHub = () => {
         console.log("[OverlayHub] open all tools (popover handled by bar)");
     };
 
+
     // ── Drag pour déplacer le hub (mode libre uniquement) ──────────────
     // Drag toujours actif tant que le hub n'est pas verrouillé via le cadenas.
     // Même en mode preset (top, left, etc.), l'user doit pouvoir le déplacer ;
@@ -980,6 +981,7 @@ const OverlayHub = () => {
                 onToolClick={handleToolClick}
                 onLockToggle={handleLockToggle}
                 onOpenAllTools={handleOpenAllTools}
+                enablePresetPicker
             />
         </div>
     );

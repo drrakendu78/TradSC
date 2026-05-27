@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
     Crosshair,
     Database,
@@ -7,6 +7,7 @@ import {
     LayoutGrid,
     Lock,
     Map as MapIcon,
+    Move,
     PackageCheck,
     PenTool,
     Pickaxe,
@@ -19,6 +20,8 @@ import {
     Truck,
     Unlock,
 } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import type { LucideIcon } from "lucide-react";
 
@@ -33,6 +36,17 @@ export interface OverlayHubTool {
     isNew?: boolean;
 }
 
+export type OverlayHubPreset =
+    | "free"
+    | "top"
+    | "bottom"
+    | "top-left"
+    | "top-right"
+    | "left"
+    | "right"
+    | "bottom-left"
+    | "bottom-right";
+
 export interface OverlayHubBarProps {
     tools: OverlayHubTool[];
     isLocked: boolean;
@@ -42,6 +56,11 @@ export interface OverlayHubBarProps {
     onToolClick: (id: string) => void;
     onLockToggle: (next: boolean) => void;
     onOpenAllTools?: () => void;
+    /** Si true, affiche le bouton "sélecteur de position" qui spawn la
+     *  mini-fenêtre Tauri `/overlay-hub-preset-picker`. La sélection est
+     *  propagée via l'event Tauri `overlay_hub_preset_change` que
+     *  OverlayHub.tsx écoute déjà. Si false, le bouton est masqué. */
+    enablePresetPicker?: boolean;
 }
 
 // Icon name (string from props) → Lucide component.
@@ -209,12 +228,20 @@ export function OverlayHubBar({
     onToolClick,
     onLockToggle,
     onOpenAllTools,
+    enablePresetPicker = false,
 }: OverlayHubBarProps) {
     // Toggle "Tout déployer" — quand actif, toutes les catégories sont
     // forcées en mode étendu (le smart collapse hover est court-circuité).
     // Le hub s'élargit, la fenêtre Tauri suit via ResizeObserver + setSize
     // (cf. OverlayHub.tsx), et SetWindowRgn recalcule la pill côté Rust.
     const [allExpanded, setAllExpanded] = useState(false);
+
+    // Le sélecteur de position est rendu dans une mini-fenêtre Tauri
+    // dédiée (route /overlay-hub-preset-picker), spawnée à la demande.
+    // Comme l'œil, c'est une fenêtre indépendante qui ne perturbe pas
+    // la pill SetWindowRgn du hub. Le bouton Move ci-dessous se sert de
+    // ce ref pour calculer la position de la mini-fenêtre.
+    const presetButtonRef = useRef<HTMLButtonElement | null>(null);
 
     const isVertical = orientation === "vertical";
 
@@ -330,6 +357,68 @@ export function OverlayHubBar({
                                 </Tooltip.Content>
                             </Tooltip.Portal>
                         </Tooltip.Root>
+                        {/* Sélecteur de position — toggle la mini-fenêtre
+                         *  Tauri picker (route /overlay-hub-preset-picker)
+                         *  qui rend un grid 3×3 indépendant. Fenêtre dédiée
+                         *  pour ne pas perturber la pill SetWindowRgn du hub.
+                         *  Position calculée à partir du bounding rect du
+                         *  bouton (juste en dessous). */}
+                        {enablePresetPicker && (
+                            <Tooltip.Root delayDuration={250}>
+                                <Tooltip.Trigger asChild>
+                                    <button
+                                        ref={presetButtonRef}
+                                        type="button"
+                                        aria-label="Choisir la position du hub"
+                                        data-no-drag
+                                        onClick={async () => {
+                                            const btn = presetButtonRef.current;
+                                            if (!btn) return;
+                                            const rect = btn.getBoundingClientRect();
+                                            const dpr = window.devicePixelRatio || 1;
+                                            // Convertit la position du bouton (CSS px relatifs
+                                            // au viewport du hub) en coordonnées ÉCRAN physiques
+                                            // en ajoutant la position physique de la fenêtre du
+                                            // hub. Sinon la mini-fenêtre picker apparaîtrait à
+                                            // (rect.left, rect.bottom) DEPUIS le coin 0,0 de
+                                            // l'écran, pas sous le bouton.
+                                            try {
+                                                const winPos = await getCurrentWindow()
+                                                    .outerPosition();
+                                                const anchorX = Math.round(
+                                                    winPos.x + rect.left * dpr,
+                                                );
+                                                const anchorY = Math.round(
+                                                    winPos.y + (rect.bottom + 6) * dpr,
+                                                );
+                                                await invoke("toggle_hub_preset_picker", {
+                                                    anchorX,
+                                                    anchorY,
+                                                });
+                                            } catch (e) {
+                                                console.warn(
+                                                    "[HubBar] toggle_hub_preset_picker:",
+                                                    e,
+                                                );
+                                            }
+                                        }}
+                                        className="flex h-6 w-6 items-center justify-center rounded-full border border-transparent text-slate-400 transition-colors hover:text-white"
+                                    >
+                                        <Move className="h-3 w-3" strokeWidth={1.5} />
+                                    </button>
+                                </Tooltip.Trigger>
+                                <Tooltip.Portal>
+                                    <Tooltip.Content
+                                        side="bottom"
+                                        sideOffset={8}
+                                        className={TOOLTIP}
+                                    >
+                                        Choisir la position du hub
+                                        <Tooltip.Arrow className="fill-zinc-900/95" />
+                                    </Tooltip.Content>
+                                </Tooltip.Portal>
+                            </Tooltip.Root>
+                        )}
                         <Tooltip.Root delayDuration={250}>
                             <Tooltip.Trigger asChild>
                                 <button
