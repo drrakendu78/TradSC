@@ -48,7 +48,8 @@ function App() {
       window.location.hash.includes("/overlay-view") ||
       window.location.hash.includes("/overlay-control") ||
       window.location.hash.includes("/pvp-overlay") ||
-      window.location.hash.includes("/overlay-hub");
+      window.location.hash.includes("/overlay-hub") ||
+      window.location.hash.includes("/overlay-webview-bar");
     if (isOverlayWin || !isTauri()) {
       setShowOnboarding(false);
       return;
@@ -75,7 +76,8 @@ function App() {
     window.location.hash.includes("/overlay-view") ||
     window.location.hash.includes("/overlay-control") ||
     window.location.hash.includes("/pvp-overlay") ||
-    window.location.hash.includes("/overlay-hub");
+    window.location.hash.includes("/overlay-hub") ||
+    window.location.hash.includes("/overlay-webview-bar");
 
   useCompanionBridge(!isOverlay);
   useShaderCacheAutoCleanOnBoot();

@@ -19,6 +19,7 @@ const OVERLAY_ROUTES = new Set([
     '/overlay-control',
     '/pvp-overlay',
     '/overlay-hub',
+    '/overlay-webview-bar',
 ]);
 
 const ROUTE_LABELS: Record<string, string> = {

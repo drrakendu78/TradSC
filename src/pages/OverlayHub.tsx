@@ -1,48 +1,41 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, WheelEvent } from "react";
+import type { PointerEvent as ReactPointerEvent, MouseEvent as ReactMouseEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
-import { currentMonitor, getCurrentWindow, LogicalPosition, LogicalSize, type PhysicalPosition } from "@tauri-apps/api/window";
 import {
-    BookOpen,
-    Calculator,
-    Database,
-    Hammer,
-    Lock,
-    Link2,
-    Map,
-    Package,
-    PanelsTopLeft,
-    Pickaxe,
-    Route,
-    Search,
-    Server,
-    ShieldCheck,
-    Swords,
-} from "lucide-react";
+    currentMonitor,
+    getCurrentWindow,
+    LogicalPosition,
+    LogicalSize,
+    type PhysicalPosition,
+} from "@tauri-apps/api/window";
 import { useToast } from "@/hooks/use-toast";
 import { useCustomLinksStore, type CustomLink } from "@/stores/custom-links-store";
 import { getOverlayHubItems } from "@/utils/overlay-hub-registry";
 import type { OverlayHubItem } from "@/types/overlay-hub";
+import {
+    OverlayHubBar,
+    type OverlayHubCategory,
+    type OverlayHubTool,
+} from "@/components/custom/overlay-hub-bar";
 
 const HUB_TOP_OFFSET = 10;
-const HUB_COLLAPSED_WIDTH = 90;
-const HUB_COLLAPSED_HEIGHT = 42;
-const HUB_EXPANDED_HEIGHT = 88;
-const HUB_SIZE_BUFFER = 4;
-const HUB_CLOSE_ANIMATION_MS = 220;
-const ITEM_STAGGER_MS = 18;
-const GAME_UNLOCK_HOLD_MS = 1200;
-const LOCK_REARM_DELAY_MS = 350;
+// Marge périphérique entre la taille mesurée du contenu (getBoundingClientRect)
+// et la taille demandée à la fenêtre Tauri. Trop élevé → on voit la fenêtre
+// Tauri rectangulaire déborder du hub `rounded-full`. Trop bas (0) → risque
+// de clip 1 px du contenu en cas de sub-pixel rounding. 2 px = compromis.
+const HUB_SIZE_BUFFER = 2;
 const HUB_REQUEST_EVENT = "overlay_hub_request_custom_links";
 const HUB_SYNC_EVENT = "overlay_hub_sync_custom_links";
 const HUB_POSITION_STORAGE_KEY = "overlay_hub_position_v1";
 const HUB_PRESET_STORAGE_KEY = "overlay_hub_preset_v1";
 const HUB_PRESET_EVENT = "overlay_hub_preset_change";
+const HUB_EDGE_MARGIN = 10;
 
 type HubPreset =
     | "free"
     | "top"
+    | "bottom"
     | "top-left"
     | "top-right"
     | "left"
@@ -50,12 +43,11 @@ type HubPreset =
     | "bottom-left"
     | "bottom-right";
 
-const HUB_EDGE_MARGIN = 10;
-
 function isHubPreset(value: unknown): value is HubPreset {
     return (
         value === "free" ||
         value === "top" ||
+        value === "bottom" ||
         value === "top-left" ||
         value === "top-right" ||
         value === "left" ||
@@ -110,111 +102,128 @@ interface OverlayClosedPayload {
 
 function sanitizeCustomLinks(payload: unknown): CustomLink[] {
     if (!Array.isArray(payload)) return [];
-
     const normalized: CustomLink[] = [];
-
     payload.forEach((entry, index) => {
         if (!entry || typeof entry !== "object") return;
-
         const raw = entry as Record<string, unknown>;
         const id = String(raw.id ?? `legacy_${index}`).trim() || `legacy_${index}`;
         const name = String(raw.name ?? "").trim();
         const url = String(raw.url ?? "").trim();
         if (!url) return;
-
         const iconValue = raw.icon;
         const icon = typeof iconValue === "string" ? iconValue.trim() : "";
-
-        const link: CustomLink = {
-            id,
-            name,
-            url,
-        };
-
-        if (icon) {
-            link.icon = icon;
-        }
-
+        const link: CustomLink = { id, name, url };
+        if (icon) link.icon = icon;
         normalized.push(link);
     });
-
     return normalized;
 }
 
+// Mapping id → catégorie pour l'OverlayHubBar (groupes CMB/TRD/CRF/DTA/MSC).
+const ID_TO_CATEGORY: Record<string, OverlayHubCategory> = {
+    erkul: "combat",
+    pvp: "combat",
+    uexcorp: "trading",
+    cargo: "trading",
+    "sc-cargo-viewer": "trading",
+    schaulers: "trading",
+    "allsky-mining": "trading",
+    "protixit-reputation": "trading",
+    crafter: "crafting",
+    "sc-craft-tools": "crafting",
+    "scdb-space": "crafting",
+    scmdb: "database",
+    verseguide: "database",
+    finder: "database",
+    shipmaps: "database",
+    spviewer: "misc",
+    "hauler-spacecoder": "misc",
+};
+
+// Mapping iconKey StarTrad → iconName Lucide pour l'OverlayHubBar.
+const ICONKEY_TO_LUCIDE: Record<string, string> = {
+    dps: "crosshair",
+    pvp: "swords",
+    shipmaps: "plane",
+    finder: "search",
+    cargo: "package-check",
+    verseguide: "map",
+    scmdb: "database",
+    crafter: "hammer",
+    trading: "route",
+    spviewer: "eye",
+    server: "server",
+    package: "package-check",
+    database: "database",
+    hammer: "hammer",
+    route: "route",
+    pickaxe: "pickaxe",
+    shield: "shield-check",
+};
+
+function mapToHubTools(items: OverlayHubItem[], activeIds: Set<string>): OverlayHubTool[] {
+    return items.map((item) => ({
+        id: item.id,
+        label: item.label,
+        category: ID_TO_CATEGORY[item.id] ?? "misc",
+        iconName: ICONKEY_TO_LUCIDE[item.iconKey] ?? "database",
+        isOpen: activeIds.has(item.id),
+    }));
+}
+
 const OverlayHub = () => {
-    const [expanded, setExpanded] = useState(false);
-    const [menuVisible, setMenuVisible] = useState(false);
     const [isEditMode, setIsEditMode] = useState(true);
-    const [isGeometrySyncing, setIsGeometrySyncing] = useState(false);
-    const [isUnlockHolding, setIsUnlockHolding] = useState(false);
-    const [isLockRearming, setIsLockRearming] = useState(false);
-    const [unlockHoldProgress, setUnlockHoldProgress] = useState(0);
     const [activeOverlayIds, setActiveOverlayIds] = useState<Set<string>>(new Set());
     const [customPos, setCustomPos] = useState<HubPosition | null>(() => loadSavedHubPosition());
-    const [dockSide, setDockSide] = useState<"top" | "left" | "right">("top");
-    // Independent anchors inside the monitor. `hAlign` decides where the toggle
-    // sits horizontally and which way a horizontal dock grows; `vAlign` does the
-    // same on the Y axis. They're decoupled from `dockSide` so corner presets
-    // (top-left, bottom-right, …) can use a horizontal dock *anchored* at a
-    // corner rather than morphing into the vertical-side layout.
-    const [hAlign, setHAlign] = useState<"left" | "center" | "right">("center");
-    const [vAlign, setVAlign] = useState<"top" | "center" | "bottom">("top");
     const [preset, setPreset] = useState<HubPreset>(() => loadHubPreset());
-    const [contentSize, setContentSize] = useState({
-        collapsedW: HUB_COLLAPSED_WIDTH,
-        collapsedH: HUB_COLLAPSED_HEIGHT,
-        expandedW: HUB_COLLAPSED_WIDTH,
-        expandedH: HUB_EXPANDED_HEIGHT,
-    });
     const hubWindow = useMemo(() => getCurrentWindow(), []);
-    const geometryRunIdRef = useRef(0);
-    const unlockTimerRef = useRef<number | null>(null);
-    const unlockProgressRafRef = useRef<number | null>(null);
-    const unlockProgressStartRef = useRef<number | null>(null);
-    const lockRearmTimerRef = useRef<number | null>(null);
-    const collapseTimerRef = useRef<number | null>(null);
-    const itemsScrollerRef = useRef<HTMLDivElement | null>(null);
-    const togglePillRef = useRef<HTMLDivElement | null>(null);
-    const dockPillRef = useRef<HTMLDivElement | null>(null);
-    const suppressMoveUntilRef = useRef(0);
+    const wrapperRef = useRef<HTMLDivElement | null>(null);
     const customLinks = useCustomLinksStore((state) => state.links);
     const setCustomLinks = useCustomLinksStore((state) => state.setLinks);
     const { toast } = useToast();
+    const suppressMoveUntilRef = useRef(0);
+    // Flag true pendant que l'user est en train de drag le hub. Permet de
+    // skip le geometry sync (ResizeObserver setSize/setPosition) qui rivalise
+    // avec le drag natif Windows et provoque des glitchs visuels. Reset par
+    // un timeout 250 ms après le dernier event Moved utilisateur.
+    const isDraggingRef = useRef(false);
+    // Flag true pendant la séquence snap (setPreset → re-measure → setSize →
+    // animate). Bloque le geometry sync useEffect pour qu'il ne rivalise pas
+    // avec notre setSize/setPosition manuel et n'introduise pas de saut visuel
+    // de fin d'animation. Reset à false dès que animatePosition se termine.
+    const isAnimatingSnapRef = useRef(false);
+    // Timestamp de la fin du dernier snap. Sert de cooldown : si un Moved
+    // event tardif (typiquement émis par Tauri en réponse au setSize qui
+    // re-positionne automatiquement la fenêtre près d'un bord) déclenche
+    // saveTimer dans les 3 secondes après un snap, on l'ignore. Sinon, ce
+    // Moved trigger un "no snap target" et reset le preset à "free" alors
+    // qu'on vient juste de snap → glitch de retour horizontal.
+    const lastSnapEndAtRef = useRef(0);
 
     const baseAppUrl = `${window.location.origin}${window.location.pathname}`;
-    const items = useMemo(() => getOverlayHubItems(customLinks, baseAppUrl), [customLinks, baseAppUrl]);
+    const items = useMemo(
+        () => getOverlayHubItems(customLinks, baseAppUrl),
+        [customLinks, baseAppUrl],
+    );
+    const hubTools = useMemo(() => mapToHubTools(items, activeOverlayIds), [items, activeOverlayIds]);
 
+    // ── Sync mode (édition vs jeu) ──────────────────────────────────────
     useEffect(() => {
         let mounted = true;
         invoke<boolean>("get_overlay_hub_mode")
             .then((mode) => {
-                if (mounted) {
-                    setIsEditMode(Boolean(mode));
-                }
+                if (mounted) setIsEditMode(Boolean(mode));
             })
             .catch(console.error);
-
         return () => {
             mounted = false;
         };
     }, []);
 
-    // Sync with remote mode changes (typically triggered by the companion).
-    // The local lock button path goes through `setHubMode` which already
-    // updates state, but an external call to `set_overlay_hub_mode` would
-    // leave this window stale — the dock wouldn't re-expand after a remote
-    // unlock, which is exactly the "I need to hide/show the hub to see it
-    // again" symptom reported from the companion.
     useEffect(() => {
         let unlisten: (() => void) | undefined;
         listen<boolean>("overlay_hub_mode_changed", (event) => {
-            const next = Boolean(event.payload);
-            setIsEditMode(next);
-            if (next) {
-                openHub();
-            } else {
-                closeHub();
-            }
+            setIsEditMode(Boolean(event.payload));
         })
             .then((fn) => {
                 unlisten = fn;
@@ -225,17 +234,16 @@ const OverlayHub = () => {
         };
     }, []);
 
+    // ── Transparent window (pas de fond solide derrière la bar) ────────
     useEffect(() => {
         document.documentElement.style.background = "transparent";
         document.body.style.background = "transparent";
         const root = document.getElementById("root");
         if (root) root.style.background = "transparent";
-
         const style = document.createElement("style");
         style.id = "overlay-hub-transparent-style";
         style.textContent = "#root::before { display: none !important; }";
         document.head.appendChild(style);
-
         return () => {
             document.documentElement.style.background = "";
             document.body.style.background = "";
@@ -244,109 +252,28 @@ const OverlayHub = () => {
         };
     }, []);
 
-    useEffect(() => {
-        return () => {
-            if (unlockTimerRef.current !== null) {
-                window.clearTimeout(unlockTimerRef.current);
-                unlockTimerRef.current = null;
-            }
-            if (unlockProgressRafRef.current !== null) {
-                window.cancelAnimationFrame(unlockProgressRafRef.current);
-                unlockProgressRafRef.current = null;
-            }
-            if (lockRearmTimerRef.current !== null) {
-                window.clearTimeout(lockRearmTimerRef.current);
-                lockRearmTimerRef.current = null;
-            }
-            if (collapseTimerRef.current !== null) {
-                window.clearTimeout(collapseTimerRef.current);
-                collapseTimerRef.current = null;
-            }
-        };
-    }, []);
-
-    const clearCollapseTimer = () => {
-        if (collapseTimerRef.current !== null) {
-            window.clearTimeout(collapseTimerRef.current);
-            collapseTimerRef.current = null;
-        }
-    };
-
-    const openIntentRef = useRef(false);
-    // Mirrors `expanded` so handlers called from stale closures (listeners set
-    // up on mount, timers captured during one render) read the live value.
-    // Without this, unlocking via the companion could hit the `setMenuVisible`
-    // branch while the window was actually collapsed, leaving the dock empty.
-    const expandedRef = useRef(expanded);
-    useEffect(() => {
-        expandedRef.current = expanded;
-    }, [expanded]);
-
-    const openHub = () => {
-        clearCollapseTimer();
-        openIntentRef.current = true;
-        if (!expandedRef.current) {
-            setExpanded(true);
-            return;
-        }
-        setMenuVisible(true);
-    };
-
-    useEffect(() => {
-        if (expanded && !isGeometrySyncing && !menuVisible && openIntentRef.current) {
-            openIntentRef.current = false;
-            setMenuVisible(true);
-        }
-    }, [expanded, isGeometrySyncing, menuVisible]);
-
-    const closeHub = () => {
-        openIntentRef.current = false;
-        setMenuVisible(false);
-        clearCollapseTimer();
-        collapseTimerRef.current = window.setTimeout(() => {
-            collapseTimerRef.current = null;
-            setExpanded(false);
-        }, HUB_CLOSE_ANIMATION_MS);
-    };
-
-    const startLockRearmDelay = () => {
-        if (lockRearmTimerRef.current !== null) {
-            window.clearTimeout(lockRearmTimerRef.current);
-            lockRearmTimerRef.current = null;
-        }
-        setIsLockRearming(true);
-        lockRearmTimerRef.current = window.setTimeout(() => {
-            lockRearmTimerRef.current = null;
-            setIsLockRearming(false);
-        }, LOCK_REARM_DELAY_MS);
-    };
-
+    // ── Sync custom links via Tauri events (le main window les push) ──
     useEffect(() => {
         let unlistenSync: (() => void) | undefined;
-
         const setupSync = async () => {
             unlistenSync = await listen<{ links?: unknown }>(HUB_SYNC_EVENT, (event) => {
                 const incoming = sanitizeCustomLinks(event.payload?.links);
                 setCustomLinks(incoming);
             });
-
             await emit(HUB_REQUEST_EVENT).catch(console.error);
             window.setTimeout(() => {
                 emit(HUB_REQUEST_EVENT).catch(console.error);
             }, 220);
         };
-
         setupSync().catch(console.error);
         return () => {
             if (unlistenSync) unlistenSync();
         };
     }, [setCustomLinks]);
 
-    // Listen for preset changes from the settings UI (main window) and refresh
-    // the local copy when localStorage is mutated by another webview.
+    // ── Sync preset depuis les réglages ────────────────────────────────
     useEffect(() => {
         let unlisten: (() => void) | undefined;
-
         listen<{ preset?: unknown }>(HUB_PRESET_EVENT, (event) => {
             const next = event.payload?.preset;
             if (isHubPreset(next)) setPreset(next);
@@ -355,25 +282,23 @@ const OverlayHub = () => {
                 unlisten = fn;
             })
             .catch(console.error);
-
         const onStorage = (e: StorageEvent) => {
             if (e.key !== HUB_PRESET_STORAGE_KEY) return;
             if (isHubPreset(e.newValue)) setPreset(e.newValue);
             else if (e.newValue === null) setPreset("free");
         };
         window.addEventListener("storage", onStorage);
-
         return () => {
             if (unlisten) unlisten();
             window.removeEventListener("storage", onStorage);
         };
     }, []);
 
+    // ── Active overlays tracking ───────────────────────────────────────
     useEffect(() => {
         let cancelled = false;
         let unlistenClosed: (() => void) | undefined;
-
-        const refreshActiveOverlays = async () => {
+        const refresh = async () => {
             const entries = await Promise.all(
                 items.map(async (item) => {
                     const isOpen = await invoke<boolean>("is_overlay_open", {
@@ -381,9 +306,8 @@ const OverlayHub = () => {
                         overlayType: item.kind,
                     }).catch(() => false);
                     return [item.id, Boolean(isOpen)] as const;
-                })
+                }),
             );
-
             if (cancelled) return;
             const next = new Set<string>();
             entries.forEach(([id, isOpen]) => {
@@ -391,331 +315,249 @@ const OverlayHub = () => {
             });
             setActiveOverlayIds(next);
         };
-
         const setup = async () => {
             unlistenClosed = await listen<OverlayClosedPayload>("overlay_closed", (event) => {
                 const closedId = event.payload?.id;
                 if (!closedId) return;
-                setActiveOverlayIds((previous) => {
-                    if (!previous.has(closedId)) return previous;
-                    const next = new Set(previous);
+                setActiveOverlayIds((prev) => {
+                    if (!prev.has(closedId)) return prev;
+                    const next = new Set(prev);
                     next.delete(closedId);
                     return next;
                 });
             });
         };
-
-        refreshActiveOverlays().catch(console.error);
+        refresh().catch(console.error);
         setup().catch(console.error);
-
         return () => {
             cancelled = true;
             if (unlistenClosed) unlistenClosed();
         };
     }, [items]);
 
+    // ── Geometry sync (resize window to fit bar) ───────────────────────
     useEffect(() => {
-        if (!expanded) return;
-        const scroller = itemsScrollerRef.current;
-        if (!scroller) return;
-        scroller.scrollLeft = 0;
-        scroller.scrollTop = 0;
-    }, [expanded, items.length, dockSide]);
-
-    useEffect(() => {
-        const runId = ++geometryRunIdRef.current;
-        const syncWindowGeometry = async () => {
-            let width = expanded ? contentSize.expandedW : contentSize.collapsedW;
-            let height = expanded ? contentSize.expandedH : contentSize.collapsedH;
-            const collapsedW = contentSize.collapsedW;
-            const collapsedH = contentSize.collapsedH;
-
-            setIsGeometrySyncing(true);
-
-            // Suppress onMoved saves during the size/position burst that follows.
-            suppressMoveUntilRef.current = Date.now() + 800;
-
-            const monitor = await currentMonitor().catch(() => null);
-            if (runId !== geometryRunIdRef.current) return;
-
-            // Never size the window larger than the monitor — when the dock is
-            // taller (vertical mode with many items), cap it here and let the
-            // dock scroller handle overflow.
-            if (monitor) {
-                const s = monitor.scaleFactor || 1;
-                const lw = monitor.size.width / s;
-                const lh = monitor.size.height / s;
-                const maxW = Math.max(40, lw - 2 * HUB_EDGE_MARGIN);
-                const maxH = Math.max(40, lh - 2 * HUB_EDGE_MARGIN);
-                width = Math.min(width, maxW);
-                height = Math.min(height, maxH);
-            }
-
-            let targetPos: LogicalPosition | null = null;
-
-            if ((preset !== "free" || customPos) && monitor) {
-                // Anchor-based positioning. The anchor is the top-left corner of
-                // the collapsed window at its "home" position for the current
-                // alignment — either the monitor-edge snap (preset mode) or the
-                // user-dragged customPos (free mode). We then derive the real
-                // window position by shifting that anchor so the side the user
-                // cares about (corner or center) stays visually stable across
-                // the expand/collapse toggle. Without this, expanding near the
-                // right edge used to clamp the left edge and let the toggle
-                // drift toward the centre.
-                const scale = monitor.scaleFactor || 1;
-                const lx = monitor.position.x / scale;
-                const ly = monitor.position.y / scale;
-                const lw = monitor.size.width / scale;
-                const lh = monitor.size.height / scale;
-                const m = HUB_EDGE_MARGIN;
-
-                let anchorX: number;
-                let anchorY: number;
-
-                if (preset === "free" && customPos) {
-                    anchorX = customPos.x;
-                    anchorY = customPos.y;
-                } else {
-                    if (hAlign === "left") anchorX = lx + m;
-                    else if (hAlign === "right") anchorX = lx + lw - collapsedW - m;
-                    else anchorX = lx + (lw - collapsedW) / 2;
-
-                    if (vAlign === "top") anchorY = ly + m;
-                    else if (vAlign === "bottom") anchorY = ly + lh - collapsedH - m;
-                    else anchorY = ly + (lh - collapsedH) / 2;
-                }
-
-                let px: number;
-                let py: number;
-                if (hAlign === "right") px = anchorX + collapsedW - width;
-                else if (hAlign === "center") px = anchorX + (collapsedW - width) / 2;
-                else px = anchorX;
-
-                if (vAlign === "bottom") py = anchorY + collapsedH - height;
-                else if (vAlign === "center") py = anchorY + (collapsedH - height) / 2;
-                else py = anchorY;
-
-                px = Math.max(lx, Math.min(px, lx + lw - width));
-                py = Math.max(ly, Math.min(py, ly + lh - height));
-                targetPos = new LogicalPosition(Math.round(px), Math.round(py));
-            } else if (monitor) {
-                // Default: centered horizontally, glued to the top of the monitor.
-                const scale = monitor.scaleFactor || 1;
-                const logicalMonitorX = monitor.position.x / scale;
-                const logicalMonitorY = monitor.position.y / scale;
-                const logicalMonitorWidth = monitor.size.width / scale;
-                targetPos = new LogicalPosition(
-                    Math.round(logicalMonitorX + (logicalMonitorWidth - width) / 2),
-                    Math.round(logicalMonitorY + HUB_TOP_OFFSET)
-                );
-            } else {
-                const currentPos = await hubWindow.outerPosition().catch(() => null);
-                const scale = await hubWindow.scaleFactor().catch(() => 1);
-                if (runId !== geometryRunIdRef.current) return;
-                if (currentPos) {
-                    targetPos = new LogicalPosition(
-                        currentPos.x / scale,
-                        Math.max(0, currentPos.y / scale)
+        const el = wrapperRef.current;
+        if (!el) return;
+        let raf = 0;
+        const sync = async () => {
+            // Skip pendant que l'user drag (évite que setSize/setPosition
+            // rivalisent avec le drag natif et glitch visuellement).
+            if (isDraggingRef.current) return;
+            // Skip aussi pendant la séquence snap orientation : le snap pilote
+            // lui-même setSize + setPosition (avec les nouvelles dimensions
+            // post-orientation), inutile que le geometry sync vienne s'en
+            // mêler avec la position cible recalculée brutalement.
+            if (isAnimatingSnapRef.current) return;
+            const rect = el.getBoundingClientRect();
+            const width = Math.ceil(rect.width) + HUB_SIZE_BUFFER;
+            const height = Math.ceil(rect.height) + HUB_SIZE_BUFFER;
+            if (width < 40 || height < 20) return;
+            // Re-check juste avant le setSize : un snap a pu kick in entre
+            // le RAF schedule et l'exécution de cette fonction (le drag
+            // release fait fire saveTimer qui set isAnimatingSnapRef = true).
+            // Sans ce check, on appelle setSize avec les dimensions de
+            // l'ANCIENNE orientation alors que le snap est déjà parti vers
+            // la nouvelle.
+            if (isAnimatingSnapRef.current) return;
+            // Math.max : ne raccourcis JAMAIS une suppression plus longue
+            // déjà active (typiquement les 2000 ms posés par animatePosition
+            // pour absorber les Moved tardifs post-snap).
+            suppressMoveUntilRef.current = Math.max(
+                suppressMoveUntilRef.current,
+                Date.now() + 400,
+            );
+            try {
+                await hubWindow.setSize(new LogicalSize(width, height));
+                // Re-check après chaque await : si le snap a kick in pendant
+                // l'await, on stoppe avant de faire setPosition (qui
+                // recalerait à la position du preset, écrasant l'anim snap).
+                if (isAnimatingSnapRef.current) return;
+                const monitor = await currentMonitor().catch(() => null);
+                if (isAnimatingSnapRef.current) return;
+                if (preset !== "free") {
+                    if (!monitor) return;
+                    const scale = monitor.scaleFactor || 1;
+                    const lx = monitor.position.x / scale;
+                    const ly = monitor.position.y / scale;
+                    const lw = monitor.size.width / scale;
+                    const lh = monitor.size.height / scale;
+                    const m = HUB_EDGE_MARGIN;
+                    let x = lx + (lw - width) / 2;
+                    let y = ly + m;
+                    if (preset === "top-left") {
+                        x = lx + m;
+                        y = ly + m;
+                    } else if (preset === "top-right") {
+                        x = lx + lw - width - m;
+                        y = ly + m;
+                    } else if (preset === "bottom-left") {
+                        x = lx + m;
+                        y = ly + lh - height - m;
+                    } else if (preset === "bottom-right") {
+                        x = lx + lw - width - m;
+                        y = ly + lh - height - m;
+                    } else if (preset === "left") {
+                        x = lx + m;
+                        y = ly + (lh - height) / 2;
+                    } else if (preset === "right") {
+                        x = lx + lw - width - m;
+                        y = ly + (lh - height) / 2;
+                    } else if (preset === "top") {
+                        x = lx + (lw - width) / 2;
+                        y = ly + m;
+                    } else if (preset === "bottom") {
+                        x = lx + (lw - width) / 2;
+                        y = ly + lh - height - m;
+                    }
+                    // Math.max : ne raccourcis JAMAIS une suppression plus longue
+            // déjà active (typiquement les 2000 ms posés par animatePosition
+            // pour absorber les Moved tardifs post-snap).
+            suppressMoveUntilRef.current = Math.max(
+                suppressMoveUntilRef.current,
+                Date.now() + 400,
+            );
+                    await hubWindow.setPosition(
+                        new LogicalPosition(Math.round(x), Math.round(y)),
+                    );
+                } else if (customPos === null && monitor) {
+                    const scale = monitor.scaleFactor || 1;
+                    const lx = monitor.position.x / scale;
+                    const ly = monitor.position.y / scale;
+                    const lw = monitor.size.width / scale;
+                    // Math.max : ne raccourcis JAMAIS une suppression plus longue
+            // déjà active (typiquement les 2000 ms posés par animatePosition
+            // pour absorber les Moved tardifs post-snap).
+            suppressMoveUntilRef.current = Math.max(
+                suppressMoveUntilRef.current,
+                Date.now() + 400,
+            );
+                    await hubWindow.setPosition(
+                        new LogicalPosition(
+                            Math.round(lx + (lw - width) / 2),
+                            Math.round(ly + HUB_TOP_OFFSET),
+                        ),
                     );
                 }
-            }
-
-            await hubWindow.setSize(new LogicalSize(width, height));
-            if (runId !== geometryRunIdRef.current) return;
-
-            if (targetPos) {
-                suppressMoveUntilRef.current = Date.now() + 800;
-                await hubWindow.setPosition(targetPos);
+            } catch (e) {
+                console.warn("[OverlayHub] geometry sync failed:", e);
             }
         };
-
-        syncWindowGeometry()
-            .catch(console.error)
-            .finally(() => {
-                if (runId === geometryRunIdRef.current) {
-                    setIsGeometrySyncing(false);
-                }
+        const observer = new ResizeObserver(() => {
+            cancelAnimationFrame(raf);
+            raf = requestAnimationFrame(() => {
+                sync().catch(console.error);
             });
-    }, [expanded, contentSize, customPos, hubWindow, preset, hAlign, vAlign]);
-
-    // Measure the real rendered pills and use those dimensions for the Tauri window.
-    // This keeps the hub correctly sized regardless of DPI, font rendering, or future
-    // CSS tweaks — anything that changes the on-screen pill size updates the window.
-    useEffect(() => {
-        const verticalLayout = dockSide !== "top";
-        const applyMeasurement = () => {
-            const toggle = togglePillRef.current;
-            const dock = dockPillRef.current;
-            if (!toggle) return;
-
-            const tRect = toggle.getBoundingClientRect();
-            if (!(tRect.width > 0 && tRect.height > 0)) return;
-
-            const tW = Math.ceil(tRect.width) + HUB_SIZE_BUFFER;
-            const tH = Math.ceil(tRect.height) + HUB_SIZE_BUFFER;
-
-            let eW = tW;
-            let eH = HUB_EXPANDED_HEIGHT;
-            if (dock) {
-                // scrollWidth / scrollHeight capture natural content size even while the
-                // scroller is currently constrained by the window — critical before expansion.
-                const dockNaturalW = Math.max(dock.scrollWidth, dock.getBoundingClientRect().width);
-                const dockNaturalH = Math.max(dock.scrollHeight, dock.getBoundingClientRect().height);
-                if (verticalLayout) {
-                    // Toggle + dock sit side by side → width is the sum, height is the max.
-                    eW = Math.ceil(tRect.width + dockNaturalW + 8) + HUB_SIZE_BUFFER;
-                    eH = Math.ceil(Math.max(tRect.height, dockNaturalH)) + HUB_SIZE_BUFFER;
-                } else {
-                    // Horizontal: toggle on top of dock → width is the max, height is the sum.
-                    eW = Math.ceil(Math.max(tRect.width, dockNaturalW)) + HUB_SIZE_BUFFER;
-                    eH = Math.ceil(tRect.height + dockNaturalH + 8) + HUB_SIZE_BUFFER;
-                }
-            }
-
-            setContentSize((prev) => {
-                if (
-                    prev.collapsedW === tW &&
-                    prev.collapsedH === tH &&
-                    prev.expandedW === eW &&
-                    prev.expandedH === eH
-                ) {
-                    return prev;
-                }
-                return { collapsedW: tW, collapsedH: tH, expandedW: eW, expandedH: eH };
-            });
-        };
-
-        applyMeasurement();
-
-        const observer = new ResizeObserver(applyMeasurement);
-        if (togglePillRef.current) observer.observe(togglePillRef.current);
-        if (dockPillRef.current) observer.observe(dockPillRef.current);
-
-        const fontsReady = (document as Document & { fonts?: { ready: Promise<unknown> } }).fonts?.ready;
-        if (fontsReady && typeof (fontsReady as Promise<unknown>).then === "function") {
-            (fontsReady as Promise<unknown>).then(applyMeasurement).catch(() => undefined);
-        }
-
-        return () => observer.disconnect();
-    }, [items.length, dockSide]);
-
-    // Derive the hub orientation. In preset mode, the preset directly dictates
-    // the dock side. In free mode, derive it from the drag position on the
-    // current monitor — near the left edge → dock opens to the right, near the
-    // right edge → dock opens to the left, otherwise horizontal.
-    useEffect(() => {
-        if (preset !== "free") {
-            // Only the pure-side presets keep the vertical dock. Corner presets
-            // get a horizontal dock anchored at the corner — otherwise picking
-            // « top-right » would slide items down the right edge instead of
-            // hugging the top-right corner like the user asks for.
-            switch (preset) {
-                case "top":
-                    setDockSide("top");
-                    setHAlign("center");
-                    setVAlign("top");
-                    break;
-                case "top-left":
-                    setDockSide("top");
-                    setHAlign("left");
-                    setVAlign("top");
-                    break;
-                case "top-right":
-                    setDockSide("top");
-                    setHAlign("right");
-                    setVAlign("top");
-                    break;
-                case "left":
-                    setDockSide("left");
-                    setHAlign("left");
-                    setVAlign("center");
-                    break;
-                case "right":
-                    setDockSide("right");
-                    setHAlign("right");
-                    setVAlign("center");
-                    break;
-                case "bottom-left":
-                    setDockSide("top");
-                    setHAlign("left");
-                    setVAlign("bottom");
-                    break;
-                case "bottom-right":
-                    setDockSide("top");
-                    setHAlign("right");
-                    setVAlign("bottom");
-                    break;
-            }
-            return;
-        }
-
-        if (!customPos) {
-            setDockSide("top");
-            setHAlign("center");
-            setVAlign("top");
-            return;
-        }
-        let cancelled = false;
-        currentMonitor()
-            .then((m) => {
-                if (cancelled || !m) return;
-                const scale = m.scaleFactor || 1;
-                const lx = m.position.x / scale;
-                const ly = m.position.y / scale;
-                const lw = m.size.width / scale;
-                const lh = m.size.height / scale;
-                const hubCenterX = customPos.x + contentSize.collapsedW / 2;
-                const hubCenterY = customPos.y + contentSize.collapsedH / 2;
-                const pctX = (hubCenterX - lx) / lw;
-                const pctY = (hubCenterY - ly) / lh;
-                let nextDock: "top" | "left" | "right" = "top";
-                let nextH: "left" | "center" | "right" = "center";
-                let nextV: "top" | "center" | "bottom" = "top";
-                if (pctX < 0.15) {
-                    nextDock = "left";
-                    nextH = "left";
-                } else if (pctX > 0.85) {
-                    nextDock = "right";
-                    nextH = "right";
-                }
-                if (pctY > 0.7) nextV = "bottom";
-                else if (pctY > 0.3) nextV = "center";
-                setDockSide(nextDock);
-                setHAlign(nextH);
-                setVAlign(nextV);
-            })
-            .catch(() => undefined);
+        });
+        observer.observe(el);
+        // Premier sync
+        raf = requestAnimationFrame(() => {
+            sync().catch(console.error);
+        });
         return () => {
-            cancelled = true;
+            cancelAnimationFrame(raf);
+            observer.disconnect();
         };
-    }, [customPos, contentSize.collapsedW, contentSize.collapsedH, preset]);
+    }, [hubWindow, preset, customPos, hubTools.length]);
 
-    // Track user-driven window moves and persist the position so the hub reopens
-    // where the user placed it. Programmatic moves (sync effect) are ignored via
-    // suppressMoveUntilRef to avoid feedback loops.
+    // ── Persist position on user drag (free mode only) + snap aux bords ─
+    // Debounce 250 ms après le dernier Moved = considéré comme "drag end".
+    // À ce moment :
+    //   1. Sauvegarde la position custom (état "free" persistant)
+    //   2. Détecte la proximité avec les 4 bords + 4 coins du monitor courant.
+    //      Si la position du hub est dans la zone d'attraction (~SNAP_ZONE px
+    //      d'un bord), bascule automatiquement vers le preset correspondant.
+    // Le useEffect géométrie sync re-position la fenêtre exactement au preset
+    // (re-déclenché par le changement de `preset` dans son deps).
+    const SNAP_ZONE = 60;
     useEffect(() => {
+        // mounted flag : protège contre la fuite de listener Tauri quand le
+        // useEffect cleanup s'exécute AVANT que le promise .then() de
+        // `hubWindow.onMoved()` ne soit résolu (cas React 18 strict mode
+        // mount-unmount-remount, ou cleanup synchrone trop rapide). Sans
+        // ça, le listener est installé après cleanup et fuite : on a 2
+        // listeners actifs → chaque event traité 2x → 2 saveTimers → 2
+        // animations en parallèle → bugs visuels.
+        let mounted = true;
         let unlisten: (() => void) | undefined;
         let saveTimer: number | null = null;
         let scaleFactor = 1;
-
         hubWindow
             .scaleFactor()
             .then((s) => {
                 if (Number.isFinite(s) && s > 0) scaleFactor = s;
             })
             .catch(() => undefined);
+        // Helper d'animation : interpole la position de la fenêtre Tauri
+        // depuis position actuelle vers target sur `duration` ms via RAF +
+        // ease-out cubic. Suppresse les events Moved pendant l'anim pour
+        // qu'ils ne déclenchent pas notre handler en boucle.
+        const animatePosition = (
+            from: { x: number; y: number },
+            to: { x: number; y: number },
+            duration: number,
+        ): Promise<void> => {
+            return new Promise((resolve) => {
+                const start = performance.now();
+                const step = (now: number) => {
+                    const t = Math.min(1, (now - start) / duration);
+                    const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+                    const x = Math.round(from.x + (to.x - from.x) * eased);
+                    const y = Math.round(from.y + (to.y - from.y) * eased);
+                    suppressMoveUntilRef.current = Math.max(
+                        suppressMoveUntilRef.current,
+                        Date.now() + 100,
+                    );
+                    hubWindow.setPosition(new LogicalPosition(x, y)).catch(() => undefined);
+                    if (t < 1) {
+                        requestAnimationFrame(step);
+                    } else {
+                        // Garde suppress très longtemps après la fin (2 sec)
+                        // pour absorber TOUS les Moved events tardifs émis
+                        // par Windows en réponse à nos setPosition (jusqu'à
+                        // 800-1200 ms de latence observée) ET les re-syncs
+                        // déclenchés par le ResizeObserver. Sans ça, un
+                        // Moved tardif déclenche notre handler qui voit
+                        // currentPreset != "free" et set preset à "free" →
+                        // wrapper React redevient horizontal → setSize 322x52
+                        // → glitch visible de retour à l'horizontal après le
+                        // snap vertical.
+                        suppressMoveUntilRef.current = Math.max(
+                            suppressMoveUntilRef.current,
+                            Date.now() + 2000,
+                        );
+                        resolve();
+                    }
+                };
+                requestAnimationFrame(step);
+            });
+        };
 
         hubWindow
             .onMoved((event: { payload: PhysicalPosition }) => {
+                // Skip si le composant a été unmount entre temps (cleanup
+                // déjà passé mais listener encore actif via .then async).
+                if (!mounted) return;
                 if (Date.now() < suppressMoveUntilRef.current) return;
-                // In preset mode, the position is driven by the preset — never
-                // save ad-hoc moves triggered by our own setPosition calls.
-                if (loadHubPreset() !== "free") return;
+                // User drag détecté → flag pour skip le geometry sync (qui
+                // provoque des glitchs en rivalisant avec le drag natif).
+                // NOTE : on NE setPreset("free") PAS ici (bien que ce soit
+                // tentant pour "libérer" la position pendant le drag). Raison :
+                // ce setPreset cascade en useEffect re-runs + React renders +
+                // ResizeObserver fires qui rivalisent avec mon snap et créent
+                // des glitchs. Le drag est déjà protégé par isDraggingRef
+                // (geometry_sync skip), donc preset peut rester à sa valeur
+                // courante pendant tout le drag. La bascule vers "free" ou
+                // vers le nouveau preset se fait UNIQUEMENT à la fin du drag
+                // (dans le saveTimer, après détection snap), garantissant un
+                // changement de preset unique et atomique.
+                isDraggingRef.current = true;
                 const pos = event.payload;
                 if (saveTimer !== null) window.clearTimeout(saveTimer);
-                saveTimer = window.setTimeout(() => {
+                saveTimer = window.setTimeout(async () => {
                     saveTimer = null;
+                    // Drag terminé (250 ms sans Moved) → fin du flag drag
+                    isDraggingRef.current = false;
                     const logical = {
                         x: Math.round(pos.x / scaleFactor),
                         y: Math.round(pos.y / scaleFactor),
@@ -724,70 +566,291 @@ const OverlayHub = () => {
                     try {
                         window.localStorage.setItem(
                             HUB_POSITION_STORAGE_KEY,
-                            JSON.stringify(logical)
+                            JSON.stringify(logical),
                         );
                     } catch {
                         /* ignore */
                     }
+
+                    // ── SNAP au bord/coin le plus proche + animation ─────
+                    try {
+                        const monitor = await currentMonitor().catch(() => null);
+                        if (!monitor) return;
+                        const ms = monitor.scaleFactor || 1;
+                        const screenW = monitor.size.width / ms;
+                        const screenH = monitor.size.height / ms;
+                        const lx = monitor.position.x / ms;
+                        const ly = monitor.position.y / ms;
+                        const hubSize = await hubWindow.outerSize().catch(() => null);
+                        if (!hubSize) return;
+                        const hubW = hubSize.width / ms;
+                        const hubH = hubSize.height / ms;
+                        const distTop = logical.y - ly;
+                        const distLeft = logical.x - lx;
+                        const distRight = lx + screenW - (logical.x + hubW);
+                        const distBottom = ly + screenH - (logical.y + hubH);
+                        const nearTop = distTop < SNAP_ZONE;
+                        const nearBottom = distBottom < SNAP_ZONE;
+                        const nearLeft = distLeft < SNAP_ZONE;
+                        const nearRight = distRight < SNAP_ZONE;
+
+                        let target: HubPreset | null = null;
+                        if (nearTop && nearLeft) target = "top-left";
+                        else if (nearTop && nearRight) target = "top-right";
+                        else if (nearBottom && nearLeft) target = "bottom-left";
+                        else if (nearBottom && nearRight) target = "bottom-right";
+                        else if (nearTop) target = "top";
+                        else if (nearBottom) target = "bottom";
+                        else if (nearLeft) target = "left";
+                        else if (nearRight) target = "right";
+
+                        // Pas de target = drop loin de tout bord = mode libre.
+                        // Bascule preset à "free" pour que le geometry_sync
+                        // n'essaye pas de re-positionner vers l'ancien preset.
+                        // (On a NE PAS fait ce setPreset au début du drag pour
+                        // éviter les cascades free → target avec races.)
+                        //
+                        // EXCEPTION : si on vient juste de faire un snap
+                        // (cooldown 3 sec), on ignore ce no-target event. Il
+                        // est probablement un Moved synthétique émis par Tauri
+                        // en réponse à notre setSize+setPosition de snap
+                        // (Windows ajuste la position quand la fenêtre
+                        // dépasse l'écran). Sans cette exception, le preset
+                        // revient à "free" juste après un snap → glitch
+                        // horizontal visible.
+                        if (!target) {
+                            const sinceLastSnap =
+                                Date.now() - lastSnapEndAtRef.current;
+                            if (sinceLastSnap < 3000) {
+                                // No-op : on ignore les Moved synthétiques
+                                // post-snap pour éviter le retour à "free".
+                            } else {
+                                const currentPresetVal = loadHubPreset();
+                                if (currentPresetVal !== "free") {
+                                    setPreset("free");
+                                    try {
+                                        window.localStorage.setItem(
+                                            HUB_PRESET_STORAGE_KEY,
+                                            "free",
+                                        );
+                                    } catch {
+                                        /* ignore */
+                                    }
+                                    emit(HUB_PRESET_EVENT, {
+                                        preset: "free",
+                                    }).catch(() => undefined);
+                                }
+                            }
+                        }
+
+                        if (target) {
+                            // ── Séquencement anti-glitch orientation ─────
+                            // Le bug : si on anime AVANT setPreset, on utilise
+                            // l'ancien hubW/hubH pour calculer la position
+                            // cible. Après setPreset, React re-render avec la
+                            // nouvelle orientation, la taille change, et le
+                            // geometry sync recalcule une position différente
+                            // → saut visuel en fin d'anim (hub "coupé").
+                            //
+                            // Fix : on inverse l'ordre.
+                            //   1. setPreset (React re-render commence)
+                            //   2. attendre que ResizeObserver fire (= wrapper
+                            //      a effectivement changé de taille) + 1 RAF
+                            //      paint
+                            //   3. re-mesurer le wrapper avec la nouvelle
+                            //      orientation
+                            //   4. setSize manuel à la bonne taille
+                            //   5. recalculer la position cible avec les
+                            //      nouvelles dimensions
+                            //   6. lire la position actuelle de la fenêtre
+                            //   7. animatePosition vers la vraie cible
+                            //
+                            // Pendant tout ce flow, isAnimatingSnapRef bloque
+                            // le geometry sync useEffect pour éviter qu'il
+                            // pilote setSize/setPosition en parallèle.
+                            const orientChanges =
+                                ((preset === "left" || preset === "right") !==
+                                    (target === "left" || target === "right"));
+                            isAnimatingSnapRef.current = true;
+                            try {
+                                // 1. Apply preset
+                                setPreset(target);
+                                try {
+                                    window.localStorage.setItem(
+                                        HUB_PRESET_STORAGE_KEY,
+                                        target,
+                                    );
+                                } catch {
+                                    /* ignore */
+                                }
+                                emit(HUB_PRESET_EVENT, { preset: target }).catch(
+                                    () => undefined,
+                                );
+
+                                // 2. Attendre que le wrapper change de taille
+                                //    Si orientation change → utiliser un
+                                //    ResizeObserver one-shot avec timeout fallback,
+                                //    car 2 RAF basiques peuvent ne pas suffire
+                                //    sur un re-render lourd.
+                                const elWait = wrapperRef.current;
+                                if (orientChanges && elWait) {
+                                    await new Promise<void>((resolve) => {
+                                        let done = false;
+                                        const finish = () => {
+                                            if (done) return;
+                                            done = true;
+                                            try {
+                                                ro.disconnect();
+                                            } catch {
+                                                /* ignore */
+                                            }
+                                            resolve();
+                                        };
+                                        const ro = new ResizeObserver(() => finish());
+                                        ro.observe(elWait);
+                                        window.setTimeout(finish, 150);
+                                    });
+                                }
+                                await new Promise<void>((r) =>
+                                    requestAnimationFrame(() => r()),
+                                );
+
+                                // 3. Re-measure wrapper avec la nouvelle
+                                //    orientation (vertical ↔ horizontal)
+                                const el = wrapperRef.current;
+                                let newW = hubW;
+                                let newH = hubH;
+                                if (el) {
+                                    const rect = el.getBoundingClientRect();
+                                    const w = Math.ceil(rect.width) + HUB_SIZE_BUFFER;
+                                    const h = Math.ceil(rect.height) + HUB_SIZE_BUFFER;
+                                    if (w >= 40 && h >= 20) {
+                                        newW = w;
+                                        newH = h;
+                                    }
+                                }
+
+                                // 4. setSize manuel — suppresse les Moved events
+                                //    pendant ~1s pour absorber les notifications
+                                //    Tauri qui suivent un setSize.
+                                suppressMoveUntilRef.current = Math.max(
+                                    suppressMoveUntilRef.current,
+                                    Date.now() + 1000,
+                                );
+                                try {
+                                    await hubWindow.setSize(
+                                        new LogicalSize(newW, newH),
+                                    );
+                                } catch {
+                                    /* ignore — best-effort */
+                                }
+
+                                // 5. Recalcule la position cible avec les
+                                //    nouvelles dimensions.
+                                const m = HUB_EDGE_MARGIN;
+                                let tx = lx + (screenW - newW) / 2;
+                                let ty = ly + m;
+                                if (target === "top-left") {
+                                    tx = lx + m;
+                                    ty = ly + m;
+                                } else if (target === "top-right") {
+                                    tx = lx + screenW - newW - m;
+                                    ty = ly + m;
+                                } else if (target === "bottom-left") {
+                                    tx = lx + m;
+                                    ty = ly + screenH - newH - m;
+                                } else if (target === "bottom-right") {
+                                    tx = lx + screenW - newW - m;
+                                    ty = ly + screenH - newH - m;
+                                } else if (target === "left") {
+                                    tx = lx + m;
+                                    ty = ly + (screenH - newH) / 2;
+                                } else if (target === "right") {
+                                    tx = lx + screenW - newW - m;
+                                    ty = ly + (screenH - newH) / 2;
+                                } else if (target === "top") {
+                                    tx = lx + (screenW - newW) / 2;
+                                    ty = ly + m;
+                                } else if (target === "bottom") {
+                                    tx = lx + (screenW - newW) / 2;
+                                    ty = ly + screenH - newH - m;
+                                }
+
+                                // 6. Lit la position actuelle de la fenêtre
+                                //    (peut avoir bougé légèrement avec setSize
+                                //    selon l'OS) pour partir de la vraie
+                                //    position de départ.
+                                const winPos = await hubWindow
+                                    .outerPosition()
+                                    .catch(() => null);
+                                const startX = winPos
+                                    ? winPos.x / ms
+                                    : logical.x;
+                                const startY = winPos
+                                    ? winPos.y / ms
+                                    : logical.y;
+
+                                // 7. Clamp + anime de la position courante
+                                //    vers la nouvelle cible. Clamp avec les
+                                //    NOUVELLES dimensions.
+                                const clamp = (x: number, y: number) => ({
+                                    x: Math.max(
+                                        lx,
+                                        Math.min(lx + screenW - newW, x),
+                                    ),
+                                    y: Math.max(
+                                        ly,
+                                        Math.min(ly + screenH - newH, y),
+                                    ),
+                                });
+                                const clampedStart = clamp(startX, startY);
+                                const clampedEnd = clamp(
+                                    Math.round(tx),
+                                    Math.round(ty),
+                                );
+                                await animatePosition(
+                                    clampedStart,
+                                    clampedEnd,
+                                    220,
+                                );
+                            } finally {
+                                // Release le flag dans tous les cas pour ne
+                                // pas figer le geometry sync.
+                                isAnimatingSnapRef.current = false;
+                                // Marque la fin du snap pour le cooldown qui
+                                // ignore les Moved synthétiques émis par
+                                // Tauri/Windows en réponse au setSize.
+                                lastSnapEndAtRef.current = Date.now();
+                            }
+                        }
+                    } catch {
+                        /* snap best-effort, on ne bloque pas le drag si ça rate */
+                        isAnimatingSnapRef.current = false;
+                    }
                 }, 250);
             })
             .then((fn) => {
+                // Si le cleanup a déjà passé pendant que onMoved() résolvait,
+                // unsubscribe immédiatement pour ne pas fuiter le listener.
+                if (!mounted) {
+                    try {
+                        fn();
+                    } catch {
+                        /* ignore */
+                    }
+                    return;
+                }
                 unlisten = fn;
             })
             .catch(console.error);
-
         return () => {
+            mounted = false;
             if (saveTimer !== null) window.clearTimeout(saveTimer);
             if (unlisten) unlisten();
         };
     }, [hubWindow]);
 
-    const handlePillPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-        if (event.button !== 0) return;
-        // When a preset is locked, the hub position is driven by the setting —
-        // ignore drag attempts entirely.
-        if (preset !== "free") return;
-        const target = event.target as HTMLElement;
-        if (target.closest("button, input, [data-no-drag]")) return;
-        event.preventDefault();
-        hubWindow.startDragging().catch(console.error);
-    };
-
-    const handlePillDoubleClick = async (event: ReactMouseEvent<HTMLDivElement>) => {
-        if (preset !== "free") return;
-        const target = event.target as HTMLElement;
-        if (target.closest("button, input")) return;
-        // Reset to the default centered-at-top position.
-        setCustomPos(null);
-        try {
-            window.localStorage.removeItem(HUB_POSITION_STORAGE_KEY);
-        } catch {
-            /* ignore */
-        }
-        // Geometry sync in free mode reads the live window position — nulling
-        // customPos alone would keep the hub wherever the user dragged it.
-        // Move the window explicitly so the recenter intent is honored.
-        const monitor = await currentMonitor().catch(() => null);
-        if (monitor) {
-            const scale = monitor.scaleFactor || 1;
-            const lx = monitor.position.x / scale;
-            const ly = monitor.position.y / scale;
-            const lw = monitor.size.width / scale;
-            const cx = lx + (lw - contentSize.collapsedW) / 2;
-            const cy = ly + HUB_TOP_OFFSET;
-            suppressMoveUntilRef.current = Date.now() + 800;
-            await hubWindow
-                .setPosition(new LogicalPosition(Math.round(cx), Math.round(cy)))
-                .catch(console.error);
-        }
-    };
-
-    const dragEnabled = preset === "free";
-    const pillCursorClass = dragEnabled ? "cursor-move" : "cursor-default";
-    const pillTitle = dragEnabled
-        ? "Glisser pour déplacer le hub — double-clic pour recentrer"
-        : "Position verrouillée — choisir « Libre » dans les réglages pour déplacer";
-
+    // ── Handlers ───────────────────────────────────────────────────────
     const openOverlayItem = async (item: OverlayHubItem) => {
         const isActive = activeOverlayIds.has(item.id);
         try {
@@ -797,16 +860,14 @@ const OverlayHub = () => {
                 } else {
                     await invoke("close_overlay", { id: item.id });
                 }
-
-                setActiveOverlayIds((previous) => {
-                    if (!previous.has(item.id)) return previous;
-                    const next = new Set(previous);
+                setActiveOverlayIds((prev) => {
+                    if (!prev.has(item.id)) return prev;
+                    const next = new Set(prev);
                     next.delete(item.id);
                     return next;
                 });
                 return;
             }
-
             if (item.kind === "webview") {
                 await invoke("open_webview_overlay", {
                     id: item.id,
@@ -826,10 +887,9 @@ const OverlayHub = () => {
                     opacity: item.opacity,
                 });
             }
-
-            setActiveOverlayIds((previous) => {
-                if (previous.has(item.id)) return previous;
-                const next = new Set(previous);
+            setActiveOverlayIds((prev) => {
+                if (prev.has(item.id)) return prev;
+                const next = new Set(prev);
                 next.add(item.id);
                 return next;
             });
@@ -845,451 +905,82 @@ const OverlayHub = () => {
         }
     };
 
-    const setHubMode = async (nextEditMode: boolean) => {
-        const previousMode = isEditMode;
-        const appliedMode = await invoke<boolean>("set_overlay_hub_mode", {
-            editMode: nextEditMode,
-        }).catch((error) => {
+    const handleToolClick = (id: string) => {
+        const item = items.find((i) => i.id === id);
+        if (item) openOverlayItem(item);
+    };
+
+    const handleLockToggle = async (nextLocked: boolean) => {
+        // nextLocked === true → mode jeu (isEditMode = false)
+        // nextLocked === false → mode édition (isEditMode = true)
+        const wantEdit = !nextLocked;
+        try {
+            const applied = await invoke<boolean>("set_overlay_hub_mode", {
+                editMode: wantEdit,
+            });
+            setIsEditMode(Boolean(applied));
+        } catch (error) {
             console.error(error);
-            return previousMode;
-        });
-
-        setIsEditMode(Boolean(appliedMode));
-        if (!appliedMode) {
-            closeHub();
-        }
-        if (Boolean(appliedMode) !== previousMode) {
-            startLockRearmDelay();
-        }
-        return Boolean(appliedMode);
-    };
-
-    const clearUnlockHold = () => {
-        if (unlockTimerRef.current !== null) {
-            window.clearTimeout(unlockTimerRef.current);
-            unlockTimerRef.current = null;
-        }
-        if (unlockProgressRafRef.current !== null) {
-            window.cancelAnimationFrame(unlockProgressRafRef.current);
-            unlockProgressRafRef.current = null;
-        }
-        unlockProgressStartRef.current = null;
-        setUnlockHoldProgress(0);
-        setIsUnlockHolding(false);
-    };
-
-    const startUnlockHold = () => {
-        if (isEditMode) return;
-        clearUnlockHold();
-        setIsUnlockHolding(true);
-
-        unlockProgressStartRef.current = performance.now();
-        const animateProgress = () => {
-            if (unlockProgressStartRef.current === null) return;
-
-            const elapsed = performance.now() - unlockProgressStartRef.current;
-            const progress = Math.min(1, elapsed / GAME_UNLOCK_HOLD_MS);
-            setUnlockHoldProgress(progress);
-
-            if (progress < 1) {
-                unlockProgressRafRef.current = window.requestAnimationFrame(animateProgress);
-            } else {
-                unlockProgressRafRef.current = null;
-            }
-        };
-        unlockProgressRafRef.current = window.requestAnimationFrame(animateProgress);
-
-        unlockTimerRef.current = window.setTimeout(async () => {
-            unlockTimerRef.current = null;
-            setIsUnlockHolding(false);
-            if (unlockProgressRafRef.current !== null) {
-                window.cancelAnimationFrame(unlockProgressRafRef.current);
-                unlockProgressRafRef.current = null;
-            }
-            unlockProgressStartRef.current = null;
-            setUnlockHoldProgress(0);
-            const restored = await setHubMode(true);
-            if (restored) {
-                openHub();
-            }
-        }, GAME_UNLOCK_HOLD_MS);
-    };
-
-    const handleHubButtonClick = async () => {
-        if (!isEditMode) {
-            return;
-        }
-
-        if (menuVisible) {
-            closeHub();
-            return;
-        }
-        openHub();
-    };
-
-    const handleItemsWheel = (event: WheelEvent<HTMLDivElement>) => {
-        const scroller = itemsScrollerRef.current;
-        if (!scroller) return;
-
-        // When stacked vertically, let the native Y scroll happen (no redirect).
-        if (dockSide !== "top") return;
-
-        if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
-            scroller.scrollLeft += event.deltaY;
-            event.preventDefault();
         }
     };
 
-    const renderItemIcon = (item: OverlayHubItem) => {
-        if (item.source === "custom") {
-            return (
-                <span className="text-[10px] font-bold leading-none">
-                    {item.label.slice(0, 1).toUpperCase()}
-                </span>
-            );
-        }
-
-        switch (item.iconKey) {
-            case "dps":
-                return <Calculator className="h-3.5 w-3.5" />;
-            case "shipmaps":
-                return <Map className="h-3.5 w-3.5" />;
-            case "finder":
-                return <Search className="h-3.5 w-3.5" />;
-            case "pvp":
-                return <Swords className="h-3.5 w-3.5" />;
-            case "cargo":
-                return <Package className="h-3.5 w-3.5" />;
-            case "verseguide":
-                return <BookOpen className="h-3.5 w-3.5" />;
-            case "scmdb":
-                return <Database className="h-3.5 w-3.5" />;
-            case "crafter":
-                return <Hammer className="h-3.5 w-3.5" />;
-            case "trading":
-                return <Route className="h-3.5 w-3.5" />;
-            case "server":
-                return <Server className="h-3.5 w-3.5" />;
-            case "package":
-                return <Package className="h-3.5 w-3.5" />;
-            case "database":
-                return <Database className="h-3.5 w-3.5" />;
-            case "hammer":
-                return <Hammer className="h-3.5 w-3.5" />;
-            case "route":
-                return <Route className="h-3.5 w-3.5" />;
-            case "pickaxe":
-                return <Pickaxe className="h-3.5 w-3.5" />;
-            case "shield":
-                return <ShieldCheck className="h-3.5 w-3.5" />;
-            default:
-                return <Link2 className="h-3.5 w-3.5" />;
-        }
+    const handleOpenAllTools = () => {
+        // Pour l'instant : popover géré côté <OverlayHubBar> (le bouton
+        // LayoutGrid ouvre un Radix Popover, le contenu est à enrichir
+        // plus tard). Ici juste un placeholder côté wrapper.
+        console.log("[OverlayHub] open all tools (popover handled by bar)");
     };
 
-    const getItemLabel = (item: OverlayHubItem) => {
-        switch (item.id) {
-            case "erkul":
-                return "DPS";
-            case "finder":
-                return "Finder";
-            case "pvp":
-                return "PVP";
-            case "uexcorp":
-                return "Routes";
-            default:
-                return item.label;
-        }
+    // ── Drag pour déplacer le hub (mode libre uniquement) ──────────────
+    // Drag toujours actif tant que le hub n'est pas verrouillé via le cadenas.
+    // Même en mode preset (top, left, etc.), l'user doit pouvoir le déplacer ;
+    // au release, le snap automatique remettra au preset le plus proche (ou
+    // passera en "free" si loin de tout bord).
+    const dragEnabled = isEditMode;
+    const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+        if (event.button !== 0) return;
+        if (!dragEnabled) return;
+        const target = event.target as HTMLElement;
+        if (target.closest("button, [data-no-drag]")) return;
+        event.preventDefault();
+        hubWindow.startDragging().catch(console.error);
     };
 
-    const unlockRingRadius = 10;
-    const unlockRingCircumference = 2 * Math.PI * unlockRingRadius;
-    const unlockRingOffset = unlockRingCircumference * (1 - unlockHoldProgress);
-    const unlockRemainingSeconds = Math.max(0, (GAME_UNLOCK_HOLD_MS * (1 - unlockHoldProgress)) / 1000);
-    const lockButtonDisabled = isLockRearming;
-
-    const isVertical = dockSide !== "top";
-    const isRightDock = dockSide === "right";
-    const isBottomAnchored = !isVertical && vAlign === "bottom";
-    const isRightAligned = !isVertical && hAlign === "right";
-    const isLeftAligned = !isVertical && hAlign === "left";
-    // In vertical mode we use compact round icon buttons. We also opt in for
-    // corner presets so a « top-right » bar doesn't balloon into an enormous
-    // labelled strip that shoves the toggle off-corner.
-    const compactItems = isVertical || isLeftAligned || isRightAligned;
-
-    // Horizontal mode: the toggle is on top (vAlign="top"/"center") or at the
-    // bottom (vAlign="bottom"), and hAlign decides whether the whole stack is
-    // flushed left / centered / flushed right. Without anchoring the stack on
-    // the same corner as the window, expanding the dock would let the toggle
-    // drift away from the corner the user picked.
-    const hJustify = isRightAligned ? "justify-end" : isLeftAligned ? "justify-start" : "justify-center";
-    const vItems = isBottomAnchored ? "items-end" : "items-start";
-    const outerAlignClass = isVertical
-        ? isRightDock
-            ? "items-center justify-end"
-            : "items-center justify-start"
-        : `${vItems} ${hJustify}`;
-    const stackItemsClass = isRightAligned ? "items-end" : isLeftAligned ? "items-start" : "items-center";
-    const stackClass = isVertical
-        ? `flex ${isRightDock ? "flex-row-reverse" : "flex-row"} items-center pointer-events-none`
-        : `flex ${isBottomAnchored ? "flex-col-reverse" : "flex-col"} ${stackItemsClass} pointer-events-none`;
-    const pillInnerFlex = isVertical
-        ? "flex flex-col items-center gap-1.5"
-        : "flex items-center gap-1.5";
-    const dockInnerFlex = isVertical
-        ? "flex flex-col items-center gap-1.5"
-        : "flex items-center gap-1.5";
-    const dockWrapperSpacing = isVertical
-        ? isRightDock
-            ? "mr-1 flex flex-row items-center"
-            : "ml-1 flex flex-row items-center"
-        : isBottomAnchored
-          ? "mb-1 flex flex-col items-center"
-          : "mt-1 flex flex-col items-center";
-    const dockAnimOrigin = isVertical
-        ? isRightDock
-            ? "origin-right"
-            : "origin-left"
-        : isBottomAnchored
-          ? "origin-bottom"
-          : "origin-top";
-    const dockClosedOffset = isVertical
-        ? isRightDock
-            ? "translate-x-1"
-            : "-translate-x-1"
-        : isBottomAnchored
-          ? "translate-y-1"
-          : "-translate-y-1";
-    const dockScrollerOverflow = isVertical ? "overflow-y-auto" : "overflow-x-auto";
-    const itemClosedOffset = isVertical
-        ? isRightDock
-            ? "translate-x-1"
-            : "-translate-x-1"
-        : isBottomAnchored
-          ? "translate-y-1"
-          : "-translate-y-1";
-    const itemOpenOffset = isVertical ? "translate-x-0" : "translate-y-0";
+    const handleDoubleClick = async (event: ReactMouseEvent<HTMLDivElement>) => {
+        if (!dragEnabled) return;
+        const target = event.target as HTMLElement;
+        if (target.closest("button")) return;
+        // Recenter
+        setCustomPos(null);
+        try {
+            window.localStorage.removeItem(HUB_POSITION_STORAGE_KEY);
+        } catch {
+            /* ignore */
+        }
+    };
 
     return (
-        <div className={`w-full h-full bg-transparent pointer-events-none overflow-visible flex ${outerAlignClass}`}>
-            <div className={stackClass}>
-                <div
-                    ref={togglePillRef}
-                    onPointerDown={handlePillPointerDown}
-                    onDoubleClick={handlePillDoubleClick}
-                    title={pillTitle}
-                    className={`relative pointer-events-auto w-max max-w-full overflow-hidden bg-slate-950/35 backdrop-blur-md ring-1 ring-white/5 px-2 py-1 ${pillCursorClass} select-none`}
-                    style={{ borderRadius: "9999px", isolation: "isolate" }}
-                >
-                    <div className={`w-max mx-auto ${pillInnerFlex}`}>
-                    <button
-                        type="button"
-                        onClick={handleHubButtonClick}
-                        disabled={!isEditMode || isGeometrySyncing}
-                        title={
-                            isGeometrySyncing
-                                ? "Synchronisation du hub..."
-                                : !isEditMode
-                                ? "Mode jeu actif - bouton hub desactive"
-                                : menuVisible
-                                  ? "Replier hub overlay"
-                                  : "Ouvrir hub overlay"
-                        }
-                        className={`relative overflow-visible h-7 w-7 rounded-full border border-sky-300/50 bg-sky-500/15 text-sky-100 backdrop-blur-md shadow-sm transition-all flex items-center justify-center disabled:pointer-events-none ${
-                            isEditMode ? "opacity-100 hover:border-sky-200/70 hover:bg-sky-500/25" : "opacity-55"
-                        }`}
-                    >
-                        <span
-                            aria-hidden="true"
-                            className={`pointer-events-none absolute -inset-1 rounded-full blur-[5px] transition-opacity ${
-                                isEditMode ? "bg-sky-400/35 opacity-90" : "bg-sky-300/20 opacity-70"
-                            }`}
-                        />
-                        <PanelsTopLeft className="relative z-10 h-3.5 w-3.5" />
-                    </button>
-
-                    <button
-                        type="button"
-                        disabled={lockButtonDisabled}
-                        onClick={() => {
-                            if (lockButtonDisabled) return;
-                            if (isEditMode) {
-                                setHubMode(false).catch(console.error);
-                            }
-                        }}
-                        onMouseDown={(event) => {
-                            if (lockButtonDisabled) return;
-                            event.preventDefault();
-                            startUnlockHold();
-                        }}
-                        onMouseUp={clearUnlockHold}
-                        onMouseLeave={clearUnlockHold}
-                        onTouchStart={(event) => {
-                            if (lockButtonDisabled) return;
-                            event.preventDefault();
-                            startUnlockHold();
-                        }}
-                        onTouchEnd={clearUnlockHold}
-                        onTouchCancel={clearUnlockHold}
-                        className={`relative overflow-visible h-7 w-7 rounded-full border backdrop-blur-md shadow-sm transition-all flex items-center justify-center ${
-                            isEditMode
-                                ? "border-sky-300/50 bg-sky-500/15 text-sky-100 hover:border-sky-200/70 hover:bg-sky-500/25"
-                                : "border-amber-300/50 bg-amber-500/15 text-amber-100 hover:border-amber-200/70 hover:bg-amber-500/25"
-                        } ${lockButtonDisabled ? "opacity-75 cursor-default" : ""}`}
-                        title={
-                            lockButtonDisabled
-                                ? "Reactivation du cadenas..."
-                                : isEditMode
-                                  ? "Passer en mode jeu"
-                                  : "Mode jeu actif - maintenir 1.2s pour mode edit"
-                        }
-                    >
-                        <span
-                            aria-hidden="true"
-                            className={`pointer-events-none absolute -inset-1 rounded-full blur-[5px] transition-opacity ${
-                                isEditMode ? "bg-sky-400/35 opacity-90" : "bg-amber-300/35 opacity-90"
-                            }`}
-                        />
-                        {!isEditMode && (
-                            <svg
-                                viewBox="0 0 24 24"
-                                className="pointer-events-none absolute inset-0 z-[1] h-full w-full -rotate-90"
-                                aria-hidden="true"
-                            >
-                                <circle
-                                    cx="12"
-                                    cy="12"
-                                    r={unlockRingRadius}
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeOpacity="0.2"
-                                    strokeWidth="1.6"
-                                />
-                                <circle
-                                    cx="12"
-                                    cy="12"
-                                    r={unlockRingRadius}
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="1.8"
-                                    strokeLinecap="round"
-                                    strokeDasharray={unlockRingCircumference}
-                                    strokeDashoffset={unlockRingOffset}
-                                    className="transition-[stroke-dashoffset] duration-75 ease-linear"
-                                />
-                            </svg>
-                        )}
-
-                        {isEditMode ? (
-                            <svg
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                className="relative z-10 h-3.5 w-3.5"
-                                aria-hidden="true"
-                            >
-                                <rect x="5" y="11" width="14" height="10" rx="2" />
-                                <path d="M9 11V8a3.5 3.5 0 0 1 6-1.8" />
-                            </svg>
-                        ) : (
-                            <Lock className="relative z-10 h-3.5 w-3.5" />
-                        )}
-                    </button>
-                    </div>
-
-                    {!isEditMode && (
-                        <div
-                            className={`absolute left-1/2 top-full mt-1 -translate-x-1/2 rounded-full border border-amber-300/40 bg-black/60 px-2 py-0.5 text-[9px] font-medium tracking-[0.02em] text-amber-100 backdrop-blur transition-opacity ${
-                                isUnlockHolding ? "opacity-100" : "opacity-0"
-                            }`}
-                        >
-                            Maintenir {unlockRemainingSeconds.toFixed(1)}s
-                        </div>
-                    )}
-                </div>
-
-                <div
-                    className={`${dockWrapperSpacing} ${dockAnimOrigin} transition-all duration-200 ease-out ${
-                        menuVisible
-                            ? `opacity-100 ${isVertical ? "translate-x-0" : "translate-y-0"} scale-100 pointer-events-auto`
-                            : `opacity-0 ${dockClosedOffset} scale-[0.98] pointer-events-none`
-                    }`}
-                >
-                    <div
-                        ref={(node) => {
-                            itemsScrollerRef.current = node;
-                            dockPillRef.current = node;
-                        }}
-                        onWheel={handleItemsWheel}
-                        onPointerDown={handlePillPointerDown}
-                        onDoubleClick={handlePillDoubleClick}
-                        title={pillTitle}
-                        className={`w-max max-w-full ${dockScrollerOverflow} [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden bg-slate-950/35 backdrop-blur-md ring-1 ring-white/5 px-2 py-1 ${pillCursorClass} select-none`}
-                        style={{ borderRadius: "9999px", isolation: "isolate" }}
-                    >
-                        <div className={`w-max mx-auto ${dockInnerFlex}`}>
-                            {items.map((item, index) => {
-                                const isActive = activeOverlayIds.has(item.id);
-                                const tooltip = isActive
-                                    ? `${item.label} actif (clic = fermer)`
-                                    : `Ouvrir ${item.label} en overlay`;
-                                if (compactItems) {
-                                    return (
-                                        <button
-                                            key={item.id}
-                                            type="button"
-                                            onClick={() => openOverlayItem(item)}
-                                            className={`relative h-7 w-7 rounded-full border backdrop-blur-md shadow-sm transition-all duration-200 ease-out flex items-center justify-center ${
-                                                isActive
-                                                    ? "border-emerald-300/50 bg-emerald-500/15 text-emerald-100 hover:border-emerald-200/70 hover:bg-emerald-500/25"
-                                                    : "border-sky-300/40 bg-sky-500/10 text-sky-100 hover:border-sky-200/60 hover:bg-sky-500/20"
-                                            } ${
-                                                menuVisible ? `opacity-100 ${itemOpenOffset}` : `opacity-0 ${itemClosedOffset}`
-                                            }`}
-                                            style={{ transitionDelay: menuVisible ? `${index * ITEM_STAGGER_MS}ms` : "0ms" }}
-                                            title={tooltip}
-                                        >
-                                            {renderItemIcon(item)}
-                                            {isActive && (
-                                                <span
-                                                    aria-hidden="true"
-                                                    className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-emerald-300"
-                                                />
-                                            )}
-                                        </button>
-                                    );
-                                }
-                                return (
-                                <button
-                                    key={item.id}
-                                    type="button"
-                                    onClick={() => openOverlayItem(item)}
-                                    className={`h-7 px-2.5 rounded-full border backdrop-blur-md shadow-sm transition-all duration-200 ease-out flex items-center gap-1.5 whitespace-nowrap ${
-                                        isActive
-                                            ? "border-emerald-300/50 bg-emerald-500/15 text-emerald-100 hover:border-emerald-200/70 hover:bg-emerald-500/25"
-                                            : "border-sky-300/40 bg-sky-500/10 text-sky-100 hover:border-sky-200/60 hover:bg-sky-500/20"
-                                    } ${
-                                        menuVisible ? `opacity-100 ${itemOpenOffset}` : `opacity-0 ${itemClosedOffset}`
-                                    }`}
-                                    style={{ transitionDelay: menuVisible ? `${index * ITEM_STAGGER_MS}ms` : "0ms" }}
-                                    title={tooltip}
-                                >
-                                    <span className={`h-4 w-4 rounded-full flex items-center justify-center ${isActive ? "bg-emerald-400/25 text-emerald-100" : "bg-sky-400/20 text-sky-100"}`}>
-                                        {renderItemIcon(item)}
-                                    </span>
-                                    <span className="text-[10px] font-semibold tracking-[0.03em] uppercase">{getItemLabel(item)}</span>
-                                    {isActive && <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" aria-hidden="true" />}
-                                </button>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div
+            ref={wrapperRef}
+            onPointerDown={handlePointerDown}
+            onDoubleClick={handleDoubleClick}
+            className={`pointer-events-auto inline-flex bg-transparent ${
+                dragEnabled ? "cursor-move" : "cursor-default"
+            } select-none`}
+            title={
+                dragEnabled
+                    ? "Glisser pour déplacer le hub — double-clic pour recentrer"
+                    : "Position verrouillée — choisir « Libre » dans les réglages"
+            }
+        >
+            <OverlayHubBar
+                tools={hubTools}
+                isLocked={!isEditMode}
+                orientation={preset === "left" || preset === "right" ? "vertical" : "horizontal"}
+                onToolClick={handleToolClick}
+                onLockToggle={handleLockToggle}
+                onOpenAllTools={handleOpenAllTools}
+            />
         </div>
     );
 };

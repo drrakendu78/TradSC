@@ -72,7 +72,7 @@ use scripts::offline_cache::{
     get_translation_cache_info, open_translation_cache_folder, cache_all_installed_translations,
 };
 use scripts::overlay::{
-    open_overlay_hub, toggle_overlay_hub, is_overlay_hub_open, set_overlay_hub_mode, get_overlay_hub_mode, is_overlay_open, open_overlay, open_webview_overlay, close_overlay, close_webview_overlay, set_overlay_size, set_window_opacity, set_overlay_interaction,
+    open_overlay_hub, toggle_overlay_hub, is_overlay_hub_open, set_overlay_hub_mode, get_overlay_hub_mode, is_overlay_open, open_overlay, open_webview_overlay, close_overlay, close_webview_overlay, set_overlay_size, set_window_opacity, set_overlay_interaction, ensure_overlay_control, toggle_overlay_interactive, release_overlay_focus, webview_overlay_reload, webview_overlay_set_opacity, webview_overlay_set_hidden, get_webview_overlay_geometry,
 };
 use scripts::companion_server::{
     companion_broadcast, companion_send, get_companion_info, start_companion_server,
@@ -501,6 +501,34 @@ pub fn run() {
             let companion_state = CompanionState::new(app.handle().clone());
             app.manage(companion_state);
 
+            // Watcher Game.log → auto-détection des blueprints débloqués.
+            // Lecture passive du fichier, aucun hook jeu. Démarré à la demande
+            // via gamelog_watcher_start ; auto-start optionnel selon config.
+            let gamelog_state =
+                scripts::gamelog_blueprint_watcher::GamelogWatcherState::default();
+            app.manage(gamelog_state);
+
+            // Auto-start watcher si l'utilisateur a coché "Auto-démarrage" dans
+            // Paramètres → Services. Erreurs silencieuses : si SC n'est pas
+            // installé sur cette machine, le start échoue et c'est OK.
+            {
+                let app_handle = app.handle().clone();
+                if let Ok(cfg) =
+                    scripts::gamelog_blueprint_watcher::load_config(&app_handle)
+                {
+                    if cfg.auto_start {
+                        if let Some(state) = app_handle
+                            .try_state::<scripts::gamelog_blueprint_watcher::GamelogWatcherState>()
+                        {
+                            let _ = scripts::gamelog_blueprint_watcher::start_internal(
+                                state.inner(),
+                                app_handle.clone(),
+                            );
+                        }
+                    }
+                }
+            }
+
             // Configurer le system tray
             if let Err(e) = setup_system_tray(&app.handle()) {
                 eprintln!("Échec de la configuration du system tray: {}", e);
@@ -698,6 +726,13 @@ pub fn run() {
             set_overlay_size,
             set_window_opacity,
             set_overlay_interaction,
+            ensure_overlay_control,
+            toggle_overlay_interactive,
+            release_overlay_focus,
+            webview_overlay_reload,
+            webview_overlay_set_opacity,
+            webview_overlay_set_hidden,
+            get_webview_overlay_geometry,
             start_companion_server,
             stop_companion_server,
             get_companion_info,
@@ -710,6 +745,13 @@ pub fn run() {
             reset_onboarding,
             launch_third_party_application,
             kill_third_party_application,
+            scripts::gamelog_blueprint_watcher::gamelog_blueprints_load,
+            scripts::gamelog_blueprint_watcher::gamelog_watcher_load_config,
+            scripts::gamelog_blueprint_watcher::gamelog_watcher_save_config,
+            scripts::gamelog_blueprint_watcher::gamelog_watcher_status,
+            scripts::gamelog_blueprint_watcher::gamelog_watcher_start,
+            scripts::gamelog_blueprint_watcher::gamelog_watcher_stop,
+            scripts::gamelog_blueprint_watcher::gamelog_blueprints_import_history,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

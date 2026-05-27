@@ -1,10 +1,11 @@
 import { m } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
-import { ExternalLink, RefreshCw, Loader2, Database, PictureInPicture2, Languages, Check } from "lucide-react";
+import { Loader2, Database, Languages, Check, RefreshCw, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import openExternal from "@/utils/external";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { ToolPageHeader } from "@/components/custom/tool-page-header";
 
 const SCMDB_URL = "https://scmdb.net/";
 const SCMDB_FR_LANG_URL =
@@ -131,53 +132,34 @@ export default function ScmDb() {
             transition={{ duration: 0.4, ease: "easeOut" }}
             className="flex flex-col w-full h-full overflow-hidden"
         >
-            <div className="flex items-center justify-between px-2 py-1.5 border-b border-border/50 bg-background/80 backdrop-blur-md flex-shrink-0">
-                <div className="flex items-center gap-2 rounded-full border border-border/60 bg-background/80 px-3 py-1.5 backdrop-blur-md shadow-sm">
-                    <Database className="h-4 w-4 text-emerald-500" />
-                    <span className="font-medium text-[12px]">SCMDB - Base de donnees</span>
-                </div>
-                <div className="flex gap-1.5">
+            <ToolPageHeader
+                icon={Database}
+                iconClassName="text-emerald-500"
+                toolName="SCMDB"
+                detail="Base de données"
+                onRefresh={handleRefresh}
+                onOpenOverlay={handleOpenOverlay}
+                onOpenExternal={handleOpenExternal}
+                customActions={
                     <button
                         onClick={handleCopyFrLang}
-                        className={`flex h-8 items-center gap-1.5 rounded-full border px-3 text-[11.5px] backdrop-blur-md shadow-sm transition-all ${
+                        className={`flex h-[26px] items-center gap-1.5 rounded-md px-2 text-[11px] font-medium transition-colors ${
                             copiedFrLang
-                                ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-500"
-                                : "border-primary/40 bg-primary/10 text-primary hover:border-primary/60 hover:bg-primary/20"
+                                ? "text-emerald-300"
+                                : "text-primary hover:bg-white/10"
                         }`}
                         title="Copier l'URL de la trad FR (à coller dans Community Translation des paramètres SCMDB)"
+                        aria-label="Copier l'URL de la traduction française"
                     >
                         {copiedFrLang ? (
                             <Check className="h-3.5 w-3.5" />
                         ) : (
                             <Languages className="h-3.5 w-3.5" />
                         )}
-                        <span>{copiedFrLang ? "Copié !" : "Copier trad FR"}</span>
+                        <span>{copiedFrLang ? "Copié" : "Trad FR"}</span>
                     </button>
-                    <button
-                        onClick={handleRefresh}
-                        className="flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-background/80 text-foreground/80 backdrop-blur-md shadow-sm transition-all hover:border-primary/50 hover:bg-primary/15 hover:text-primary"
-                        title="Rafraichir"
-                    >
-                        <RefreshCw className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                        onClick={handleOpenOverlay}
-                        className="flex h-8 items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-3 text-[11.5px] text-foreground/80 backdrop-blur-md shadow-sm transition-all hover:border-primary/50 hover:bg-primary/15 hover:text-primary"
-                        title="Detacher en overlay"
-                    >
-                        <PictureInPicture2 className="h-3.5 w-3.5" />
-                        <span>Overlay</span>
-                    </button>
-                    <button
-                        onClick={handleOpenExternal}
-                        className="flex h-8 items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-3 text-[11.5px] text-foreground/80 backdrop-blur-md shadow-sm transition-all hover:border-primary/50 hover:bg-primary/15 hover:text-primary"
-                        title="Ouvrir dans le navigateur"
-                    >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                        <span>Navigateur</span>
-                    </button>
-                </div>
-            </div>
+                }
+            />
 
             <div className="relative flex-1 min-h-0 overflow-hidden">
                 {!isDetachedToOverlay && isLoading && (
