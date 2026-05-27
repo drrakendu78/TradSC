@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { OverlayActionBar } from "@/components/custom/overlay-action-bar";
+import { saveOverlayGeometry } from "@/utils/overlay-geometry-store";
 
 const OverlayView = () => {
     const [searchParams] = useSearchParams();
@@ -29,6 +31,56 @@ const OverlayView = () => {
             style.remove();
         };
     }, []);
+
+    // Persistance position/taille (Discord thread #2 — pticopate, dual screen).
+    // Sauve la géométrie de la fenêtre dans localStorage à chaque move/resize,
+    // pour qu'à la prochaine ouverture du même overlay id, OverlayHub.tsx
+    // restaure cette géométrie (au lieu de spawn aux dimensions par défaut).
+    // Debounce 400 ms pour ne pas écrire en localStorage à chaque frame de drag.
+    useEffect(() => {
+        if (!id) return;
+        const win = getCurrentWindow();
+        let unlistenMoved: (() => void) | undefined;
+        let unlistenResized: (() => void) | undefined;
+        let saveTimer: number | null = null;
+
+        const persist = async () => {
+            try {
+                const pos = await win.outerPosition();
+                const size = await win.outerSize();
+                const scale = (await win.scaleFactor().catch(() => 1)) || 1;
+                saveOverlayGeometry(id, {
+                    x: pos.x / scale,
+                    y: pos.y / scale,
+                    width: size.width / scale,
+                    height: size.height / scale,
+                });
+            } catch {
+                /* ignore */
+            }
+        };
+
+        const schedulePersist = () => {
+            if (saveTimer !== null) window.clearTimeout(saveTimer);
+            saveTimer = window.setTimeout(() => {
+                saveTimer = null;
+                persist().catch(() => undefined);
+            }, 400);
+        };
+
+        win.onMoved(() => schedulePersist())
+            .then((fn) => { unlistenMoved = fn; })
+            .catch(() => undefined);
+        win.onResized(() => schedulePersist())
+            .then((fn) => { unlistenResized = fn; })
+            .catch(() => undefined);
+
+        return () => {
+            if (saveTimer !== null) window.clearTimeout(saveTimer);
+            if (unlistenMoved) unlistenMoved();
+            if (unlistenResized) unlistenResized();
+        };
+    }, [id]);
 
     // Pilotage de l'opacité depuis l'extérieur (slider companion). On reçoit un
     // event broadcast et on filtre sur l'id de l'overlay courant. set_window_opacity

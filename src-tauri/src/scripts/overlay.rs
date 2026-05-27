@@ -1167,6 +1167,49 @@ pub async fn close_webview_overlay(app_handle: AppHandle, id: String) -> Result<
     Ok(())
 }
 
+/// Retourne la géométrie perçue d'un overlay webview (= bar + webview
+/// combinés, en pixels logiques). Utilisé pour persister la position/taille
+/// que l'user a définie manuellement. Retourne x = bar.x, y = bar.y (top de
+/// la bar), width = webview.width, height = webview.height + 36 (bar incluse).
+#[command]
+pub async fn get_webview_overlay_perceived_geometry(
+    app_handle: AppHandle,
+    id: String,
+) -> Result<(f64, f64, f64, f64), String> {
+    let webview_label = overlay_target_label(&id, "webview");
+    let webview = app_handle
+        .get_webview_window(&webview_label)
+        .ok_or_else(|| format!("Webview overlay '{}' not found", id))?;
+    let pos = webview.outer_position().map_err(|e| e.to_string())?;
+    let size = webview.outer_size().map_err(|e| e.to_string())?;
+    let scale = webview.scale_factor().unwrap_or(1.0);
+    let logical_x = pos.x as f64 / scale;
+    let logical_y = (pos.y as f64 / scale) - WEBVIEW_BAR_HEIGHT;
+    let logical_w = size.width as f64 / scale;
+    let logical_h = (size.height as f64 / scale) + WEBVIEW_BAR_HEIGHT;
+    Ok((logical_x, logical_y, logical_w, logical_h))
+}
+
+/// Re-positionne une fenêtre overlay (iframe ou webview) à la position
+/// donnée. Utilisé pour restaurer la dernière position custom de l'user
+/// après ouverture (cf. Discord thread #2 — dual screen disposition).
+#[command]
+pub async fn set_overlay_window_position(
+    app_handle: AppHandle,
+    id: String,
+    overlay_type: Option<String>,
+    x: f64,
+    y: f64,
+) -> Result<(), String> {
+    let overlay_type = overlay_type.unwrap_or_else(|| "iframe".to_string());
+    let label = overlay_target_label(&id, &overlay_type);
+    if let Some(win) = app_handle.get_webview_window(&label) {
+        win.set_position(tauri::LogicalPosition::new(x, y))
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 #[command]
 pub async fn set_overlay_size(
     app_handle: AppHandle,

@@ -18,6 +18,7 @@ import {
     type OverlayHubCategory,
     type OverlayHubTool,
 } from "@/components/custom/overlay-hub-bar";
+import { loadOverlayGeometry } from "@/utils/overlay-geometry-store";
 
 const HUB_TOP_OFFSET = 10;
 // Marge périphérique entre la taille mesurée du contenu (getBoundingClientRect)
@@ -868,22 +869,39 @@ const OverlayHub = () => {
                 });
                 return;
             }
+            // Restaure la géométrie persistée si dispo (Discord thread #2).
+            // L'user a peut-être customisé la position/taille à la dernière
+            // ouverture (dual screen, etc.) → on respecte ce choix au lieu
+            // de re-spawn aux dimensions par défaut.
+            const savedGeo = loadOverlayGeometry(item.id);
+            const finalWidth = savedGeo?.width ?? item.width;
+            const finalHeight = savedGeo?.height ?? item.height;
             if (item.kind === "webview") {
                 await invoke("open_webview_overlay", {
                     id: item.id,
                     url: item.url,
-                    width: item.width,
-                    height: item.height,
+                    width: finalWidth,
+                    height: finalHeight,
                     opacity: item.opacity,
                 });
+                // Restaure la position après ouverture (open_webview_overlay
+                // utilise `.center()` côté Rust, on override ici si saved).
+                if (savedGeo) {
+                    await invoke("set_overlay_window_position", {
+                        id: item.id,
+                        overlayType: "webview",
+                        x: savedGeo.x,
+                        y: savedGeo.y,
+                    }).catch(() => undefined);
+                }
             } else {
                 await invoke("open_overlay", {
                     id: item.id,
                     url: item.url,
-                    x: 100.0,
-                    y: 100.0,
-                    width: item.width,
-                    height: item.height,
+                    x: savedGeo?.x ?? 100.0,
+                    y: savedGeo?.y ?? 100.0,
+                    width: finalWidth,
+                    height: finalHeight,
                     opacity: item.opacity,
                 });
             }
