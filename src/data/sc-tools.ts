@@ -123,6 +123,21 @@ export const SC_EXTERNAL_TOOLS: ScTool[] = [
         iconClassName: "text-lime-400",
         category: "economy",
     },
+    {
+        // Discord thread #7 (r0m021, 25/05) — calculateur de routes commerciales
+        // multi-hop alimenté par UEX. Drrakendu avait promis publiquement
+        // l'intégration "ce soir" → livré le 27/05.
+        id: "sc-trade-routes",
+        label: "SC Trade Routes",
+        detail: "Trading",
+        url: "https://sc-trade-routes.streamerforge.com/",
+        host: "sc-trade-routes.streamerforge.com",
+        mode: "iframe",
+        route: "/sc-trade-routes",
+        icon: "route",
+        iconClassName: "text-yellow-400",
+        category: "economy",
+    },
 ];
 
 export const SC_IFRAME_TOOLS = SC_EXTERNAL_TOOLS.filter(

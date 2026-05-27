@@ -24,6 +24,7 @@ const ALLOWED_TOOL_DOMAINS = [
     "scdb.space",
     "sc-craft.tools",
     "thespacecoder.space",
+    "streamerforge.com",
 ] as const;
 
 const BUILTIN_OVERLAY_ITEMS: BuiltinOverlayHubDefinition[] = [
