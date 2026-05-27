@@ -23,7 +23,6 @@ export default function AdminElevateButton() {
         const check = async () => {
             try {
                 const res = await invoke<boolean>("is_running_as_admin");
-                console.log('[AdminButton] is_running_as_admin:', res);
                 dispatch({ type: 'SET_ADMIN', value: res });
             } catch (error) {
                 console.error('[AdminButton] Erreur vérification admin:', error);
@@ -36,7 +35,6 @@ export default function AdminElevateButton() {
     }, []);
 
     const shouldShow = !isAdmin || visibleOverride;
-    console.log('[AdminButton] shouldShow:', shouldShow, '(isAdmin:', isAdmin, ', visibleOverride:', visibleOverride, ')');
     if (!shouldShow) return null;
 
     return (

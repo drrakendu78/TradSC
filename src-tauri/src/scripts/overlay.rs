@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use windows::Win32::Foundation::{BOOL, HWND, LPARAM};
 #[cfg(target_os = "windows")]
 use windows::Win32::UI::WindowsAndMessaging::{
-    EnumWindows, GetForegroundWindow, GetWindowLongW, GetWindowTextW, IsWindowVisible,
+    EnumWindows, GetWindowLongW, GetWindowTextW, IsWindowVisible,
     SetForegroundWindow, SetLayeredWindowAttributes, SetWindowLongW, SetWindowPos,
     GWL_EXSTYLE, GWL_STYLE, HWND_TOP, LWA_ALPHA, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE,
     SWP_NOSIZE, SWP_NOZORDER, WS_BORDER, WS_CAPTION, WS_DLGFRAME, WS_EX_LAYERED,
@@ -464,24 +464,11 @@ fn apply_hub_pill_region(win: &tauri::WebviewWindow) {
     // Win32::Graphics::Gdi (et non Win32::UI::WindowsAndMessaging).
     use windows::Win32::Graphics::Gdi::{CreateRoundRectRgn, SetWindowRgn};
 
-    let size = match win.outer_size() {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("[hub-pill] outer_size failed: {e}");
-            return;
-        }
-    };
-    let hwnd_raw = match win.hwnd() {
-        Ok(h) => h,
-        Err(e) => {
-            eprintln!("[hub-pill] hwnd failed: {e}");
-            return;
-        }
-    };
+    let Ok(size) = win.outer_size() else { return; };
+    let Ok(hwnd_raw) = win.hwnd() else { return; };
     let width = size.width as i32;
     let height = size.height as i32;
     if width <= 0 || height <= 0 {
-        eprintln!("[hub-pill] zero-sized window {width}x{height}, skip");
         return;
     }
     // Pour un vrai pill (rounded-full → radius = min(w,h)/2), CreateRoundRectRgn
@@ -497,15 +484,10 @@ fn apply_hub_pill_region(win: &tauri::WebviewWindow) {
         // pour Rectangle GDI, d'où le `+1` sur les bornes droite/basse.
         let rgn = CreateRoundRectRgn(0, 0, width + 1, height + 1, corner, corner);
         if rgn.is_invalid() {
-            eprintln!("[hub-pill] CreateRoundRectRgn returned invalid");
             return;
         }
         // SetWindowRgn prend ownership de HRGN, donc pas de DeleteObject.
-        // Retourne un i32 : non-zero = success, zero = failure.
-        let result = SetWindowRgn(h, rgn, true);
-        eprintln!(
-            "[hub-pill] SetWindowRgn applied: size={width}x{height} corner={corner} result={result}"
-        );
+        let _ = SetWindowRgn(h, rgn, true);
     }
 }
 
@@ -1679,10 +1661,6 @@ pub fn release_overlay_focus(app_handle: AppHandle) -> Result<(), String> {
             }
         }
 
-        // 3. Signal de debug : log le HWND foreground actuel pour
-        // diagnostiquer les futurs problèmes de focus.
-        let fg = GetForegroundWindow();
-        eprintln!("[release_overlay_focus] foreground après = {:p}", fg.0);
     }
     #[cfg(not(target_os = "windows"))]
     {
