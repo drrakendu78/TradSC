@@ -124,6 +124,10 @@ export function AutoDetectCard() {
                 return next.length > MAX_LOGS ? next.slice(-MAX_LOGS) : next;
             });
         });
+        // Le toast "Nouveau schéma reçu" est désormais affiché
+        // globalement par useGlobalBlueprintToast() depuis main.tsx
+        // (visible peu importe la page). On garde ici uniquement le
+        // bookkeeping de la liste locale et du compteur.
         const unlistenBlueprint = listen<BlueprintEntry>("gamelog-watcher:blueprint", (event) => {
             setBlueprints((prev) => {
                 if (prev.some((b) => b.productName === event.payload.productName)) return prev;
@@ -131,10 +135,6 @@ export function AutoDetectCard() {
                 return next.sort((a, b) => b.ts - a.ts);
             });
             setStatus((prev) => ({ ...prev, blueprintCount: prev.blueprintCount + 1 }));
-            toast({
-                title: "Nouveau schéma détecté",
-                description: event.payload.productName,
-            });
         });
         // Sync entre les multiples instances du composant (page Blueprints +
         // overlay détaché + sidebar Paramètres → Services). Quand n'importe

@@ -828,15 +828,16 @@ export default function Blueprints({ isOverlayEmbed = false }: BlueprintsProps =
                     );
                     return;
                 }
+                // Le toast est affiché globalement par
+                // useGlobalBlueprintToast() depuis main.tsx (peu importe
+                // la page courante). Ici on coche silencieusement la case
+                // dans la liste — la case visuellement cochée + le toast
+                // global suffisent comme feedback à l'utilisateur.
                 setOwned((prev) => {
                     if (prev.has(id)) return prev;
                     const next = new Set(prev);
                     next.add(id);
                     persistOwned(next);
-                    toast({
-                        title: "Schéma coché automatiquement",
-                        description: event.payload.productName,
-                    });
                     return next;
                 });
             },

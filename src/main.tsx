@@ -14,6 +14,7 @@ import OnboardingWizard from "@/components/custom/onboarding/OnboardingWizard";
 import { CacheCleanupPrompt } from "@/components/custom/cache-cleanup-prompt";
 import { useCompanionBridge } from "@/hooks/useCompanionBridge";
 import { ensureLegacyCacheMigration, useShaderCacheAutoCleanOnBoot } from "@/hooks/useShaderCacheAutoClean";
+import { useGlobalBlueprintToast } from "@/hooks/useGlobalBlueprintToast";
 import { isTauri } from "@/utils/tauri-helpers";
 
 const COMPANION_ENABLED_KEY = "companionServerEnabled";
@@ -85,6 +86,10 @@ function App() {
 
   useCompanionBridge(!isOverlay);
   useShaderCacheAutoCleanOnBoot();
+  // Toast global "Nouveau schéma reçu" à chaque détection blueprint,
+  // visible peu importe la page courante. Skip dans les overlays pour
+  // pas spammer 6 toasts en parallèle quand le watcher tick.
+  useGlobalBlueprintToast();
 
   useEffect(() => {
     if (isOverlay || !isTauri()) return;
