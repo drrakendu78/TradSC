@@ -34,6 +34,7 @@ const ALLOWED_DOMAINS = [
     "scdb.space",
     "sc-craft.tools",
     "thespacecoder.space",
+    "streamerforge.com",
     "robertsspaceindustries.com",
     "status.robertsspaceindustries.com",
     "install.robertsspaceindustries.com",
