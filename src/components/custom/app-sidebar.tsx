@@ -10,11 +10,11 @@ import {
     PinOff
 } from 'lucide-react';
 import { IconHome, IconBrandDiscord, IconCloud, IconBrandGithub, IconLanguage, IconUsers, IconNews, IconKeyboard, IconCalculator, IconMap2, IconSearch, IconSwords, IconPackage, IconHammer, IconBook, IconDatabase } from "@tabler/icons-react";
-import { BrushCleaning, Download, Power, PowerOff, Loader2, RotateCcw, Monitor, Route, BarChart3, Calendar, Languages, Trash2, Save, Users, Pickaxe, ShieldCheck, Handshake } from "lucide-react";
+import { BrushCleaning, Download, Power, PowerOff, Loader2, RotateCcw, Monitor, Route, BarChart3, Calendar, Languages, Trash2, Save, Users, Pickaxe, ShieldCheck, Handshake, Coins, Ship } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { ColorPicker } from "@/components/custom/color-picker";
 import openExternal, { isAllowedUrl, openExternalCustom } from "@/utils/external";
-import { SC_EXTERNAL_TOOLS, SC_IFRAME_TOOLS, type ScTool, type ScToolIcon } from "@/data/sc-tools";
+import { SC_EXTERNAL_TOOLS, SC_IFRAME_TOOLS, type ScTool, type ScToolIcon, type ScToolCategory } from "@/data/sc-tools";
 import { useCustomLinksStore } from "@/stores/custom-links-store";
 import CustomLinkDialog, { getIconByName } from "./custom-link-dialog";
 import { Plus, Pencil } from "lucide-react";
@@ -498,6 +498,41 @@ export function AppSidebar() {
     const [isToolsSubExpanded, setIsToolsSubExpanded] = useState(false);
     const [isNetworksExpanded, setIsNetworksExpanded] = useState(true);
     const [isExternalServicesExpanded, setIsExternalServicesExpanded] = useState(true);
+
+    // Sous-dossiers de la section "Outils SC" (par catégorie).
+    // État persisté en localStorage pour que le user retrouve sa config.
+    const TOOL_CATEGORY_EXPANDED_KEY = "startradfr_sc_tools_category_expanded";
+    const [expandedToolCategories, setExpandedToolCategories] = useState<Record<ScToolCategory, boolean>>(() => {
+        try {
+            const raw = localStorage.getItem(TOOL_CATEGORY_EXPANDED_KEY);
+            if (raw) {
+                const parsed = JSON.parse(raw) as Partial<Record<ScToolCategory, boolean>>;
+                return {
+                    database: parsed.database ?? false,
+                    economy: parsed.economy ?? false,
+                    "craft-mining": parsed["craft-mining"] ?? false,
+                    combat: parsed.combat ?? false,
+                    "ships-guides": parsed["ships-guides"] ?? false,
+                };
+            }
+        } catch { /* ignore */ }
+        return {
+            database: false,
+            economy: false,
+            "craft-mining": false,
+            combat: false,
+            "ships-guides": false,
+        };
+    });
+    const toggleToolCategory = useCallback((cat: ScToolCategory) => {
+        setExpandedToolCategories((prev) => {
+            const next = { ...prev, [cat]: !prev[cat] };
+            try {
+                localStorage.setItem(TOOL_CATEGORY_EXPANDED_KEY, JSON.stringify(next));
+            } catch { /* ignore */ }
+            return next;
+        });
+    }, []);
     const [, setUserMenuOpen] = useState(false);
     const { isLocked, setLocked, isCollapsed, setCollapsed } = useSidebarStore(); // Etat depuis le store
     const location = useLocation();
@@ -633,6 +668,65 @@ export function AppSidebar() {
             height: tool.webviewHeight ?? 780.0,
             opacity: tool.webviewOpacity ?? 1.0,
         }).catch(console.error);
+    };
+
+    /**
+     * Factorise le rendu d'un item SC_EXTERNAL_TOOLS pour pouvoir l'utiliser
+     * dans plusieurs sous-dossiers de la section "Outils SC".
+     */
+    const renderScExtToolLi = (tool: ScTool) => (
+        <li key={tool.id}>
+            {tool.mode === "iframe" ? (
+                <Link
+                    to={tool.route}
+                    onClick={() => handleItemClick(tool.id, tool.route)}
+                    className={`flex items-center gap-3 rounded-lg group relative transition-all duration-200 ease-out ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"} ${activeItem === tool.id ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}`}
+                    title={isCollapsed ? tool.label : undefined}
+                >
+                    {activeItem === tool.id && !isCollapsed && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />}
+                    <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === tool.id ? '' : 'group-hover:scale-110'}`}>
+                        {renderScToolIcon(tool.icon)}
+                    </div>
+                    {!isCollapsed && <span className={`text-sm ${activeItem === tool.id ? "font-medium" : "font-normal"}`}>{tool.label}</span>}
+                    {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">{tool.label}</div>}
+                </Link>
+            ) : (
+                <button
+                    onClick={() => openScWebviewTool(tool)}
+                    className={`flex items-center gap-3 rounded-lg text-left group relative transition-all duration-200 ease-out ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"} text-muted-foreground hover:bg-white/5 hover:text-foreground`}
+                    title={isCollapsed ? tool.label : undefined}
+                >
+                    <div className="flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110">
+                        {renderScToolIcon(tool.icon)}
+                    </div>
+                    {!isCollapsed && <span className="text-sm font-normal">{tool.label}</span>}
+                    {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">{tool.label}</div>}
+                </button>
+            )}
+        </li>
+    );
+
+    /**
+     * Header collapsible d'une sous-catégorie "Outils SC". Caché en mode
+     * sidebar réduite (`isCollapsed`) — les outils s'affichent à plat.
+     */
+    const renderToolCategoryHeader = (cat: ScToolCategory, label: string, icon: React.ReactNode) => {
+        if (isCollapsed) return null;
+        const expanded = expandedToolCategories[cat];
+        return (
+            <li className="pt-2 first:pt-0">
+                <button
+                    onClick={() => toggleToolCategory(cat)}
+                    className={`w-full text-[10px] font-semibold uppercase tracking-wider rounded-md
+                        transition-all duration-200 flex items-center gap-2 px-3 py-1
+                        text-muted-foreground/60 hover:text-muted-foreground hover:bg-white/5`}
+                >
+                    <span className="flex items-center justify-center w-3.5 h-3.5">{icon}</span>
+                    <span className="flex-1 text-left">{label}</span>
+                    <ChevronDown size={10} className={`transition-transform duration-300 ${expanded ? '' : '-rotate-90'}`} />
+                </button>
+            </li>
+        );
     };
 
     const getFilteredMenuItems = () => {
@@ -993,7 +1087,7 @@ export function AppSidebar() {
                         )}
                     </div>
 
-                    {/* Outils SC - section indépendante */}
+                    {/* Outils SC - section indépendante avec sous-dossiers par catégorie */}
                     <div className="mb-2">
                         {!isCollapsed && (
                             <button
@@ -1014,184 +1108,207 @@ export function AppSidebar() {
                         )}
                         {(isToolsSubExpanded || isCollapsed) && (
                             <ul className="space-y-0">
-                                {/* DPS Calculator */}
-                                <li>
-                                    <Link
-                                        to="/dps-calculator"
-                                        onClick={() => handleItemClick('dps-calculator', '/dps-calculator')}
-                                        className={`
-                                            flex items-center gap-3 rounded-lg text-left group relative
-                                            transition-all duration-200 ease-out
-                                            ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"}
-                                            ${activeItem === 'dps-calculator' ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}
-                                        `}
-                                        title={isCollapsed ? "DPS Calculator" : undefined}
-                                    >
-                                        {activeItem === 'dps-calculator' && !isCollapsed && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />}
-                                        <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === 'dps-calculator' ? '' : 'group-hover:scale-110'}`}><IconCalculator size={18} /></div>
-                                        {!isCollapsed && <span className={`text-sm ${activeItem === 'dps-calculator' ? "font-medium" : "font-normal"}`}>DPS Calculator</span>}
-                                        {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">DPS Calculator</div>}
-                                    </Link>
-                                </li>
-                                {/* Ship Maps */}
-                                <li>
-                                    <Link
-                                        to="/ship-maps"
-                                        onClick={() => handleItemClick('ship-maps', '/ship-maps')}
-                                        className={`
-                                            flex items-center gap-3 rounded-lg text-left group relative
-                                            transition-all duration-200 ease-out
-                                            ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"}
-                                            ${activeItem === 'ship-maps' ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}
-                                        `}
-                                        title={isCollapsed ? "Cartes de vaisseaux (ADI)" : undefined}
-                                    >
-                                        {activeItem === 'ship-maps' && !isCollapsed && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />}
-                                        <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === 'ship-maps' ? '' : 'group-hover:scale-110'}`}><IconMap2 size={18} /></div>
-                                        {!isCollapsed && <span className={`text-sm ${activeItem === 'ship-maps' ? "font-medium" : "font-normal"}`}>Cartes vaisseaux</span>}
-                                        {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">Cartes de vaisseaux (ADI)</div>}
-                                    </Link>
-                                </li>
-                                {/* Finder */}
-                                <li>
-                                    <Link
-                                        to="/finder"
-                                        onClick={() => handleItemClick('finder', '/finder')}
-                                        className={`
-                                            flex items-center gap-3 rounded-lg text-left group relative
-                                            transition-all duration-200 ease-out
-                                            ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"}
-                                            ${activeItem === 'finder' ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}
-                                        `}
-                                        title={isCollapsed ? "Finder (Cornerstone)" : undefined}
-                                    >
-                                        {activeItem === 'finder' && !isCollapsed && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />}
-                                        <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === 'finder' ? '' : 'group-hover:scale-110'}`}><IconSearch size={18} /></div>
-                                        {!isCollapsed && <span className={`text-sm ${activeItem === 'finder' ? "font-medium" : "font-normal"}`}>Finder</span>}
-                                        {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">Finder (Cornerstone)</div>}
-                                    </Link>
-                                </li>
-                                {/* Zones PVP */}
-                                <li>
-                                    <Link
-                                        to="/pvp"
-                                        onClick={() => handleItemClick('pvp', '/pvp')}
-                                        className={`
-                                            flex items-center gap-3 rounded-lg text-left group relative
-                                            transition-all duration-200 ease-out
-                                            ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"}
-                                            ${activeItem === 'pvp' ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}
-                                        `}
-                                        title={isCollapsed ? "Zones PVP" : undefined}
-                                    >
-                                        {activeItem === 'pvp' && !isCollapsed && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />}
-                                        <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === 'pvp' ? '' : 'group-hover:scale-110'}`}><IconSwords size={18} /></div>
-                                        {!isCollapsed && <span className={`text-sm ${activeItem === 'pvp' ? "font-medium" : "font-normal"}`}>Zones PVP</span>}
-                                        {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">Zones PVP</div>}
-                                    </Link>
-                                </li>
-                                {/* Cargo */}
-                                <li>
-                                    <Link
-                                        to="/cargo"
-                                        onClick={() => handleItemClick('cargo', '/cargo')}
-                                        className={`
-                                            flex items-center gap-3 rounded-lg text-left group relative
-                                            transition-all duration-200 ease-out
-                                            ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"}
-                                            ${activeItem === 'cargo' ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}
-                                        `}
-                                        title={isCollapsed ? "Grilles Cargo" : undefined}
-                                    >
-                                        {activeItem === 'cargo' && !isCollapsed && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />}
-                                        <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === 'cargo' ? '' : 'group-hover:scale-110'}`}><IconPackage size={18} /></div>
-                                        {!isCollapsed && <span className={`text-sm ${activeItem === 'cargo' ? "font-medium" : "font-normal"}`}>Grilles Cargo</span>}
-                                        {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">Grilles Cargo</div>}
-                                    </Link>
-                                </li>
-                                {/* VerseGuide */}
-                                <li>
-                                    <Link
-                                        to="/verseguide"
-                                        onClick={() => handleItemClick('verseguide', '/verseguide')}
-                                        className={`flex items-center gap-3 rounded-lg group relative transition-all duration-200 ease-out ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"} ${activeItem === 'verseguide' ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}`}
-                                        title={isCollapsed ? "VerseGuide" : undefined}
-                                    >
-                                        {activeItem === 'verseguide' && !isCollapsed && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />}
-                                        <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === 'verseguide' ? '' : 'group-hover:scale-110'}`}><IconBook size={18} /></div>
-                                        {!isCollapsed && <span className={`text-sm ${activeItem === 'verseguide' ? "font-medium" : "font-normal"}`}>VerseGuide</span>}
-                                        {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">VerseGuide</div>}
-                                    </Link>
-                                </li>
-                                {/* Crafter */}
-                                <li>
-                                    <button
-                                        onClick={() => invoke('open_overlay', { id: 'crafter', url: 'https://www.sccrafter.com/', x: 100.0, y: 100.0, width: 600.0, height: 800.0, opacity: 0.9 }).catch(console.error)}
-                                        className={`flex items-center gap-3 rounded-lg text-left group relative transition-all duration-200 ease-out ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"} text-muted-foreground hover:bg-white/5 hover:text-foreground`}
-                                        title={isCollapsed ? "Crafter" : undefined}
-                                    >
-                                        <div className="flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110"><IconHammer size={18} /></div>
-                                        {!isCollapsed && <span className="text-sm font-normal">Crafter</span>}
-                                        {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">Crafter</div>}
-                                    </button>
-                                </li>
-                                {/* SCMDB */}
-                                <li>
-                                    <Link
-                                        to="/scmdb"
-                                        onClick={() => handleItemClick('scmdb', '/scmdb')}
-                                        className={`flex items-center gap-3 rounded-lg group relative transition-all duration-200 ease-out ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"} ${activeItem === 'scmdb' ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}`}
-                                        title={isCollapsed ? "SCMDB" : undefined}
-                                    >
-                                        {activeItem === 'scmdb' && !isCollapsed && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />}
-                                        <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === 'scmdb' ? '' : 'group-hover:scale-110'}`}><IconDatabase size={18} /></div>
-                                        {!isCollapsed && <span className={`text-sm ${activeItem === 'scmdb' ? "font-medium" : "font-normal"}`}>SCMDB</span>}
-                                        {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">SCMDB</div>}
-                                    </Link>
-                                </li>
-                                {/* Routes de trading */}
-                                <li>
-                                    <button
-                                        onClick={() => invoke('open_webview_overlay', { id: 'uexcorp', url: 'https://uexcorp.space/', width: 600.0, height: 800.0, opacity: 0.9 }).catch(console.error)}
-                                        className={`flex items-center gap-3 rounded-lg text-left group relative transition-all duration-200 ease-out ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"} text-muted-foreground hover:bg-white/5 hover:text-foreground`}
-                                        title={isCollapsed ? "Routes de trading (UEX Corp)" : undefined}
-                                    >
-                                        <div className="flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110"><Route size={18} /></div>
-                                        {!isCollapsed && <span className="text-sm font-normal">Routes de trading</span>}
-                                        {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">Routes de trading (UEX Corp)</div>}
-                                    </button>
-                                </li>
-                                {SC_EXTERNAL_TOOLS.map((tool) => (
-                                    <li key={tool.id}>
-                                        {tool.mode === "iframe" ? (
+                                {/* ============================================== */}
+                                {/* === Catégorie : 🗄️ Base de données        === */}
+                                {/* ============================================== */}
+                                {renderToolCategoryHeader("database", "Base de données", <IconDatabase size={12} />)}
+                                {(isCollapsed || expandedToolCategories.database) && (
+                                    <>
+                                        {/* SCMDB */}
+                                        <li>
                                             <Link
-                                                to={tool.route}
-                                                onClick={() => handleItemClick(tool.id, tool.route)}
-                                                className={`flex items-center gap-3 rounded-lg group relative transition-all duration-200 ease-out ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"} ${activeItem === tool.id ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}`}
-                                                title={isCollapsed ? tool.label : undefined}
+                                                to="/scmdb"
+                                                onClick={() => handleItemClick('scmdb', '/scmdb')}
+                                                className={`flex items-center gap-3 rounded-lg group relative transition-all duration-200 ease-out ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"} ${activeItem === 'scmdb' ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}`}
+                                                title={isCollapsed ? "SCMDB" : undefined}
                                             >
-                                                {activeItem === tool.id && !isCollapsed && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />}
-                                                <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === tool.id ? '' : 'group-hover:scale-110'}`}>
-                                                    {renderScToolIcon(tool.icon)}
-                                                </div>
-                                                {!isCollapsed && <span className={`text-sm ${activeItem === tool.id ? "font-medium" : "font-normal"}`}>{tool.label}</span>}
-                                                {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">{tool.label}</div>}
+                                                {activeItem === 'scmdb' && !isCollapsed && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />}
+                                                <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === 'scmdb' ? '' : 'group-hover:scale-110'}`}><IconDatabase size={18} /></div>
+                                                {!isCollapsed && <span className={`text-sm ${activeItem === 'scmdb' ? "font-medium" : "font-normal"}`}>SCMDB</span>}
+                                                {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">SCMDB</div>}
                                             </Link>
-                                        ) : (
-                                            <button
-                                                onClick={() => openScWebviewTool(tool)}
-                                                className={`flex items-center gap-3 rounded-lg text-left group relative transition-all duration-200 ease-out ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"} text-muted-foreground hover:bg-white/5 hover:text-foreground`}
-                                                title={isCollapsed ? tool.label : undefined}
+                                        </li>
+                                        {/* SC_EXTERNAL_TOOLS de la catégorie database (Schaulers, SCDB Space) */}
+                                        {SC_EXTERNAL_TOOLS.filter(t => t.category === "database").map(renderScExtToolLi)}
+                                        {/* Finder */}
+                                        <li>
+                                            <Link
+                                                to="/finder"
+                                                onClick={() => handleItemClick('finder', '/finder')}
+                                                className={`
+                                                    flex items-center gap-3 rounded-lg text-left group relative
+                                                    transition-all duration-200 ease-out
+                                                    ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"}
+                                                    ${activeItem === 'finder' ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}
+                                                `}
+                                                title={isCollapsed ? "Finder (Cornerstone)" : undefined}
                                             >
-                                                <div className="flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110">
-                                                    {renderScToolIcon(tool.icon)}
-                                                </div>
-                                                {!isCollapsed && <span className="text-sm font-normal">{tool.label}</span>}
-                                                {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">{tool.label}</div>}
+                                                {activeItem === 'finder' && !isCollapsed && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />}
+                                                <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === 'finder' ? '' : 'group-hover:scale-110'}`}><IconSearch size={18} /></div>
+                                                {!isCollapsed && <span className={`text-sm ${activeItem === 'finder' ? "font-medium" : "font-normal"}`}>Finder</span>}
+                                                {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">Finder (Cornerstone)</div>}
+                                            </Link>
+                                        </li>
+                                    </>
+                                )}
+
+                                {/* ============================================== */}
+                                {/* === Catégorie : 💰 Économie               === */}
+                                {/* ============================================== */}
+                                {renderToolCategoryHeader("economy", "Économie", <Coins size={12} />)}
+                                {(isCollapsed || expandedToolCategories.economy) && (
+                                    <>
+                                        {/* Grilles Cargo (ratjack) */}
+                                        <li>
+                                            <Link
+                                                to="/cargo"
+                                                onClick={() => handleItemClick('cargo', '/cargo')}
+                                                className={`
+                                                    flex items-center gap-3 rounded-lg text-left group relative
+                                                    transition-all duration-200 ease-out
+                                                    ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"}
+                                                    ${activeItem === 'cargo' ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}
+                                                `}
+                                                title={isCollapsed ? "Grilles Cargo" : undefined}
+                                            >
+                                                {activeItem === 'cargo' && !isCollapsed && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />}
+                                                <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === 'cargo' ? '' : 'group-hover:scale-110'}`}><IconPackage size={18} /></div>
+                                                {!isCollapsed && <span className={`text-sm ${activeItem === 'cargo' ? "font-medium" : "font-normal"}`}>Grilles Cargo</span>}
+                                                {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">Grilles Cargo</div>}
+                                            </Link>
+                                        </li>
+                                        {/* SC_EXTERNAL_TOOLS de la catégorie economy (SC Cargo Viewer, Hauler) */}
+                                        {SC_EXTERNAL_TOOLS.filter(t => t.category === "economy").map(renderScExtToolLi)}
+                                        {/* Routes de trading (UEX Corp) */}
+                                        <li>
+                                            <button
+                                                onClick={() => invoke('open_webview_overlay', { id: 'uexcorp', url: 'https://uexcorp.space/', width: 600.0, height: 800.0, opacity: 0.9 }).catch(console.error)}
+                                                className={`flex items-center gap-3 rounded-lg text-left group relative transition-all duration-200 ease-out ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"} text-muted-foreground hover:bg-white/5 hover:text-foreground`}
+                                                title={isCollapsed ? "Routes de trading (UEX Corp)" : undefined}
+                                            >
+                                                <div className="flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110"><Route size={18} /></div>
+                                                {!isCollapsed && <span className="text-sm font-normal">Routes de trading</span>}
+                                                {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">Routes de trading (UEX Corp)</div>}
                                             </button>
-                                        )}
-                                    </li>
-                                ))}
+                                        </li>
+                                    </>
+                                )}
+
+                                {/* ============================================== */}
+                                {/* === Catégorie : ⚒️ Crafting & Mining      === */}
+                                {/* ============================================== */}
+                                {renderToolCategoryHeader("craft-mining", "Crafting & Mining", <IconHammer size={12} />)}
+                                {(isCollapsed || expandedToolCategories["craft-mining"]) && (
+                                    <>
+                                        {/* SC Craft Tools (SC_EXTERNAL_TOOLS) */}
+                                        {SC_EXTERNAL_TOOLS.filter(t => t.id === "sc-craft-tools").map(renderScExtToolLi)}
+                                        {/* Crafter (sccrafter, hardcoded) */}
+                                        <li>
+                                            <button
+                                                onClick={() => invoke('open_overlay', { id: 'crafter', url: 'https://www.sccrafter.com/', x: 100.0, y: 100.0, width: 600.0, height: 800.0, opacity: 0.9 }).catch(console.error)}
+                                                className={`flex items-center gap-3 rounded-lg text-left group relative transition-all duration-200 ease-out ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"} text-muted-foreground hover:bg-white/5 hover:text-foreground`}
+                                                title={isCollapsed ? "Crafter" : undefined}
+                                            >
+                                                <div className="flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110"><IconHammer size={18} /></div>
+                                                {!isCollapsed && <span className="text-sm font-normal">Crafter</span>}
+                                                {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">Crafter</div>}
+                                            </button>
+                                        </li>
+                                        {/* AllSky Mining (SC_EXTERNAL_TOOLS) */}
+                                        {SC_EXTERNAL_TOOLS.filter(t => t.id === "allsky-mining").map(renderScExtToolLi)}
+                                    </>
+                                )}
+
+                                {/* ============================================== */}
+                                {/* === Catégorie : ⚔️ Combat                 === */}
+                                {/* ============================================== */}
+                                {renderToolCategoryHeader("combat", "Combat", <IconSwords size={12} />)}
+                                {(isCollapsed || expandedToolCategories.combat) && (
+                                    <>
+                                        {/* DPS Calculator */}
+                                        <li>
+                                            <Link
+                                                to="/dps-calculator"
+                                                onClick={() => handleItemClick('dps-calculator', '/dps-calculator')}
+                                                className={`
+                                                    flex items-center gap-3 rounded-lg text-left group relative
+                                                    transition-all duration-200 ease-out
+                                                    ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"}
+                                                    ${activeItem === 'dps-calculator' ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}
+                                                `}
+                                                title={isCollapsed ? "DPS Calculator" : undefined}
+                                            >
+                                                {activeItem === 'dps-calculator' && !isCollapsed && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />}
+                                                <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === 'dps-calculator' ? '' : 'group-hover:scale-110'}`}><IconCalculator size={18} /></div>
+                                                {!isCollapsed && <span className={`text-sm ${activeItem === 'dps-calculator' ? "font-medium" : "font-normal"}`}>DPS Calculator</span>}
+                                                {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">DPS Calculator</div>}
+                                            </Link>
+                                        </li>
+                                        {/* Zones PVP */}
+                                        <li>
+                                            <Link
+                                                to="/pvp"
+                                                onClick={() => handleItemClick('pvp', '/pvp')}
+                                                className={`
+                                                    flex items-center gap-3 rounded-lg text-left group relative
+                                                    transition-all duration-200 ease-out
+                                                    ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"}
+                                                    ${activeItem === 'pvp' ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}
+                                                `}
+                                                title={isCollapsed ? "Zones PVP" : undefined}
+                                            >
+                                                {activeItem === 'pvp' && !isCollapsed && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />}
+                                                <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === 'pvp' ? '' : 'group-hover:scale-110'}`}><IconSwords size={18} /></div>
+                                                {!isCollapsed && <span className={`text-sm ${activeItem === 'pvp' ? "font-medium" : "font-normal"}`}>Zones PVP</span>}
+                                                {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">Zones PVP</div>}
+                                            </Link>
+                                        </li>
+                                    </>
+                                )}
+
+                                {/* ============================================== */}
+                                {/* === Catégorie : 🚢 Vaisseaux & Guides     === */}
+                                {/* ============================================== */}
+                                {renderToolCategoryHeader("ships-guides", "Vaisseaux & Guides", <Ship size={12} />)}
+                                {(isCollapsed || expandedToolCategories["ships-guides"]) && (
+                                    <>
+                                        {/* Ship Maps (ADI) */}
+                                        <li>
+                                            <Link
+                                                to="/ship-maps"
+                                                onClick={() => handleItemClick('ship-maps', '/ship-maps')}
+                                                className={`
+                                                    flex items-center gap-3 rounded-lg text-left group relative
+                                                    transition-all duration-200 ease-out
+                                                    ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"}
+                                                    ${activeItem === 'ship-maps' ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}
+                                                `}
+                                                title={isCollapsed ? "Cartes de vaisseaux (ADI)" : undefined}
+                                            >
+                                                {activeItem === 'ship-maps' && !isCollapsed && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />}
+                                                <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === 'ship-maps' ? '' : 'group-hover:scale-110'}`}><IconMap2 size={18} /></div>
+                                                {!isCollapsed && <span className={`text-sm ${activeItem === 'ship-maps' ? "font-medium" : "font-normal"}`}>Cartes vaisseaux</span>}
+                                                {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">Cartes de vaisseaux (ADI)</div>}
+                                            </Link>
+                                        </li>
+                                        {/* VerseGuide */}
+                                        <li>
+                                            <Link
+                                                to="/verseguide"
+                                                onClick={() => handleItemClick('verseguide', '/verseguide')}
+                                                className={`flex items-center gap-3 rounded-lg group relative transition-all duration-200 ease-out ${isCollapsed ? "py-2 h-10 w-10 mx-auto justify-center" : "py-2.5 w-full px-3"} ${activeItem === 'verseguide' ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}`}
+                                                title={isCollapsed ? "VerseGuide" : undefined}
+                                            >
+                                                {activeItem === 'verseguide' && !isCollapsed && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />}
+                                                <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-transform duration-200 ${activeItem === 'verseguide' ? '' : 'group-hover:scale-110'}`}><IconBook size={18} /></div>
+                                                {!isCollapsed && <span className={`text-sm ${activeItem === 'verseguide' ? "font-medium" : "font-normal"}`}>VerseGuide</span>}
+                                                {isCollapsed && <div className="absolute left-full ml-3 px-3 py-1.5 bg-popover/95 backdrop-blur-sm text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-border/50 shadow-xl">VerseGuide</div>}
+                                            </Link>
+                                        </li>
+                                        {/* SC_EXTERNAL_TOOLS de la catégorie ships-guides (Protixit Reputation) */}
+                                        {SC_EXTERNAL_TOOLS.filter(t => t.category === "ships-guides").map(renderScExtToolLi)}
+                                    </>
+                                )}
                             </ul>
                         )}
                     </div>

@@ -1,5 +1,12 @@
 export type ScToolIcon = "server" | "package" | "database" | "hammer" | "route" | "pickaxe" | "shield";
 
+/**
+ * Catégories utilisées pour grouper les outils dans la sidebar (sous-dossiers
+ * collapsibles "Outils SC"). Garde aligné avec TOOL_CATEGORIES dans
+ * app-sidebar.tsx.
+ */
+export type ScToolCategory = "database" | "economy" | "craft-mining" | "combat" | "ships-guides";
+
 interface ScToolBase {
     id: string;
     label: string;
@@ -8,6 +15,8 @@ interface ScToolBase {
     host: string;
     icon: ScToolIcon;
     iconClassName: string;
+    /** Sous-dossier de classement dans la sidebar "Outils SC". */
+    category: ScToolCategory;
     webviewId?: string;
     webviewWidth?: number;
     webviewHeight?: number;
@@ -41,6 +50,7 @@ export const SC_EXTERNAL_TOOLS: ScTool[] = [
         route: "/schaulers",
         icon: "server",
         iconClassName: "text-sky-400",
+        category: "database",
     },
     {
         id: "sc-cargo-viewer",
@@ -52,6 +62,7 @@ export const SC_EXTERNAL_TOOLS: ScTool[] = [
         route: "/sc-cargo-viewer",
         icon: "package",
         iconClassName: "text-amber-400",
+        category: "economy",
     },
     {
         id: "allsky-mining",
@@ -62,6 +73,7 @@ export const SC_EXTERNAL_TOOLS: ScTool[] = [
         mode: "webview",
         icon: "pickaxe",
         iconClassName: "text-cyan-400",
+        category: "craft-mining",
     },
     {
         id: "protixit-reputation",
@@ -72,6 +84,7 @@ export const SC_EXTERNAL_TOOLS: ScTool[] = [
         mode: "webview",
         icon: "shield",
         iconClassName: "text-emerald-400",
+        category: "ships-guides",
     },
     {
         id: "scdb-space",
@@ -84,6 +97,7 @@ export const SC_EXTERNAL_TOOLS: ScTool[] = [
         icon: "database",
         iconClassName: "text-violet-400",
         hideIframeScrollbar: true,
+        category: "database",
     },
     {
         id: "sc-craft-tools",
@@ -95,6 +109,7 @@ export const SC_EXTERNAL_TOOLS: ScTool[] = [
         route: "/sc-craft-tools",
         icon: "hammer",
         iconClassName: "text-orange-400",
+        category: "craft-mining",
     },
     {
         id: "hauler-spacecoder",
@@ -106,6 +121,7 @@ export const SC_EXTERNAL_TOOLS: ScTool[] = [
         route: "/hauler-spacecoder",
         icon: "route",
         iconClassName: "text-lime-400",
+        category: "economy",
     },
 ];
 
