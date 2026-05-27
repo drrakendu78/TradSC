@@ -78,6 +78,18 @@ const BUILTIN_OVERLAY_ITEMS: BuiltinOverlayHubDefinition[] = [
         iconKey: "pvp",
     },
     {
+        // Page Blueprints en mode overlay (Discord thread #3 zerodegre).
+        // L'user prépare ses filtres + checkbox in-game pour suivre son farm.
+        id: "blueprints",
+        label: "Blueprints",
+        kind: "iframe",
+        resolveUrl: (baseAppUrl) => `${baseAppUrl}#/overlay-blueprints`,
+        width: 1100,
+        height: 820,
+        opacity: 1.0,
+        iconKey: "blueprints",
+    },
+    {
         id: "cargo",
         label: "Cargo",
         kind: "iframe",

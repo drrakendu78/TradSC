@@ -153,6 +153,7 @@ const AppRouter = () => (
         <Route path='/dps-calculator' element={<DpsCalculator />} />
         <Route path='/bindings' element={<Bindings />} />
         <Route path='/blueprints' element={<Blueprints />} />
+        <Route path='/overlay-blueprints' element={<Blueprints isOverlayEmbed />} />
         <Route path='/partenaires' element={<Partenaires />} />
         <Route path='/graphics-settings' element={<GraphicsSettings />} />
         <Route path='/ship-maps' element={<ShipMaps />} />
