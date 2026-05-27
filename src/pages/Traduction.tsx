@@ -227,6 +227,11 @@ export default function Traduction() {
     useEffect(() => {
         try {
             window.localStorage.setItem(CUSTOM_TRANSLATION_SOURCES_KEY, JSON.stringify(customTranslationSources));
+            // Notifie useCompanionBridge pour qu'il re-broadcast translation.state
+            // au mobile companion avec les nouvelles sources custom (Discord
+            // thread #3 zerodegre). Sans ça le mobile attend sa prochaine query
+            // périodique pour voir les changements.
+            window.dispatchEvent(new CustomEvent("customTranslationSourcesChanged"));
         } catch (error) {
             logger.error("Erreur sauvegarde sources personnalisées:", error);
         }

@@ -65,6 +65,48 @@ type OnlinePresetRow = {
 
 const DEFAULT_LANG = "fr";
 
+// Clé localStorage utilisée par `src/pages/Traduction.tsx` pour persister les
+// sources de traduction custom ajoutées par l'user (ex: StarStrings de
+// MrKraken). On les lit ici pour les inclure dans `translation.state` envoyé
+// au companion LAN — sinon le mobile ne voit que les sources officielles
+// (Discord thread #3 zerodegre 2026-05-20).
+const CUSTOM_TRANSLATION_SOURCES_KEY = "startrad.customTranslationSources.v1";
+// Le bridge ne broadcast que la langue FR (DEFAULT_LANG = "fr") au companion.
+// On filtre les sources custom sur cette même langue pour rester cohérent.
+const FR_LANGUAGE_KEY = "french_(france)";
+
+type CustomTranslationSource = {
+    id: string;
+    name: string;
+    url: string;
+    language: string;
+};
+
+/** Lit les sources de traduction perso (custom global.ini) depuis localStorage.
+ *  Filtre sur la langue FR pour matcher le périmètre actuel du bridge.
+ *  Retourne un tableau vide si rien n'est sauvegardé ou si le JSON est corrompu. */
+const loadCustomFrTranslationSources = (): CustomTranslationSource[] => {
+    if (typeof window === "undefined") return [];
+    try {
+        const raw = window.localStorage.getItem(CUSTOM_TRANSLATION_SOURCES_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+        return parsed
+            .filter((s): s is CustomTranslationSource => (
+                s
+                && typeof s === "object"
+                && typeof s.id === "string"
+                && typeof s.name === "string"
+                && typeof s.url === "string"
+                && typeof s.language === "string"
+                && s.language === FR_LANGUAGE_KEY
+            ));
+    } catch {
+        return [];
+    }
+};
+
 const BROADCAST_DEBOUNCE_MS = 120;
 const DASHBOARD_REBROADCAST_EVENTS = ["overlay_closed"] as const;
 const PLAYTIME_CACHE_KEY = "startradfr_playtime_cache";
@@ -445,10 +487,29 @@ export function useCompanionBridge(enabled: boolean = true) {
                 })
             );
 
+            // Merge officiels + custom (Discord thread #3 zerodegre) :
+            // les sources custom (ex: StarStrings de MrKraken) sont stockées
+            // dans localStorage par Traduction.tsx et n'arrivaient pas au
+            // companion mobile. On les concatène avec un flag `custom: true`
+            // pour que la mobile puisse les distinguer visuellement si besoin.
+            const customSources = loadCustomFrTranslationSources();
+            const officialLinks = links.map((l) => ({
+                id: l.id,
+                name: l.name,
+                url: l.url,
+                custom: false,
+            }));
+            const customLinks = customSources.map((s) => ({
+                id: s.id,
+                name: s.name,
+                url: s.url,
+                custom: true,
+            }));
+
             return {
                 type: "translation.state",
                 versions,
-                links: links.map((l) => ({ id: l.id, name: l.name, url: l.url })),
+                links: [...officialLinks, ...customLinks],
                 busy: { ...busyRef.current },
             };
         };
@@ -1319,6 +1380,15 @@ export function useCompanionBridge(enabled: boolean = true) {
             }
         };
 
+        // Écoute le CustomEvent dispatched par Traduction.tsx quand l'user
+        // ajoute/retire une source perso → re-broadcast translation.state
+        // pour que le mobile companion voie les changements immédiatement
+        // (Discord thread #3 zerodegre).
+        const onCustomSourcesChanged = () => {
+            broadcastTranslation().catch(console.error);
+        };
+        window.addEventListener("customTranslationSourcesChanged", onCustomSourcesChanged);
+
         setup().catch(console.error);
 
         return () => {
@@ -1327,6 +1397,7 @@ export function useCompanionBridge(enabled: boolean = true) {
                 window.clearTimeout(pendingRef.current);
                 pendingRef.current = null;
             }
+            window.removeEventListener("customTranslationSourcesChanged", onCustomSourcesChanged);
             unlistenIncoming?.();
             unlistenConnect?.();
             unlistenDisconnect?.();
