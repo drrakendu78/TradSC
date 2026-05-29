@@ -15,10 +15,16 @@ import { CacheCleanupPrompt } from "@/components/custom/cache-cleanup-prompt";
 import { useCompanionBridge } from "@/hooks/useCompanionBridge";
 import { ensureLegacyCacheMigration, useShaderCacheAutoCleanOnBoot } from "@/hooks/useShaderCacheAutoClean";
 import { useGlobalBlueprintToast } from "@/hooks/useGlobalBlueprintToast";
+import { useCargoBuyOverlayLauncher } from "@/hooks/useCargoBuyOverlayLauncher";
+import { installCargoDebugHelper } from "@/hooks/useCargoBuyDetection";
 import { isTauri } from "@/utils/tauri-helpers";
 
 const COMPANION_ENABLED_KEY = "companionServerEnabled";
 const DEFAULT_COMPANION_PORT = 47823;
+
+// Installe IMMÉDIATEMENT le helper debug, dès l'import du module main.tsx.
+// (Hors useEffect : survit aux remounts et HMR.)
+installCargoDebugHelper();
 
 function setCompanionEnabledState(next: boolean) {
   window.localStorage.setItem(COMPANION_ENABLED_KEY, String(next));
@@ -52,7 +58,8 @@ function App() {
       window.location.hash.includes("/overlay-hub") ||
       window.location.hash.includes("/overlay-webview-bar") ||
       window.location.hash.includes("/overlay-hub-preset-picker") ||
-      window.location.hash.includes("/overlay-blueprints");
+      window.location.hash.includes("/overlay-blueprints") ||
+      window.location.hash.includes("/overlay-cargo-buy");
     if (isOverlayWin || !isTauri()) {
       setShowOnboarding(false);
       return;
@@ -82,7 +89,8 @@ function App() {
     window.location.hash.includes("/overlay-hub") ||
     window.location.hash.includes("/overlay-webview-bar") ||
     window.location.hash.includes("/overlay-hub-preset-picker") ||
-    window.location.hash.includes("/overlay-blueprints");
+    window.location.hash.includes("/overlay-blueprints") ||
+    window.location.hash.includes("/overlay-cargo-buy");
 
   useCompanionBridge(!isOverlay);
   useShaderCacheAutoCleanOnBoot();
@@ -90,6 +98,16 @@ function App() {
   // visible peu importe la page courante. Skip dans les overlays pour
   // pas spammer 6 toasts en parallèle quand le watcher tick.
   useGlobalBlueprintToast();
+  // Ouvre l'overlay cargo (open_overlay, route interne #/overlay-cargo-buy) à
+  // chaque achat détecté par le watcher Game.log — même système que
+  // Blueprints/PvP, donc focus géré correctement (pas de vol au jeu).
+  useCargoBuyOverlayLauncher(!isOverlay);
+  // Installe le helper debug `window.__startradTestCargoBuy()` pour tester
+  // l'overlay cargo depuis la devtools console (Tauri 2 n'expose pas
+  // `window.__TAURI__` par défaut, donc on a besoin d'un entry point JS).
+  useEffect(() => {
+    installCargoDebugHelper();
+  }, []);
 
   useEffect(() => {
     if (isOverlay || !isTauri()) return;
@@ -156,6 +174,9 @@ function App() {
           {!isOverlay && showOnboarding === false && <BorderBeam duration={8} size={150} colorFrom="#FAFAFA" colorTo="#FAFAFA" />}
           {!isOverlay && showOnboarding === false && <BorderBeam delay={4} duration={8} size={150} colorFrom="#FAFAFA" colorTo="#FAFAFA" />}
           {!isOverlay && showOnboarding === false && <CacheCleanupPrompt />}
+          {/* La détection cargo passe maintenant par une vraie window overlay
+              Tauri (route /overlay-cargo-buy), spawnée par Rust quand un achat
+              est détecté. Plus de toast dans la fenêtre principale. */}
         </>
       )}
     </>

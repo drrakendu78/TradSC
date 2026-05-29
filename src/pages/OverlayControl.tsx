@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { emit } from "@tauri-apps/api/event";
+import { Eye, EyeOff, Loader2, Pin, PinOff, X } from "lucide-react";
 
 // Bouton "œil" système : c'est une window Tauri dédiée (WS_EX_NOACTIVATE)
 // positionnée pile sur le placeholder du bouton click-through de la
@@ -32,6 +33,45 @@ const OverlayControl = () => {
         }, 2000);
         return () => window.clearTimeout(timer);
     }, [loading]);
+
+    // ── Mode cargo : ce contrôle devient un mini-bar [pin][fermer] ──────────
+    // La card cargo est click-through (focus-safe) → ses boutons ne recevraient
+    // aucun clic. CE contrôle est WS_EX_NOACTIVATE → cliquable SANS voler le
+    // focus du jeu. Pin → émet `cargo-overlay:set-pinned` (la card coupe
+    // l'auto-hide). Fermer → close_overlay.
+    const [pinned, setPinned] = useState(false);
+    if (id === "cargo-buy") {
+        const togglePin = () => {
+            const next = !pinned;
+            setPinned(next);
+            emit("cargo-overlay:set-pinned", { pinned: next }).catch(() => undefined);
+        };
+        const closeOverlay = () => {
+            invoke("close_overlay", { id }).catch(() => undefined);
+        };
+        return (
+            <div className="flex h-screen w-screen items-center justify-center gap-1 rounded-md bg-black/45">
+                <button
+                    type="button"
+                    onPointerDown={togglePin}
+                    title={pinned ? "Épinglé — clic pour libérer (réactive l'auto-fermeture)" : "Épingler (garder ouvert)"}
+                    className={`flex h-5 w-5 items-center justify-center rounded transition-colors ${
+                        pinned ? "text-amber-300" : "text-foreground/80 hover:text-foreground"
+                    }`}
+                >
+                    {pinned ? <Pin className="h-3.5 w-3.5" /> : <PinOff className="h-3.5 w-3.5" />}
+                </button>
+                <button
+                    type="button"
+                    onPointerDown={closeOverlay}
+                    title="Fermer"
+                    className="flex h-5 w-5 items-center justify-center rounded text-foreground/80 transition-colors hover:text-rose-300"
+                >
+                    <X className="h-3.5 w-3.5" />
+                </button>
+            </div>
+        );
+    }
 
     const toggle = async () => {
         if (!id || loading) return;

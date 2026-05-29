@@ -8,6 +8,7 @@ import { DragRegion } from '@/components/custom/drag-region';
 import { PvpFloatingTimer } from '@/components/custom/PvpFloatingTimer';
 import { UpdateDialog } from '@/components/custom/UpdateDialog';
 import ControlMenu from '@/components/custom/control-menu';
+import { CarnetDrawer } from '@/components/custom/carnet-drawer';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useUpdater } from '@/hooks/useUpdater';
@@ -22,6 +23,7 @@ const OVERLAY_ROUTES = new Set([
     '/overlay-webview-bar',
     '/overlay-hub-preset-picker',
     '/overlay-blueprints',
+    '/overlay-cargo-buy',
 ]);
 
 const ROUTE_LABELS: Record<string, string> = {
@@ -205,6 +207,12 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                     </div>
                     </main>
                 </div>
+
+                {/* Carnet de bord : drawer slide-in placé au root de DragRegion
+                    pour passer PAR DESSUS la sidebar et le header (z-index très
+                    haut). Toujours mounté ; l'AnimatePresence interne gère son
+                    rendu effectif via le store. */}
+                <CarnetDrawer />
 
                 <Toaster />
                 <PvpFloatingTimer />

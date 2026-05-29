@@ -1,3 +1,5 @@
+#![recursion_limit = "512"]
+
 mod scripts;
 
 use is_elevated::is_elevated;
@@ -72,7 +74,7 @@ use scripts::offline_cache::{
     get_translation_cache_info, open_translation_cache_folder, cache_all_installed_translations,
 };
 use scripts::overlay::{
-    open_overlay_hub, toggle_overlay_hub, is_overlay_hub_open, set_overlay_hub_mode, get_overlay_hub_mode, is_overlay_open, open_overlay, open_webview_overlay, close_overlay, close_webview_overlay, set_overlay_size, set_overlay_window_position, set_window_opacity, set_overlay_interaction, ensure_overlay_control, toggle_overlay_interactive, release_overlay_focus, webview_overlay_reload, webview_overlay_set_opacity, webview_overlay_set_hidden, get_webview_overlay_geometry, get_webview_overlay_perceived_geometry, toggle_hub_preset_picker, close_hub_preset_picker,
+    open_overlay_hub, toggle_overlay_hub, is_overlay_hub_open, set_overlay_hub_mode, get_overlay_hub_mode, is_overlay_open, open_overlay, open_webview_overlay, close_overlay, close_webview_overlay, set_overlay_size, set_overlay_window_position, set_window_opacity, set_overlay_interaction, ensure_overlay_control, hide_overlay_control, toggle_overlay_interactive, release_overlay_focus, webview_overlay_reload, webview_overlay_set_opacity, webview_overlay_set_hidden, get_webview_overlay_geometry, get_webview_overlay_perceived_geometry, toggle_hub_preset_picker, close_hub_preset_picker,
 };
 use scripts::companion_server::{
     companion_broadcast, companion_send, get_companion_info, start_companion_server,
@@ -105,6 +107,13 @@ async fn update_tray_service(app_handle: tauri::AppHandle, service: String, enab
 #[command]
 async fn write_text_file(path: String, content: String) -> Result<(), String> {
     std::fs::write(&path, &content).map_err(|e| format!("Erreur d'écriture: {}", e))
+}
+
+/// Écrit un fichier binaire (utilisé par l'export image du Carnet de bord :
+/// canvas PNG → Uint8Array → ce handler écrit le buffer sur disque).
+#[command]
+async fn write_binary_file(path: String, content: Vec<u8>) -> Result<(), String> {
+    std::fs::write(&path, &content).map_err(|e| format!("Erreur d'écriture binaire: {}", e))
 }
 
 #[command]
@@ -708,6 +717,7 @@ pub fn run() {
             open_translation_cache_folder,
             cache_all_installed_translations,
             write_text_file,
+            write_binary_file,
             read_text_file,
             save_custom_avatar,
             get_custom_avatar,
@@ -728,6 +738,7 @@ pub fn run() {
             set_window_opacity,
             set_overlay_interaction,
             ensure_overlay_control,
+            hide_overlay_control,
             toggle_overlay_interactive,
             release_overlay_focus,
             webview_overlay_reload,
@@ -756,7 +767,31 @@ pub fn run() {
             scripts::gamelog_blueprint_watcher::gamelog_watcher_start,
             scripts::gamelog_blueprint_watcher::gamelog_watcher_stop,
             scripts::gamelog_blueprint_watcher::gamelog_blueprints_import_history,
+            scripts::gamelog_history_parser::gamelog_history_scan,
+            scripts::gamelog_history_parser::gamelog_history_load,
+            scripts::gamelog_history_parser::gamelog_history_summary,
+            scripts::citizen_profile_cache::enrich_encountered_players,
+            scripts::citizen_profile_cache::citizen_profile_refresh,
+            scripts::citizen_tags::citizen_tag_set,
+            scripts::citizen_tags::citizen_tag_remove,
+            scripts::citizen_tags::citizen_tag_list,
+            scripts::ship_catalog_cache::ship_catalog_refresh,
+            scripts::uex_commodity_api::suggest_sell_locations,
+            scripts::cargo_overlay::cargo_overlay_show,
+            scripts::cargo_overlay::cargo_overlay_hide,
+            scripts::cargo_overlay::cargo_overlay_get_last_payload,
+            scripts::cargo_overlay::cargo_overlay_set_last_payload_cmd,
+            scripts::cargo_overlay::cargo_overlay_test_native,
+            scripts::cargo_overlay::cargo_overlay_set_corner,
+            scripts::cargo_overlay::cargo_overlay_set_qd_speed,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|_app_handle, event| {
+            // Tue l'overlay cargo natif à la fermeture de l'app (sinon un
+            // overlay épinglé survivrait en process orphelin).
+            if let tauri::RunEvent::Exit = event {
+                crate::scripts::cargo_overlay::kill_overlay();
+            }
+        });
 }

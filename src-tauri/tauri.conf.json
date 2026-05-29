@@ -30,7 +30,8 @@
                    "targets":  "all",
                    "createUpdaterArtifacts":  true,
                    "externalBin":  [
-                                       "binaries/startrad-updater"
+                                       "binaries/startrad-updater",
+                                       "binaries/startrad-cargo-overlay"
                                    ],
                    "icon":  [
                                 "icons/32x32.png",

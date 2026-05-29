@@ -57,9 +57,13 @@ pub struct WatcherConfig {
     pub enabled: bool,
 }
 
+/// V1 : watcher OFF par défaut. V4.2.9+ : ON par défaut (killer feature cargo
+/// overlay). Si le user a explicitement désactivé via toggle, la config saved
+/// l'écrase et reste respectée — ce default ne s'applique qu'au tout 1er
+/// lancement (fichier `gamelog_watcher.json` inexistant).
 impl Default for WatcherConfig {
     fn default() -> Self {
-        Self { auto_start: false, enabled: false }
+        Self { auto_start: true, enabled: true }
     }
 }
 
@@ -232,6 +236,46 @@ fn scan_file(path: &Path) -> Result<Vec<BlueprintEntry>, String> {
     Ok(out)
 }
 
+// ── Détection commodity buy (cargo) ─────────────────────────────────────────
+
+/// Payload émis sur `gamelog-watcher:cargo-buy`. Format camelCase pour le frontend.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CargoBuyPayload {
+    pub ts: f64,
+    pub shop_name: String,
+    pub shop_id: u64,
+    pub price_total: f64,
+    pub price_per_csu: f64,
+    pub commodity_guid: String,
+    pub quantity_csu: f64,
+    pub box_size: f64,
+    pub unit_amount: u64,
+}
+
+/// Match SendCommodityBuyRequest et extrait le payload pour emit.
+pub fn parse_commodity_buy_line(line: &str) -> Option<CargoBuyPayload> {
+    static RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
+    let re = RE.get_or_init(|| {
+        Regex::new(
+            r"SendCommodityBuyRequest>.*?shopId\[(\d+)\].*?shopName\[([^\]]+)\].*?price\[([\d.]+)\].*?shopPricePerCentiSCU\[([\d.]+)\].*?resourceGUID\[([a-f0-9\-]+)\].*?quantity\[([\d.]+)\s+cSCU\].*?boxSize\[([\d.]+)\].*?unitAmount\[(\d+)\]"
+        ).unwrap()
+    });
+    let caps = re.captures(line)?;
+    let ts = parse_ts(line).unwrap_or_else(|| Utc::now().timestamp() as f64);
+    Some(CargoBuyPayload {
+        ts,
+        shop_id: caps[1].parse().unwrap_or(0),
+        shop_name: caps[2].to_string(),
+        price_total: caps[3].parse().unwrap_or(0.0),
+        price_per_csu: caps[4].parse().unwrap_or(0.0),
+        commodity_guid: caps[5].to_string(),
+        quantity_csu: caps[6].parse().unwrap_or(0.0),
+        box_size: caps[7].parse().unwrap_or(0.0),
+        unit_amount: caps[8].parse().unwrap_or(0),
+    })
+}
+
 // ── Thread tailer ──────────────────────────────────────────────────────────
 
 /// Émet un événement de log visible côté UI. Les events `gamelog-watcher:log`
@@ -253,6 +297,10 @@ fn run_tailer(app: AppHandle, log_path: PathBuf, stop: Arc<AtomicBool>) {
     let mut buffer: Vec<u8> = Vec::new();
     let mut first_open = true;
     let mut emitted_missing = false;
+    // Le 1er passage relit tout le Game.log existant. On ne pope l'overlay natif
+    // QUE pour les achats détectés APRÈS ce passage (= live), sinon on
+    // rejouerait tout l'historique du log au démarrage (multi-overlays).
+    let mut did_initial_scan = false;
 
     emit_log(
         &app,
@@ -355,8 +403,47 @@ fn run_tailer(app: AppHandle, log_path: PathBuf, stop: Arc<AtomicBool>) {
                         Err(e) => emit_log(&app, "error", format!("Sauvegarde échouée : {e}")),
                     }
                 }
+                // Détection achats commodity (cargo) : stocke le payload +
+                // emit l'event. La fenêtre principale (useCargoBuyOverlayLauncher)
+                // ouvre alors l'overlay via `open_overlay` (route interne
+                // #/overlay-cargo-buy), exactement comme le hub ouvre Blueprints
+                // → gestion focus (click-through + bar NOACTIVATE) par le
+                // système overlay éprouvé. Plus de fenêtre bespoke.
+                if line.contains("SendCommodityBuyRequest") {
+                    if let Some(payload) = crate::scripts::gamelog_blueprint_watcher::parse_commodity_buy_line(line) {
+                        emit_log(
+                            &app,
+                            "success",
+                            format!("Cargo acheté : {} cSCU à {}", payload.quantity_csu, payload.shop_name),
+                        );
+                        // 1. Stocke le payload pour que la route le query au mount.
+                        crate::scripts::cargo_overlay::set_last_payload(
+                            crate::scripts::cargo_overlay::CachedCargoPayload {
+                                ts: payload.ts,
+                                shop_name: payload.shop_name.clone(),
+                                shop_id: payload.shop_id,
+                                price_total: payload.price_total,
+                                price_per_csu: payload.price_per_csu,
+                                commodity_guid: payload.commodity_guid.clone(),
+                                quantity_csu: payload.quantity_csu,
+                                box_size: payload.box_size,
+                                unit_amount: payload.unit_amount,
+                            }
+                        );
+                        // 2. Emet l'event (alimente le feed d'activité + tout
+                        //    listener frontend).
+                        let _ = app.emit("gamelog-watcher:cargo-buy", &payload);
+                        // 3. Overlay NATIF (sidecar Slint), uniquement live —
+                        //    pas l'historique rejoué au démarrage.
+                        if did_initial_scan {
+                            crate::scripts::cargo_overlay::spawn_overlay_for_buy(&payload);
+                        }
+                    }
+                }
             }
         }
+        // Fin du 1er passage (historique lu) → mode live pour les suivants.
+        did_initial_scan = true;
         last_size = current_size;
     }
 
