@@ -57,6 +57,7 @@ import { useTranslationStatus } from '@/hooks/useTranslationStatus';
 import MiniPlayer from '@/components/custom/mini-player';
 import { ReferralBanner } from '@/components/custom/referral-banner';
 import { OrgPill } from '@/components/custom/org-pill';
+import { CarnetHomeButton } from '@/components/custom/carnet-home-button';
 import HomeStatusCard from '@/components/custom/home-status-card';
 import { detectDistribution } from '@/utils/buildInfo';
 
@@ -1620,6 +1621,7 @@ function Home() {
                                         </Link>
                                     );
                                 })()}
+                                <CarnetHomeButton />
                             </div>
 
                             {isInTauri && launcherStatus.installed && (

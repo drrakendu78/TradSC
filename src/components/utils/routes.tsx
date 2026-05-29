@@ -26,6 +26,7 @@ import OverlayView from '@/pages/OverlayView';
 import OverlayControl from '@/pages/OverlayControl';
 import OverlayHub from '@/pages/OverlayHub';
 import OverlayHubPresetPicker from '@/pages/OverlayHubPresetPicker';
+import OverlayCargoBuy from '@/pages/OverlayCargoBuy';
 import OverlayWebviewBar from '@/pages/OverlayWebviewBar';
 import ScExternalTool from '@/pages/ScExternalTool';
 import { SC_IFRAME_TOOLS } from '@/data/sc-tools';
@@ -166,6 +167,7 @@ const AppRouter = () => (
         <Route path='/overlay-control' element={<OverlayControl />} />
         <Route path='/overlay-hub' element={<OverlayHub />} />
         <Route path='/overlay-hub-preset-picker' element={<OverlayHubPresetPicker />} />
+        <Route path='/overlay-cargo-buy' element={<OverlayCargoBuy />} />
         <Route path='/overlay-webview-bar' element={<OverlayWebviewBar />} />
         {SC_IFRAME_TOOLS.map((tool) => (
           <Route key={tool.id} path={tool.route} element={<ScExternalTool tool={tool} />} />

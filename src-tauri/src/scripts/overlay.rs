@@ -579,6 +579,7 @@ pub async fn open_overlay(
     width: f64,
     height: f64,
     opacity: f64,
+    focused: Option<bool>,
 ) -> Result<(), String> {
     let label = overlay_target_label(&id, "iframe");
     let global_edit_mode = OVERLAY_HUB_EDIT_MODE.load(Ordering::Relaxed);
@@ -634,6 +635,11 @@ pub async fn open_overlay(
             .always_on_top(true)
             .skip_taskbar(true)
             .resizable(true)
+            // Notif (focused=false) : créée CACHÉE (.visible(false)) — on
+            // posera WS_EX_NOACTIVATE puis on la montrera en SW_SHOWNOACTIVATE
+            // (le show() d'activation de Tauri volerait le focus sinon).
+            .visible(focused != Some(false))
+            .focused(focused.unwrap_or(true))
             .build()
         {
             Ok(win) => {
@@ -653,6 +659,41 @@ pub async fn open_overlay(
     let win = created_win.ok_or_else(|| {
         last_err.unwrap_or_else(|| "Failed to create overlay window".to_string())
     })?;
+
+    // `focused(false)` seul est BUGGÉ sur Windows (tauri #11566 / #7519) et
+    // WebView2 re-vole le focus au chargement de la page. Le SEUL mécanisme
+    // fiable (= ce que fait le webview bar, qui « ne vole jamais le focus ») :
+    // poser WS_EX_NOACTIVATE sur la window. Une window NOACTIVATE ne devient
+    // jamais foreground, même quand le HWND enfant WebView2 prend le focus
+    // clavier en interne. On l'applique pour les overlays type notification
+    // (focused == Some(false)), pas pour le hub/sites ouverts manuellement.
+    #[cfg(target_os = "windows")]
+    if focused == Some(false) {
+        let fg_before = foreground_title();
+        let mut noactivate_ok = false;
+        unsafe {
+            if let Ok(hwnd_raw) = win.hwnd() {
+                let h = HWND(hwnd_raw.0 as *mut _);
+                let cur = GetWindowLongW(h, GWL_EXSTYLE);
+                let _ = SetWindowLongW(h, GWL_EXSTYLE, cur | WS_EX_NOACTIVATE.0 as i32);
+                noactivate_ok = (GetWindowLongW(h, GWL_EXSTYLE) & WS_EX_NOACTIVATE.0 as i32) != 0;
+            }
+        }
+        // Montre la window (créée cachée) SANS l'activer.
+        show_no_activate(&win);
+        println!(
+            "[cargo-focus] open '{}' : FG avant = {} | NOACTIVATE posé = {}",
+            id, fg_before, noactivate_ok
+        );
+        // Échantillonne le foreground après coup pour voir SI/QUAND une fenêtre
+        // vole le focus (overlay ? webview ? autre ?).
+        tauri::async_runtime::spawn(async move {
+            for ms in [50u64, 200, 500, 1000, 2000] {
+                sleep(Duration::from_millis(ms)).await;
+                println!("[cargo-focus]   +{}ms FG = {}", ms, foreground_title());
+            }
+        });
+    }
 
     let app_handle_for_events = app_handle.clone();
     let id_for_events = id.clone();
@@ -1070,7 +1111,7 @@ fn set_overlay_interaction_internal(
     );
 
     if let Some(control) = app_handle.get_webview_window(&control_label) {
-        let _ = control.show();
+        show_no_activate(&control);
         let _ = control.set_size(tauri::PhysicalSize::new(control_width, control_height));
         let _ = control.set_position(anchored_pos);
         let _ = control.set_size(tauri::PhysicalSize::new(control_width, control_height));
@@ -1098,6 +1139,12 @@ fn set_overlay_interaction_internal(
         .always_on_top(true)
         .skip_taskbar(true)
         .resizable(false)
+        // CRÉÉE CACHÉE + non-focused : sinon build()/show() ACTIVE la window
+        // (la passe foreground = vol de focus) MALGRÉ WS_EX_NOACTIVATE, qui ne
+        // bloque que l'activation au clic. On pose NOACTIVATE pendant qu'elle
+        // est cachée, puis SW_SHOWNOACTIVATE.
+        .visible(false)
+        .focused(false)
         .build()
         .map_err(|e| e.to_string())?;
 
@@ -1117,6 +1164,9 @@ fn set_overlay_interaction_internal(
                 let _ = SetWindowLongW(h, GWL_EXSTYLE, cur | WS_EX_NOACTIVATE.0 as i32);
             }
         }
+
+        // Montre la control (créée cachée) SANS l'activer.
+        show_no_activate(&control);
 
         if focus_target {
             let _ = control.set_focus();
@@ -1506,6 +1556,24 @@ pub fn toggle_overlay_interactive(
     Ok(())
 }
 
+/// Cache la mini-fenêtre œil (control) d'un overlay, sans toucher à
+/// l'interactivité ni au focus. Utilisé par l'overlay cargo qui n'affiche
+/// PAS d'action bar (donc pas d'ancre pour l'œil) et gère ses propres
+/// boutons pin/fermeture dans sa card.
+#[command]
+pub fn hide_overlay_control(
+    app_handle: AppHandle,
+    id: String,
+    overlay_type: Option<String>,
+) -> Result<(), String> {
+    let overlay_type = overlay_type.unwrap_or_else(|| "iframe".to_string());
+    let control_label = overlay_control_label(&id, &overlay_type);
+    if let Some(control) = app_handle.get_webview_window(&control_label) {
+        let _ = control.hide();
+    }
+    Ok(())
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // Ensure overlay control window
 // ─────────────────────────────────────────────────────────────────────────
@@ -1555,7 +1623,7 @@ pub async fn ensure_overlay_control(
     );
 
     if let Some(control) = app_handle.get_webview_window(&control_label) {
-        let _ = control.show();
+        show_no_activate(&control);
         let _ = control.set_size(tauri::PhysicalSize::new(control_width, control_height));
         let _ = control.set_position(anchored_pos);
         return Ok(());
@@ -1581,6 +1649,10 @@ pub async fn ensure_overlay_control(
     .always_on_top(true)
     .skip_taskbar(true)
     .resizable(false)
+    // CRÉÉE CACHÉE + non-focused (cf. set_overlay_interaction_internal) :
+    // sinon build()/show() vole le focus malgré WS_EX_NOACTIVATE.
+    .visible(false)
+    .focused(false)
     .build()
     .map_err(|e| e.to_string())?;
 
@@ -1595,6 +1667,8 @@ pub async fn ensure_overlay_control(
             let _ = SetWindowLongW(h, GWL_EXSTYLE, cur | WS_EX_NOACTIVATE.0 as i32);
         }
     }
+
+    show_no_activate(&control);
 
     Ok(())
 }
@@ -1636,36 +1710,138 @@ unsafe extern "system" fn enum_find_sc(hwnd: HWND, lparam: LPARAM) -> BOOL {
     BOOL(1)
 }
 
-#[command]
-pub fn release_overlay_focus(app_handle: AppHandle) -> Result<(), String> {
-    #[cfg(target_os = "windows")]
+/// DEBUG : titre + hwnd de la fenêtre actuellement au premier plan.
+#[cfg(target_os = "windows")]
+fn foreground_title() -> String {
+    use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowTextW};
     unsafe {
-        // 1. Tentative — focus la window Star Citizen si elle existe.
+        let h = GetForegroundWindow();
+        if h.0.is_null() {
+            return "<null>".to_string();
+        }
+        let mut buf = [0u16; 256];
+        let len = GetWindowTextW(h, &mut buf);
+        let title = if len > 0 {
+            String::from_utf16_lossy(&buf[..len as usize])
+        } else {
+            "<no-title>".to_string()
+        };
+        format!("\"{}\" (hwnd={:?})", title, h.0)
+    }
+}
+
+/// Affiche une fenêtre SANS l'activer (SW_SHOWNOACTIVATE). `win.show()` de
+/// Tauri = ShowWindow(SW_SHOW) qui ACTIVE la window (la passe foreground)
+/// MÊME si elle a WS_EX_NOACTIVATE — car NOACTIVATE ne bloque que
+/// l'activation au CLIC, pas le show() programmatique. SW_SHOWNOACTIVATE est
+/// le seul moyen d'afficher une notif/overlay sans voler le focus du jeu.
+#[cfg(target_os = "windows")]
+fn show_no_activate(win: &tauri::WebviewWindow) {
+    use windows::Win32::UI::WindowsAndMessaging::{ShowWindow, SW_SHOWNOACTIVATE};
+    unsafe {
+        if let Ok(hwnd_raw) = win.hwnd() {
+            let _ = ShowWindow(HWND(hwnd_raw.0 as *mut _), SW_SHOWNOACTIVATE);
+        }
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn show_no_activate(win: &tauri::WebviewWindow) {
+    let _ = win.show();
+}
+
+/// Force le passage au premier plan d'une fenêtre cible — même si elle
+/// appartient à un autre process (Star Citizen). Windows interdit
+/// normalement à un process de céder le foreground arbitrairement :
+/// `SetForegroundWindow` échoue alors silencieusement (simple flash de la
+/// taskbar) ou bien le foreground « bouge » mais le focus CLAVIER reste
+/// piégé sur le HWND enfant WebView2 de l'overlay. On contourne via
+/// `AttachThreadInput` : on attache la file d'input de NOTRE thread à celle
+/// du thread foreground courant ET à celle du thread de la cible, ce qui
+/// autorise `SetForegroundWindow` / `SetActiveWindow` / `SetFocus` à
+/// réellement transférer le focus clavier vers la cible. On détache ensuite
+/// pour ne pas garder les files couplées (sinon inputs gelés).
+#[cfg(target_os = "windows")]
+fn force_foreground(target: HWND) {
+    use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
+    use windows::Win32::UI::Input::KeyboardAndMouse::{SetActiveWindow, SetFocus};
+    use windows::Win32::UI::WindowsAndMessaging::{
+        BringWindowToTop, GetForegroundWindow, GetWindowThreadProcessId,
+    };
+    unsafe {
+        let fg = GetForegroundWindow();
+        let my_thread = GetCurrentThreadId();
+        let fg_thread = GetWindowThreadProcessId(fg, None);
+        let target_thread = GetWindowThreadProcessId(target, None);
+
+        // N'attache que des threads distincts : AttachThreadInput sur
+        // soi-même échoue, et un double-attache au même thread fausserait
+        // le détache symétrique en fin de fonction.
+        let attach_fg = fg_thread != 0 && fg_thread != my_thread;
+        let attach_target =
+            target_thread != 0 && target_thread != my_thread && target_thread != fg_thread;
+
+        if attach_fg {
+            let _ = AttachThreadInput(my_thread, fg_thread, BOOL(1));
+        }
+        if attach_target {
+            let _ = AttachThreadInput(my_thread, target_thread, BOOL(1));
+        }
+
+        let _ = BringWindowToTop(target);
+        let _ = SetForegroundWindow(target);
+        let _ = SetActiveWindow(target);
+        let _ = SetFocus(target);
+
+        if attach_target {
+            let _ = AttachThreadInput(my_thread, target_thread, BOOL(0));
+        }
+        if attach_fg {
+            let _ = AttachThreadInput(my_thread, fg_thread, BOOL(0));
+        }
+    }
+}
+
+/// Rend le focus système au jeu Star Citizen si sa fenêtre est trouvée,
+/// sinon à la fenêtre principale StarTrad en dernier recours. Réutilisable
+/// par n'importe quel overlay (cargo, hub, sites) — c'est le cœur du
+/// « mode fantôme ».
+#[cfg(target_os = "windows")]
+pub fn return_focus_to_game<R: tauri::Runtime>(app: &AppHandle<R>) {
+    let sc_hwnd = unsafe {
         let mut state = EnumState { sc_hwnd: HWND(std::ptr::null_mut()) };
         let _ = EnumWindows(
             Some(enum_find_sc),
             LPARAM(&mut state as *mut EnumState as isize),
         );
-        if !state.sc_hwnd.0.is_null() {
-            let _ = SetForegroundWindow(state.sc_hwnd);
-            return Ok(());
-        }
-
-        // 2. Fallback — donne le focus à la main window StarTrad. Au moins
-        // l'overlay flottant perd le focus exclusif, ce qui peut suffire
-        // à débloquer les inputs si le jeu est en background.
-        if let Some(main) = app_handle.get_webview_window("main") {
-            if let Ok(hwnd) = main.hwnd() {
-                let main_hwnd = HWND(hwnd.0 as *mut _);
-                let _ = SetForegroundWindow(main_hwnd);
-            }
-        }
-
+        state.sc_hwnd
+    };
+    println!(
+        "[cargo-focus] return_focus_to_game : SC trouvé = {} | FG actuel = {}",
+        !sc_hwnd.0.is_null(),
+        foreground_title()
+    );
+    if !sc_hwnd.0.is_null() {
+        force_foreground(sc_hwnd);
+        return;
     }
-    #[cfg(not(target_os = "windows"))]
-    {
-        let _ = app_handle;
+    // Fallback : la main window StarTrad. Au moins l'overlay flottant perd
+    // le focus exclusif, ce qui peut débloquer les inputs.
+    if let Some(main) = app.get_webview_window("main") {
+        if let Ok(hwnd) = main.hwnd() {
+            force_foreground(HWND(hwnd.0 as *mut _));
+        }
     }
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn return_focus_to_game<R: tauri::Runtime>(_app: &AppHandle<R>) {}
+
+/// Commande Tauri : rend le focus au jeu. Appelée par les overlays après
+/// une interaction (clic pin/close/drag) ET juste après leur apparition.
+#[command]
+pub fn release_overlay_focus(app_handle: AppHandle) -> Result<(), String> {
+    return_focus_to_game(&app_handle);
     Ok(())
 }
 

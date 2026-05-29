@@ -59,8 +59,9 @@ export default defineConfig(async () => ({
               }
             : undefined,
         watch: {
-            // 3. tell vite to ignore watching `src-tauri`
-            ignored: ["**/src-tauri/**"],
+            // 3. ignorer `src-tauri` ET le crate sidecar (leur `target/` change à
+            //    chaque rebuild → sinon le watcher vite crashe EBUSY et tue `tauri dev`).
+            ignored: ["**/src-tauri/**", "**/cargo-overlay-sidecar/**"],
         },
     },
 }));

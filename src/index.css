@@ -111,9 +111,29 @@
     }
 }
 
+/* Animations de la cartographie du Carnet de bord */
+@keyframes carnet-dash-flow {
+    to { stroke-dashoffset: -14; }
+}
+@keyframes carnet-home-pulse {
+    0%, 100% {
+        box-shadow: 0 0 18px rgba(16, 185, 129, 0.28);
+    }
+    50% {
+        box-shadow: 0 0 28px rgba(16, 185, 129, 0.45);
+    }
+}
+
 @layer utilities {
     .admin-pulse {
         animation: admin-pulse 5s ease-in-out infinite;
+        will-change: box-shadow;
+    }
+    .carnet-dash-flow {
+        animation: carnet-dash-flow 1.4s linear infinite;
+    }
+    .carnet-home-pulse {
+        animation: carnet-home-pulse 3.6s ease-in-out infinite;
         will-change: box-shadow;
     }
 }

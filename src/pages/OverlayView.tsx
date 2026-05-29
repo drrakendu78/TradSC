@@ -11,6 +11,10 @@ const OverlayView = () => {
     const url = searchParams.get("url") || "";
     const id = searchParams.get("id") || "";
     const initialOpacity = parseInt(searchParams.get("opacity") || "90", 10) / 100;
+    // L'overlay cargo n'affiche pas l'action bar (opacité/œil/refresh) : il a
+    // sa propre card avec header pin/fermeture. On masque la bar + on saute
+    // l'ancrage de l'œil pour cette route.
+    const isCargoOverlay = url.includes("overlay-cargo-buy");
     const [hidden, setHidden] = useState(false);
     const [opacity, setOpacity] = useState(initialOpacity);
 
@@ -122,7 +126,7 @@ const OverlayView = () => {
     // de position relative dans le parent (rare : smart collapse / resize de
     // la bar). Pas besoin d'écouter onMoved/onResized du parent côté frontend.
     useEffect(() => {
-        if (!id) return;
+        if (!id || isCargoOverlay) return;
         const reanchor = () => {
             const placeholder = document.querySelector(
                 "[data-click-through-anchor]",
@@ -167,22 +171,24 @@ const OverlayView = () => {
 
     return (
         <div className="relative h-screen w-screen overflow-hidden rounded-xl bg-slate-950/15 ring-1 ring-white/10">
-            <OverlayActionBar
-                toolName={toolName}
-                opacity={opacity}
-                onOpacityChange={setOpacity}
-                /* clickThroughAsAnchor : la bar rend un placeholder
-                 * invisible 26×26 au lieu d'un bouton réel. La control
-                 * window externe (spawn dans le useEffect) se positionne
-                 * pile dessus et devient le vrai bouton œil. */
-                isClickThrough={false}
-                onClickThroughToggle={() => undefined}
-                clickThroughAsAnchor
-                isHidden={hidden}
-                onHideToggle={setHidden}
-                onRefresh={handleRefresh}
-                onClose={handleClose}
-            />
+            {!isCargoOverlay && (
+                <OverlayActionBar
+                    toolName={toolName}
+                    opacity={opacity}
+                    onOpacityChange={setOpacity}
+                    /* clickThroughAsAnchor : la bar rend un placeholder
+                     * invisible 26×26 au lieu d'un bouton réel. La control
+                     * window externe (spawn dans le useEffect) se positionne
+                     * pile dessus et devient le vrai bouton œil. */
+                    isClickThrough={false}
+                    onClickThroughToggle={() => undefined}
+                    clickThroughAsAnchor
+                    isHidden={hidden}
+                    onHideToggle={setHidden}
+                    onRefresh={handleRefresh}
+                    onClose={handleClose}
+                />
+            )}
 
             {!hidden && (
                 <iframe
@@ -192,7 +198,7 @@ const OverlayView = () => {
                     style={{
                         background: "transparent",
                         display: "block",
-                        height: "calc(100% - 36px)",
+                        height: isCargoOverlay ? "100%" : "calc(100% - 36px)",
                         opacity,
                     }}
                     title={`Overlay ${id}`}

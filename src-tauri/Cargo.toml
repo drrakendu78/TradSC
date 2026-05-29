@@ -51,4 +51,4 @@ gilrs = "0.11"
 [target.'cfg(target_os = "windows")'.dependencies]
 auto-launch = "0.5.0"
 winreg = "0.55"
-windows = { version = "0.58", features = ["Win32_UI_WindowsAndMessaging", "Win32_Foundation", "Win32_Graphics_Dwm", "Win32_Graphics_Gdi"] }
+windows = { version = "0.58", features = ["Win32_UI_WindowsAndMessaging", "Win32_UI_Input_KeyboardAndMouse", "Win32_System_Threading", "Win32_Foundation", "Win32_Graphics_Dwm", "Win32_Graphics_Gdi"] }
