@@ -52,10 +52,22 @@ struct EntryPayload {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
+struct SoldPayload {
+    commodity: String,
+    profit: String, // "+45 000 aUEC"
+    #[serde(default)]
+    positive: bool,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct Payload {
     /// Manifeste : la/les marchandise(s) transportée(s).
     #[serde(default)]
     entries: Vec<EntryPayload>,
+    /// Bandeau de vente (auto-vente détectée) ; null = pas de bandeau.
+    #[serde(default)]
+    sold: Option<SoldPayload>,
     #[serde(default)]
     pinned: bool,
     /// Auto-hide en ms (défaut 30 000 ; 0 = jamais).
@@ -282,19 +294,32 @@ fn apply_payload(ui: &CargoOverlay, p: &Payload) {
     ui.set_entries(Rc::new(slint::VecModel::from(entries)).into());
     ui.set_pinned(p.pinned);
 
-    // Hauteur adaptative : 300 pour 1 marchandise (vue riche), sinon la fenêtre
-    // grandit selon le nb de marchandises × leurs reventes. Resize = top-left
-    // fixe → grandit vers le bas (le coin ne saute pas).
-    let h: f32 = if p.entries.len() <= 1 {
-        300.0
+    // Bandeau de vente (auto-vente) : non-null → affiché ; sinon vidé (cache).
+    match &p.sold {
+        Some(s) => {
+            ui.set_sold_commodity(s.commodity.clone().into());
+            ui.set_sold_profit(s.profit.clone().into());
+            ui.set_sold_positive(s.positive);
+        }
+        None => ui.set_sold_commodity(slint::SharedString::new()),
+    }
+    let banner_h: f32 = if p.sold.is_some() { 42.0 } else { 0.0 };
+
+    // Hauteur adaptative : vide (dernier vendu) = compact ; 300 pour 1 marchandise
+    // (vue riche) ; sinon la fenêtre grandit selon le nb de marchandises × leurs
+    // reventes. + bandeau vente éventuel. Resize top-left fixe → grandit vers le bas.
+    let h: f32 = if p.entries.is_empty() {
+        66.0 + banner_h
+    } else if p.entries.len() == 1 {
+        300.0 + banner_h
     } else {
-        let mut total = 66.0_f32; // header + paddings
+        let mut total = 66.0_f32 + banner_h; // header + paddings + bandeau
         for e in &p.entries {
             total += 22.0; // en-tête marchandise (1 ligne)
             total += (e.locations.len().min(3) as f32) * 21.0; // reventes (1 ligne)
             total += 10.0; // espacement section
         }
-        total.clamp(300.0, 820.0)
+        total.clamp(300.0 + banner_h, 820.0)
     };
     ui.set_win_height(h);
 }
@@ -539,6 +564,7 @@ fn demo_payload() -> Payload {
         pinned: false,
         auto_hide_ms: None,
         corner: None,
+        sold: None,
         entries: vec![
             EntryPayload {
                 commodity: "Nitrogen".into(),

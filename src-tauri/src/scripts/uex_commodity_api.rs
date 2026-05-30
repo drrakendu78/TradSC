@@ -144,11 +144,57 @@ pub fn commodity_kind(name: &str) -> Option<String> {
         .and_then(|c| c.kind.clone())
 }
 
-/// Lookup GUID dans le mapping persistant.
-/// Retourne le nom UEX si déjà connu.
+/// Table datamine SC Wiki embarquée (resourceGUID → nom), chargée une fois.
+/// Source AUTORITAIRE et 100% hors-ligne pour les noms de marchandises — bien
+/// plus fiable que la détection par prix (qui pouvait se tromper, ex. un GUID
+/// labellé "Nitrogen" alors que c'est "Pressurized Ice"). Clés en minuscules.
+fn bundled_commodity_names() -> &'static HashMap<String, String> {
+    static MAP: std::sync::OnceLock<HashMap<String, String>> = std::sync::OnceLock::new();
+    MAP.get_or_init(|| {
+        const RAW: &str = include_str!("commodity_names.json");
+        serde_json::from_str::<HashMap<String, String>>(RAW)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|(k, v)| (k.to_lowercase(), v))
+            .collect()
+    })
+}
+
+/// Lookup GUID → nom de marchandise.
+/// 1) table datamine embarquée (autoritaire, instantanée, hors-ligne),
+/// 2) sinon cache local (overlay / résolutions runtime).
 pub fn guid_to_commodity_name(guid: &str) -> Option<String> {
-    let map = load_guid_mapping();
-    map.get(&guid.to_lowercase()).cloned()
+    let key = guid.to_lowercase();
+    if let Some(name) = bundled_commodity_names().get(&key) {
+        return Some(name.clone());
+    }
+    load_guid_mapping().get(&key).cloned()
+}
+
+/// Table datamine SC Wiki embarquée EN ANGLAIS (resourceGUID → nom anglais).
+/// IMPORTANT : la base UEX (commodities + prix) est en anglais. La table FR
+/// (`commodity_names.json`) sert à l'AFFICHAGE, mais le LOOKUP UEX doit se faire
+/// avec le nom anglais, sinon aucun match → aucune revente/profit sur l'overlay.
+fn bundled_commodity_names_en() -> &'static HashMap<String, String> {
+    static MAP: std::sync::OnceLock<HashMap<String, String>> = std::sync::OnceLock::new();
+    MAP.get_or_init(|| {
+        const RAW: &str = include_str!("commodity_names_en.json");
+        serde_json::from_str::<HashMap<String, String>>(RAW)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|(k, v)| (k.to_lowercase(), v))
+            .collect()
+    })
+}
+
+/// Lookup GUID → nom de marchandise EN ANGLAIS (pour matcher la base UEX).
+/// 1) table datamine EN embarquée, 2) sinon mapping runtime (noms UEX anglais).
+pub fn guid_to_commodity_name_en(guid: &str) -> Option<String> {
+    let key = guid.to_lowercase();
+    if let Some(name) = bundled_commodity_names_en().get(&key) {
+        return Some(name.clone());
+    }
+    load_guid_mapping().get(&key).cloned()
 }
 
 /// Enregistre un nouveau mapping découvert (GUID → nom UEX).
@@ -156,6 +202,24 @@ pub fn register_guid_mapping(guid: &str, commodity_name: &str) {
     let mut map = load_guid_mapping();
     map.insert(guid.to_lowercase(), commodity_name.to_string());
     save_guid_mapping(&map);
+}
+
+/// Résout (best-effort, via UEX) le nom des commodities encore inconnues à
+/// partir de leur prix d'achat + boutique, et enregistre les mappings GUID→nom.
+/// Les GUID de marchandise sont GLOBAUX (même marchandise = même GUID pour tous)
+/// → résoudre ceux de l'historique peuple le cache pour tout le monde. À appeler
+/// au scan du carnet pour éviter les "Marchandise #guid" dans Économie. No-op
+/// (zéro réseau) pour les GUID déjà mappés. `buys` = (guid, price_per_csu, shop).
+pub async fn resolve_unknown_commodities(buys: &[(String, f64, String)]) {
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for (guid, price, shop) in buys {
+        if guid.is_empty() || *price <= 0.0 || shop.is_empty() { continue; }
+        if !seen.insert(guid.to_lowercase()) { continue; }
+        if guid_to_commodity_name(guid).is_some() { continue; }
+        if let Some(name) = detect_commodity_by_price_and_shop(*price, shop).await {
+            register_guid_mapping(guid, &name);
+        }
+    }
 }
 
 /// Tente d'identifier une commodity inconnue à partir de son prix observé et
@@ -451,8 +515,14 @@ pub async fn suggest_sell_locations(
     let quantity_scu = quantity_csu / 100.0; // UEX raisonne en SCU (1 SCU = 100 cSCU)
     let mut top_sell_locations = Vec::new();
 
+    // Nom EN pour le lookup UEX (base anglaise). `commodity_name` reste FR pour
+    // l'affichage ; sans table EN on retombe sur le nom d'affichage (cas détecté
+    // = déjà anglais, ou GUID anglais hérité).
+    let lookup_name =
+        guid_to_commodity_name_en(&commodity_guid).unwrap_or_else(|| commodity_name.clone());
+
     if let Some(commodities) = ensure_commodities_cache().await {
-        if let Some(commodity) = commodities.iter().find(|c| c.name.eq_ignore_ascii_case(&commodity_name)) {
+        if let Some(commodity) = commodities.iter().find(|c| c.name.eq_ignore_ascii_case(&lookup_name)) {
             if let Some(prices) = ensure_prices_cache(commodity.id).await {
                 // Filtre les terminals qui vendent (sell_price > 0)
                 let mut sellable: Vec<&UexCommodityPrice> = prices.iter()

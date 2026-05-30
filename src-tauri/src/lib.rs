@@ -770,6 +770,7 @@ pub fn run() {
             scripts::gamelog_history_parser::gamelog_history_scan,
             scripts::gamelog_history_parser::gamelog_history_load,
             scripts::gamelog_history_parser::gamelog_history_summary,
+            scripts::gamelog_history_parser::gamelog_history_stats,
             scripts::citizen_profile_cache::enrich_encountered_players,
             scripts::citizen_profile_cache::citizen_profile_refresh,
             scripts::citizen_tags::citizen_tag_set,
@@ -782,6 +783,7 @@ pub fn run() {
             scripts::cargo_overlay::cargo_overlay_get_last_payload,
             scripts::cargo_overlay::cargo_overlay_set_last_payload_cmd,
             scripts::cargo_overlay::cargo_overlay_test_native,
+            scripts::cargo_overlay::cargo_overlay_test_sell,
             scripts::cargo_overlay::cargo_overlay_set_corner,
             scripts::cargo_overlay::cargo_overlay_set_qd_speed,
         ])

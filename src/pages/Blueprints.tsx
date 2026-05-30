@@ -23,6 +23,9 @@ import {
     X,
     PictureInPicture2,
     ArrowUpDown,
+    Ruler,
+    Crosshair,
+    Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -376,6 +379,22 @@ const CLASS_BADGE_COLOR: Record<BlueprintClass, string> = {
     comp: "border-emerald-400/55 bg-emerald-400/20 text-emerald-200",
 };
 
+/// Extrait le grade (qualité A/B/C/D) du nom : préfixe composant style
+/// "Mil/1/D Charger" → "D". null si pas de grade (objets sans classe : armures,
+/// gear FPS, consommables…).
+function extractGrade(b: BlueprintSummary): string | null {
+    const src = b.nameEn || b.nameFr || "";
+    const m = src.match(/^[A-Za-z]+\/\d+\/([A-D])\b/i);
+    return m ? m[1].toUpperCase() : null;
+}
+
+const GRADE_BADGE_COLOR: Record<string, string> = {
+    A: "border-emerald-400/55 bg-emerald-400/15 text-emerald-200",
+    B: "border-sky-400/55 bg-sky-400/15 text-sky-200",
+    C: "border-amber-400/55 bg-amber-400/15 text-amber-200",
+    D: "border-zinc-400/45 bg-zinc-400/15 text-zinc-300",
+};
+
 const MISSION_TYPE_FR: Record<string, string> = {
     "Bounty Hunter": "Chasse à prime",
     Collection: "Collecte",
@@ -587,6 +606,10 @@ export default function Blueprints({ isOverlayEmbed = false }: BlueprintsProps =
     const [contractorFilter, setContractorFilter] = useState<string>("all");
     const [missionTypeFilter, setMissionTypeFilter] = useState<string>("all");
     const [categoryFilter, setCategoryFilter] = useState<string>("all");
+    // Filtres composant (client-side) : taille (S1…), classe (Mili/Furtif…), grade (A-D).
+    const [sizeFilter, setSizeFilter] = useState<string>("all");
+    const [classFilter, setClassFilter] = useState<string>("all");
+    const [gradeFilter, setGradeFilter] = useState<string>("all");
     const [lawfulFilter, setLawfulFilter] = useState<"all" | "lawful" | "unlawful">("all");
     const [onlyOwned, setOnlyOwned] = useState<boolean>(() => {
         try {
@@ -659,6 +682,9 @@ export default function Blueprints({ isOverlayEmbed = false }: BlueprintsProps =
         contractorFilter: string;
         missionTypeFilter: string;
         categoryFilter: string;
+        sizeFilter: string;
+        classFilter: string;
+        gradeFilter: string;
         lawfulFilter: "all" | "lawful" | "unlawful";
     } | null>(null);
     const loadFromCloud = usePreferencesSyncStore((s) => s.loadFromCloud);
@@ -973,12 +999,50 @@ export default function Blueprints({ isOverlayEmbed = false }: BlueprintsProps =
         return Array.from(set).sort();
     }, [blueprints]);
 
+    const sizeOptions = useMemo(() => {
+        // On liste l'échelle COMPLÈTE T0→T10 (au cas où CIG ajoute de plus gros
+        // blueprints craftables : aujourd'hui sccrafter plafonne à S6, donc T7→T10
+        // sont vides — mais ils seront prêts le jour venu). Étendu au-delà de 10 si
+        // jamais la data dépasse (max présent), pour ne jamais masquer une vraie taille.
+        let max = 10;
+        for (const b of blueprints) {
+            const s = extractSize(b);
+            if (s != null && s > max) max = s;
+        }
+        const out: string[] = [];
+        for (let i = 0; i <= max; i++) out.push(String(i));
+        return out;
+    }, [blueprints]);
+
+    const classOptions = useMemo(() => {
+        const set = new Set<BlueprintClass>();
+        for (const b of blueprints) {
+            const c = resolveClass(b);
+            if (c) set.add(c);
+        }
+        const order: BlueprintClass[] = ["civi", "mili", "indu", "stlh", "comp"];
+        return order.filter((c) => set.has(c)) as string[];
+    }, [blueprints]);
+
+    const gradeOptions = useMemo(() => {
+        const set = new Set<string>();
+        for (const b of blueprints) {
+            const g = extractGrade(b);
+            if (g) set.add(g);
+        }
+        return Array.from(set).sort();
+    }, [blueprints]);
+
     const displayedBlueprints = useMemo(() => {
         const q = search.trim().toLowerCase();
         const filtered = blueprints.filter((b) => {
             if (onlyOwned && !owned.has(b.blueprintId)) return false;
             if (categoryFilter !== "all" && categoryKey(b.category) !== categoryFilter)
                 return false;
+            if (sizeFilter !== "all" && String(extractSize(b) ?? "") !== sizeFilter)
+                return false;
+            if (classFilter !== "all" && resolveClass(b) !== classFilter) return false;
+            if (gradeFilter !== "all" && extractGrade(b) !== gradeFilter) return false;
             if (q) {
                 const hay = [
                     b.blueprintId,
@@ -1038,7 +1102,7 @@ export default function Blueprints({ isOverlayEmbed = false }: BlueprintsProps =
             default:
                 return filtered.sort(cmpAlpha);
         }
-    }, [blueprints, onlyOwned, owned, categoryFilter, search, sortMode, ownedTimestamps]);
+    }, [blueprints, onlyOwned, owned, categoryFilter, sizeFilter, classFilter, gradeFilter, search, sortMode, ownedTimestamps]);
 
     const total = Math.max(blueprints.length, config?.totalBlueprints ?? 0);
     const ownedCount = useMemo(
@@ -1298,6 +1362,42 @@ export default function Blueprints({ isOverlayEmbed = false }: BlueprintsProps =
                             allLabel="Catégorie"
                             active={categoryFilter !== "all"}
                         />
+                        {sizeOptions.length > 0 && (
+                            <CompactSelect
+                                icon={<Ruler className="h-3 w-3" />}
+                                placeholder="Taille"
+                                value={sizeFilter}
+                                onChange={setSizeFilter}
+                                options={sizeOptions}
+                                renderOption={(v) => `T${v}`}
+                                allLabel="Taille"
+                                active={sizeFilter !== "all"}
+                            />
+                        )}
+                        {classOptions.length > 0 && (
+                            <CompactSelect
+                                icon={<Crosshair className="h-3 w-3" />}
+                                placeholder="Classe"
+                                value={classFilter}
+                                onChange={setClassFilter}
+                                options={classOptions}
+                                renderOption={(v) => CLASS_LABEL_FR[v as BlueprintClass] ?? v}
+                                allLabel="Classe"
+                                active={classFilter !== "all"}
+                            />
+                        )}
+                        {gradeOptions.length > 0 && (
+                            <CompactSelect
+                                icon={<Star className="h-3 w-3" />}
+                                placeholder="Grade"
+                                value={gradeFilter}
+                                onChange={setGradeFilter}
+                                options={gradeOptions}
+                                renderOption={(v) => `Grade ${v}`}
+                                allLabel="Grade"
+                                active={gradeFilter !== "all"}
+                            />
+                        )}
                         <CompactSelect
                             icon={<Briefcase className="h-3 w-3" />}
                             placeholder="Type"
@@ -1346,6 +1446,9 @@ export default function Blueprints({ isOverlayEmbed = false }: BlueprintsProps =
                                             contractorFilter,
                                             missionTypeFilter,
                                             categoryFilter,
+                                            sizeFilter,
+                                            classFilter,
+                                            gradeFilter,
                                             lawfulFilter,
                                         };
                                         setSearch("");
@@ -1353,6 +1456,9 @@ export default function Blueprints({ isOverlayEmbed = false }: BlueprintsProps =
                                         setContractorFilter("all");
                                         setMissionTypeFilter("all");
                                         setCategoryFilter("all");
+                                        setSizeFilter("all");
+                                        setClassFilter("all");
+                                        setGradeFilter("all");
                                         setLawfulFilter("all");
                                     } else {
                                         // Désactivation : restaure les filtres précédents
@@ -1363,6 +1469,9 @@ export default function Blueprints({ isOverlayEmbed = false }: BlueprintsProps =
                                             setContractorFilter(snap.contractorFilter);
                                             setMissionTypeFilter(snap.missionTypeFilter);
                                             setCategoryFilter(snap.categoryFilter);
+                                            setSizeFilter(snap.sizeFilter);
+                                            setClassFilter(snap.classFilter);
+                                            setGradeFilter(snap.gradeFilter);
                                             setLawfulFilter(snap.lawfulFilter);
                                             filtersSnapshotRef.current = null;
                                         }
@@ -1501,6 +1610,18 @@ export default function Blueprints({ isOverlayEmbed = false }: BlueprintsProps =
                                                                         className={`h-5 shrink-0 px-1.5 text-[10.5px] font-semibold ${CLASS_BADGE_COLOR[cls]}`}
                                                                     >
                                                                         {CLASS_LABEL_FR[cls]}
+                                                                    </Badge>
+                                                                ) : null;
+                                                            })()}
+                                                            {(() => {
+                                                                const grade = extractGrade(b);
+                                                                return grade ? (
+                                                                    <Badge
+                                                                        variant="outline"
+                                                                        className={`h-5 shrink-0 px-1.5 text-[10.5px] font-semibold ${GRADE_BADGE_COLOR[grade] ?? ""}`}
+                                                                        title={`Grade ${grade}`}
+                                                                    >
+                                                                        {grade}
                                                                     </Badge>
                                                                 ) : null;
                                                             })()}
