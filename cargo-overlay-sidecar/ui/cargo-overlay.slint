@@ -40,6 +40,10 @@ export component CargoOverlay inherits Window {
     // Hauteur pilotée par Rust (grandit selon le manifeste → la fenêtre grandit
     // vers le bas, le coin haut ne bouge pas). 300 = vue riche 1 marchandise.
     in property <length> win-height: 300px;
+    // Bandeau de vente (auto-vente) : nom non vide → bandeau vert affiché en haut.
+    in property <string> sold-commodity: "";
+    in property <string> sold-profit: "";   // "+45 000 aUEC"
+    in property <bool> sold-positive: true;
 
     callback close();
     callback toggle-pin();
@@ -159,6 +163,58 @@ export component CargoOverlay inherits Window {
                     }
                 }
             }
+
+            // ── Bandeau VENTE (auto-vente détectée) ────────────────────
+            if root.sold-commodity != "" : Rectangle {
+                height: 32px;
+                border-radius: 8px;
+                background: #10e38b1a;
+                border-width: 1px;
+                border-color: #10e38b3d;
+                HorizontalLayout {
+                    padding-left: 10px;
+                    padding-right: 11px;
+                    spacing: 8px;
+                    alignment: space-between;
+                    HorizontalLayout {
+                        spacing: 7px;
+                        alignment: start;
+                        VerticalLayout {
+                            alignment: center;
+                            Path {
+                                width: 11px; height: 9px;
+                                viewbox-width: 12; viewbox-height: 10;
+                                stroke: root.emerald;
+                                stroke-width: 1.8px;
+                                commands: "M 1.5 5.5 L 4.5 8.5 L 10.5 1.5";
+                            }
+                        }
+                        VerticalLayout {
+                            alignment: center;
+                            Text {
+                                text: "VENDU · " + root.sold-commodity;
+                                color: root.emerald;
+                                font-size: 11px;
+                                font-weight: 700;
+                                letter-spacing: 0.6px;
+                                overflow: elide;
+                            }
+                        }
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        Text {
+                            text: root.sold-profit;
+                            color: root.sold-positive ? root.emerald : #fb7185;
+                            font-size: 13px;
+                            font-weight: 700;
+                            font-family: root.mono;
+                            horizontal-alignment: right;
+                        }
+                    }
+                }
+            }
+            if root.sold-commodity != "" : Rectangle { height: 10px; }
 
             Rectangle { height: 12px; }
 

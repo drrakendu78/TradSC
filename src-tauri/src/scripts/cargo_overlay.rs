@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, Runtime, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 use tokio::time::sleep;
 
-use crate::scripts::gamelog_blueprint_watcher::CargoBuyPayload;
+use crate::scripts::gamelog_blueprint_watcher::{CargoBuyPayload, CargoSellPayload};
 use crate::scripts::uex_commodity_api::{suggest_sell_locations, CommoditySuggestionResult};
 
 const CARGO_OVERLAY_LABEL: &str = "cargo_overlay";
@@ -466,20 +466,37 @@ pub fn cargo_overlay_set_qd_speed(kms: f64) -> Result<(), String> {
     .map_err(|e| e.to_string())
 }
 
-/// Nettoie un shopName interne SC pour l'affichage.
-/// "SCShop_Admin_lt_base_g" → "Admin lt base g".
+/// Nettoie un shopName interne SC pour l'affichage (heuristique FR : vire le
+/// bruit d'instance + mots redondants, traduit les mots génériques, garde les
+/// marques + lieux). "SCShop_Pyro_RStop_ShipWeapons_001" → "Pyro Rest Stop Armes vaisseau".
 fn clean_shop_name(raw: &str) -> String {
-    let s = raw
+    let stripped = raw
         .trim_start_matches("SCShop_")
         .trim_start_matches("SCshop_")
-        .trim_start_matches("scshop_")
-        .replace('_', " ");
-    let s = s.trim();
-    if s.is_empty() {
-        raw.to_string()
-    } else {
-        s.to_string()
+        .trim_start_matches("scshop_");
+    let mut out: Vec<String> = Vec::new();
+    for tok in stripped.split(|c| c == '_' || c == '-') {
+        if tok.is_empty() || tok.chars().all(|c| c.is_ascii_digit()) {
+            continue;
+        }
+        match tok.to_lowercase().as_str() {
+            "store" | "shop" | "salesperson" | "mrecart" | "cart" | "vendor" => continue,
+            "food" => out.push("Resto".into()),
+            "reststop" | "rstop" => out.push("Rest Stop".into()),
+            "shipweapons" => out.push("Armes vaisseau".into()),
+            "weapons" | "weapon" => out.push("Armes".into()),
+            "interior" => out.push("Intérieur".into()),
+            "showroom" => out.push("Concession".into()),
+            "pharmacy" => out.push("Pharmacie".into()),
+            "clothing" | "apparel" => out.push("Vêtements".into()),
+            "armor" | "armour" => out.push("Armure".into()),
+            "refinery" => out.push("Raffinerie".into()),
+            _ => out.push(tok.to_string()),
+        }
     }
+    let s = out.join(" ");
+    let s = s.trim();
+    if s.is_empty() { raw.to_string() } else { s.to_string() }
 }
 
 /// Une marchandise du manifeste (cale). Les rachats de la même s'accumulent.
@@ -554,6 +571,24 @@ fn commodity_color_index(name: &str) -> i64 {
         ("medical", 6),
         ("distilled", 8),
         ("processed food", 8),
+        // Noms FR (le bundle traduit le nom → on matche aussi le FR pour garder
+        // les couleurs iconiques). Les noms propres (Quantanium, Laranite…) sont
+        // déjà couverts ci-dessus car identiques en FR.
+        ("diamant", 9),
+        ("cuivre", 5),
+        ("ferraille", 11),
+        ("déchet", 11),
+        ("recyclé", 11),
+        ("composite de mat", 11),
+        ("corindon", 9),
+        ("béryl", 9),
+        ("médica", 6),
+        ("distillé", 8),
+        ("titane", 2),
+        ("aluminium", 2),
+        ("acier", 2),
+        ("nourriture", 8),
+        ("agricole", 8),
     ];
     for (k, idx) in name_map {
         if n.contains(k) {
@@ -577,7 +612,7 @@ fn commodity_color_index(name: &str) -> i64 {
 }
 
 /// Payload manifeste complet (liste de marchandises) pour le sidecar.
-fn build_manifest_json(m: &[ManifestEntry]) -> String {
+fn build_manifest_json(m: &[ManifestEntry], sold: Option<(&str, f64)>) -> String {
     let entries: Vec<serde_json::Value> = m
         .iter()
         .map(|e| {
@@ -608,11 +643,24 @@ fn build_manifest_json(m: &[ManifestEntry]) -> String {
             })
         })
         .collect();
+    // Bandeau de vente (auto-vente détectée) : nom + profit réalisé formaté.
+    let sold_json = match sold {
+        Some((name, profit)) => {
+            let pos = profit >= 0.0;
+            serde_json::json!({
+                "commodity": name,
+                "profit": format!("{}{} aUEC", if pos { "+" } else { "-" }, format_amount(profit.abs())),
+                "positive": pos,
+            })
+        }
+        None => serde_json::Value::Null,
+    };
     serde_json::json!({
         "entries": entries,
         "pinned": false,
         "autoHideMs": 30000,
         "corner": load_overlay_corner(),
+        "sold": sold_json,
     })
     .to_string()
 }
@@ -684,8 +732,21 @@ fn spawn_sidecar_with_json(json: &str) {
     }
 }
 
-/// "Vendu" depuis l'overlay : retire la marchandise (guid) du manifeste et
-/// renvoie le manifeste à jour au sidecar (sur son stdin).
+/// Pousse un JSON manifeste déjà construit au sidecar vivant (sur son stdin).
+/// No-op si aucun overlay n'est en cours (auto-hide / ✕) — le manifeste en
+/// mémoire reste la source de vérité pour le prochain affichage.
+fn push_manifest_to_sidecar(json: &str) {
+    if let Ok(mut guard) = OVERLAY_CHILD.lock() {
+        if let Some(proc) = guard.as_mut() {
+            let line = format!("{json}\n");
+            let _ = proc.stdin.write_all(line.as_bytes());
+            let _ = proc.stdin.flush();
+        }
+    }
+}
+
+/// "Vendu" depuis l'overlay (case manuelle, fallback) : retire la marchandise
+/// (guid) du manifeste et renvoie le manifeste à jour au sidecar.
 fn handle_sold(guid: &str) {
     let json = {
         let mut m = match MANIFEST.lock() {
@@ -697,15 +758,64 @@ fn handle_sold(guid: &str) {
         if m.len() == before {
             return; // rien retiré → pas la peine de renvoyer
         }
-        build_manifest_json(&m)
+        build_manifest_json(&m, None)
     };
-    if let Ok(mut guard) = OVERLAY_CHILD.lock() {
-        if let Some(proc) = guard.as_mut() {
-            let line = format!("{json}\n");
-            let _ = proc.stdin.write_all(line.as_bytes());
-            let _ = proc.stdin.flush();
+    push_manifest_to_sidecar(&json);
+}
+
+/// Bilan d'une vente auto rapprochée du manifeste.
+pub struct SellOutcome {
+    /// Nom commercial de la marchandise (vide si non résolu / hors manifeste).
+    pub commodity: String,
+    /// `true` si la vente a été rapprochée d'une entrée du manifeste (retirée
+    /// ou décrémentée). `false` = vendu une marchandise absente du manifeste
+    /// (achetée avant le lancement de l'app, p.ex.) → profit inconnu.
+    pub matched: bool,
+    /// Profit réel (vente − coût d'achat de la portion vendue), si calculable.
+    pub profit: Option<f64>,
+}
+
+/// AUTO-VENTE : rapproche une vente détectée (`SendCommoditySellRequest`) du
+/// manifeste, retire ou décrémente la marchandise vendue, pousse le manifeste à
+/// jour au sidecar, et renvoie le bilan (profit réel achat vs vente).
+/// ⚠️ `quantity_scu` est en SCU → converti en cSCU (×100) pour le manifeste.
+pub fn handle_auto_sell(p: &CargoSellPayload) -> SellOutcome {
+    let sold_cscu = p.quantity_scu * 100.0;
+    let mut outcome = SellOutcome { commodity: String::new(), matched: false, profit: None };
+    let json = {
+        let mut m = match MANIFEST.lock() {
+            Ok(g) => g,
+            Err(_) => return outcome,
+        };
+        let Some(idx) = m.iter().position(|e| e.guid == p.commodity_guid) else {
+            return outcome; // marchandise pas dans le manifeste → rien à retirer
+        };
+        outcome.matched = true;
+        let sold_name = if m[idx].name.is_empty() {
+            "Marchandise".to_string()
+        } else {
+            m[idx].name.clone()
+        };
+        outcome.commodity = sold_name.clone();
+        // Coût d'achat de la portion vendue : proportionnel à ce qui a été payé
+        // (gère l'accumulation de plusieurs rachats à des prix différents).
+        let entry_csu = m[idx].total_csu;
+        let frac = if entry_csu > 0.0 { (sold_cscu / entry_csu).min(1.0) } else { 1.0 };
+        let buy_cost_sold = m[idx].total_buy * frac;
+        let realized = p.amount - buy_cost_sold;
+        outcome.profit = Some(realized);
+        // Retire si tout (ou plus) est vendu, sinon décrémente.
+        if sold_cscu >= entry_csu - 0.5 {
+            m.remove(idx);
+        } else {
+            m[idx].total_csu -= sold_cscu;
+            m[idx].total_buy -= buy_cost_sold;
         }
-    }
+        // Bandeau "VENDU · <nom> · <profit réalisé>" en haut de l'overlay.
+        build_manifest_json(&m, Some((&sold_name, realized)))
+    };
+    push_manifest_to_sidecar(&json);
+    outcome
 }
 
 /// Tue l'overlay natif (à appeler à la fermeture de l'app — sinon un overlay
@@ -778,7 +888,7 @@ pub fn spawn_overlay_for_buy(p: &CargoBuyPayload) {
                 }
                 e.locations = build_locations_json(sugg.as_ref());
             }
-            build_manifest_json(&m)
+            build_manifest_json(&m, None)
         };
         spawn_sidecar_with_json(&json);
     });
@@ -791,13 +901,13 @@ pub fn cargo_overlay_test_native() {
     use std::sync::atomic::{AtomicUsize, Ordering};
     static N: AtomicUsize = AtomicUsize::new(0);
     let i = N.fetch_add(1, Ordering::Relaxed);
-    // Cycle sur des marchandises DIFFÉRENTES → on voit le manifeste se remplir
-    // en liste ; re-Nitrogen (indices 0 et 3) → accumulation (+SCU sur sa ligne).
-    // GUIDs de test mappés dans guid_mapping.json (Aluminum/Gold).
+    // Cycle sur 3 VRAIES marchandises : dans le bundle FR (affichage en français)
+    // ET tradées sur UEX (reventes + profit réels). Re-lancer empile le manifeste ;
+    // re-cycler la même (indices 0 et 3…) → accumulation (+SCU sur sa ligne).
     let demos: [(&str, f64, f64); 3] = [
-        ("f9f3251a-8e48-408a-b957-f1e3d5d3e213", 22.29, 200.0), // Nitrogen (mappé)
-        ("startrad-test-aluminum", 18.50, 150.0),               // Aluminum
-        ("startrad-test-gold", 60.00, 90.0),                    // Gold
+        ("21825507-7923-4683-9bf3-9cfe316940e3", 60.00, 90.0),  // Or (Gold)
+        ("935255d1-2eda-414b-bdd7-207e57c26e36", 68.00, 100.0), // Diamant (Diamond)
+        ("7f4599b0-a2b2-4178-8c7e-13292054ab20", 26.00, 150.0), // Laranite
     ];
     let (guid, ppc, scu) = demos[i % demos.len()];
     let qty_csu = scu * 100.0;
@@ -813,4 +923,33 @@ pub fn cargo_overlay_test_native() {
         unit_amount: 25,
     };
     spawn_overlay_for_buy(&demo);
+}
+
+/// Commande de test : simule une AUTO-VENTE de la 1ʳᵉ marchandise du manifeste
+/// (à +15 %), appelable plusieurs fois d'affilée (vend Or, puis Diamant, puis
+/// Laranite… chacun affichant son bandeau VENDU). À lancer après
+/// `cargo_overlay_test_native`. Renvoie un récap pour la devtools.
+#[tauri::command]
+pub fn cargo_overlay_test_sell() -> String {
+    // Vend la PREMIÈRE marchandise du manifeste courant (peu importe laquelle) →
+    // appels répétés = Or, puis Diamant, puis Laranite… (chacun son bandeau).
+    let first = MANIFEST
+        .lock()
+        .ok()
+        .and_then(|m| m.first().map(|e| (e.guid.clone(), e.total_csu, e.total_buy)));
+    let Some((guid, total_csu, total_buy)) = first else {
+        return "manifeste vide — lance d'abord cargo_overlay_test_native".to_string();
+    };
+    let demo = CargoSellPayload {
+        ts: 0.0,
+        shop_name: "SCShop_CommEx_TDD_Orison".into(),
+        amount: total_buy * 1.15, // vente simulée à +15 % du coût d'achat
+        commodity_guid: guid,
+        quantity_scu: total_csu / 100.0, // cSCU → SCU
+    };
+    let outcome = handle_auto_sell(&demo);
+    format!(
+        "matched={} commodity=\"{}\" profit={:?}",
+        outcome.matched, outcome.commodity, outcome.profit
+    )
 }

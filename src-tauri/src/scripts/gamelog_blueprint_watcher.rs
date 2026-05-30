@@ -276,6 +276,41 @@ pub fn parse_commodity_buy_line(line: &str) -> Option<CargoBuyPayload> {
     })
 }
 
+// ── Détection commodity sell (cargo, auto-vente) ────────────────────────────
+
+/// Payload d'une vente cargo (`SendCommoditySellRequest`).
+/// ⚠️ Diffère du buy : champ `amount` (aUEC reçus, ≠ `price`), et `quantity`
+/// est un **entier nu en SCU** (pas de suffixe `cSCU`). Le manifeste de
+/// l'overlay stocke en cSCU → convertir `quantity_scu * 100`.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CargoSellPayload {
+    pub ts: f64,
+    pub shop_name: String,
+    pub amount: f64,
+    pub commodity_guid: String,
+    pub quantity_scu: f64,
+}
+
+/// Match `SendCommoditySellRequest` et extrait le payload de vente.
+pub fn parse_commodity_sell_line(line: &str) -> Option<CargoSellPayload> {
+    static RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
+    let re = RE.get_or_init(|| {
+        Regex::new(
+            r"SendCommoditySellRequest>.*?shopName\[([^\]]+)\].*?amount\[([\d.]+)\].*?resourceGUID\[([a-f0-9\-]+)\].*?quantity\[(\d+)\]"
+        ).unwrap()
+    });
+    let caps = re.captures(line)?;
+    let ts = parse_ts(line).unwrap_or_else(|| Utc::now().timestamp() as f64);
+    Some(CargoSellPayload {
+        ts,
+        shop_name: caps[1].to_string(),
+        amount: caps[2].parse().unwrap_or(0.0),
+        commodity_guid: caps[3].to_string(),
+        quantity_scu: caps[4].parse().unwrap_or(0.0),
+    })
+}
+
 // ── Thread tailer ──────────────────────────────────────────────────────────
 
 /// Émet un événement de log visible côté UI. Les events `gamelog-watcher:log`
@@ -437,6 +472,54 @@ fn run_tailer(app: AppHandle, log_path: PathBuf, stop: Arc<AtomicBool>) {
                         //    pas l'historique rejoué au démarrage.
                         if did_initial_scan {
                             crate::scripts::cargo_overlay::spawn_overlay_for_buy(&payload);
+                        }
+                    }
+                }
+                // Détection ventes commodity (cargo) — AUTO-VENTE. Live seulement
+                // (post 1er passage) : le manifeste n'est peuplé que par les achats
+                // live, et on évite de rejouer tout l'historique des ventes.
+                if did_initial_scan && line.contains("SendCommoditySellRequest") {
+                    if let Some(sell) = crate::scripts::gamelog_blueprint_watcher::parse_commodity_sell_line(line) {
+                        // Ventes annulées = amount 0 → ignorer.
+                        if sell.amount > 0.0 {
+                            let outcome = crate::scripts::cargo_overlay::handle_auto_sell(&sell);
+                            let name = if outcome.commodity.is_empty() {
+                                "Marchandise".to_string()
+                            } else {
+                                outcome.commodity.clone()
+                            };
+                            let profit_str = match outcome.profit {
+                                Some(pf) => format!(
+                                    " · profit {}{}",
+                                    if pf >= 0.0 { "+" } else { "-" },
+                                    pf.abs().round() as i64
+                                ),
+                                None => String::new(),
+                            };
+                            emit_log(
+                                &app,
+                                "success",
+                                format!(
+                                    "Cargo vendu : {} SCU de {} pour {} aUEC{}",
+                                    sell.quantity_scu as i64,
+                                    name,
+                                    sell.amount.round() as i64,
+                                    profit_str
+                                ),
+                            );
+                            let _ = app.emit(
+                                "gamelog-watcher:cargo-sell",
+                                serde_json::json!({
+                                    "ts": sell.ts,
+                                    "shopName": sell.shop_name,
+                                    "commodity": name,
+                                    "commodityGuid": sell.commodity_guid,
+                                    "amount": sell.amount,
+                                    "quantityScu": sell.quantity_scu,
+                                    "profit": outcome.profit,
+                                    "matched": outcome.matched,
+                                }),
+                            );
                         }
                     }
                 }
@@ -682,6 +765,24 @@ mod tests {
         let line = r#"Added notification "Received Blueprint: Morozov Legs: " [41] to queue"#;
         let name = extract_product_name(line).unwrap();
         assert_eq!(name, "Morozov Legs");
+    }
+
+    #[test]
+    fn parses_commodity_sell_line() {
+        let line = r#"<2026-03-13T22:26:49.921Z> [Notice] <CEntityComponentCommodityUIProvider::SendCommoditySellRequest> Sending SShopCommoditySellRequest - playerId[224761968469] shopId[9432521983500] shopName[SCShop_CommEx_TDD_Orison] kioskId[9432521983511] amount[230798.000000] resourceGUID[a0e6c4cf-face-4f52-a020-dfa869607901] autoLoading[1] quantity[31] transactionMode[CargoGrid] Cargo Box Data:  [boxSize[1] | unitAmount[31]] [Team_CoreGameplayFeatures][Shops][UI]"#;
+        let p = parse_commodity_sell_line(line).expect("doit matcher");
+        assert_eq!(p.shop_name, "SCShop_CommEx_TDD_Orison");
+        assert_eq!(p.amount, 230798.0);
+        assert_eq!(p.commodity_guid, "a0e6c4cf-face-4f52-a020-dfa869607901");
+        assert_eq!(p.quantity_scu, 31.0);
+    }
+
+    #[test]
+    fn ignores_cancelled_sell_zero_amount() {
+        // amount[0] = vente annulée → on la parse mais le watcher filtre amount>0.
+        let line = r#"<2026-03-13T22:26:49.921Z> <SendCommoditySellRequest> shopName[X] amount[0.000000] resourceGUID[a0e6c4cf-face-4f52-a020-dfa869607901] quantity[5]"#;
+        let p = parse_commodity_sell_line(line).expect("doit matcher");
+        assert_eq!(p.amount, 0.0);
     }
 
     #[test]

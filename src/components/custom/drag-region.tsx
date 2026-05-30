@@ -15,8 +15,25 @@ export function DragRegion({ children, className = '', style, ...props }: DragRe
     const container = containerRef.current;
     if (!container) return;
 
+    // Détecte un clic sur la scrollbar native : la gouttière est au-delà de la
+    // zone client (à droite pour la verticale, en bas pour l'horizontale). On
+    // exclut ces clics du drag — sinon grab du thumb = la fenêtre se déplace au
+    // lieu de scroller (le mousemove perd l'élément scrollable pendant le drag).
+    const isOnScrollbar = (el: HTMLElement, ev: MouseEvent): boolean => {
+      const rect = el.getBoundingClientRect();
+      const sbW = el.offsetWidth - el.clientWidth;  // largeur scrollbar verticale
+      const sbH = el.offsetHeight - el.clientHeight; // hauteur scrollbar horizontale
+      if (sbW > 0 && ev.clientX >= rect.right - sbW) return true;
+      if (sbH > 0 && ev.clientY >= rect.bottom - sbH) return true;
+      return false;
+    };
+
     const handleMouseDown = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
+
+      // Clic sur la scrollbar → laisser le navigateur gérer le scroll, jamais de drag.
+      if (isOnScrollbar(target, e)) return;
+
       const isInteractive = ['BUTTON', 'A', 'INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName) ||
                           target.closest('button, a, input, select, textarea, [role="button"], [role="slider"], [data-no-drag]');
 

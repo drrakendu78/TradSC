@@ -60,3 +60,11 @@ latest.json
 PLAN_OVERLAY.md
 .aidesigner/*
 !.aidesigner/.gitkeep
+
+# Carnet mockup (donnees joueurs reelles rom/zero/acki - repo PUBLIC, ne pas committer)
+/src/lib/logbook-mock-combined.ts
+/src/lib/logbook-mock-data-combined.json
+# Local (hors repo) - brouillons notes release + assets page partenaire
+/.release-notes-*.md
+/page de partenaire.zip
+/page de partenaire/
