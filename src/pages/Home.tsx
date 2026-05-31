@@ -1621,7 +1621,9 @@ function Home() {
                                         </Link>
                                     );
                                 })()}
-                                <CarnetHomeButton />
+                                {/* Carnet : sur le Store, visible seulement si le launcher RSI
+                                    est détecté (comme "Programmes tiers"). Sur GitHub : toujours visible. */}
+                                {(!IS_MICROSOFT_STORE || launcherStatus.installed) && <CarnetHomeButton />}
                             </div>
 
                             {isInTauri && launcherStatus.installed && (
