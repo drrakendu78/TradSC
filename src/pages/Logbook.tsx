@@ -58,10 +58,19 @@ import {
     Pencil,
     Check,
     Loader2,
+    Plus,
+    Trash2,
 } from "lucide-react";
 import { useEncounteredPlayers } from "@/hooks/useEncounteredPlayers";
 import type { LogbookStats } from "@/lib/logbook-types";
 import { useLogbookStats, type LogbookPhase } from "@/hooks/useLogbookStats";
+import { useCarnetManual } from "@/hooks/useCarnetManual";
+import {
+    mergeManualIntoStats,
+    MANUAL_CAUSE_META,
+    type ManualDeath,
+    type ManualDeathCause,
+} from "@/lib/carnet-manual";
 
 // ── helpers de formatage ──────────────────────────────────────────────────
 
@@ -547,6 +556,7 @@ const TopList = ({ title, icon: Icon, color, metric, items, id }: TopListProps) 
 // ── 6. Évolution mensuelle (SVG line chart) ───────────────────────────────
 const MonthlyChart = ({ stats }: SectionProps) => {
     const { monthlyEvolution } = stats;
+    const [hoverIdx, setHoverIdx] = useState<number | null>(null);
     const w = 720;
     const h = 180;
     const padX = 20;
@@ -600,28 +610,72 @@ const MonthlyChart = ({ stats }: SectionProps) => {
                 </defs>
                 <path d={areaPath} fill="url(#evol-grad)" />
                 <path d={path} fill="none" stroke="rgb(34 211 238)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-                {points.map((p, i) => (
-                    <g key={i}>
-                        <circle
-                            cx={p.x}
-                            cy={p.y}
-                            r={i === peakIdx ? 5 : 3}
-                            fill={i === peakIdx ? "rgb(34 211 238)" : "rgb(255 255 255 / 0.6)"}
-                            stroke={i === peakIdx ? "rgb(34 211 238 / 0.3)" : "transparent"}
-                            strokeWidth={i === peakIdx ? 4 : 0}
-                        >
-                            <title>{`${p.monthLabel} · ${p.hours}h`}</title>
-                        </circle>
-                        <text x={p.x} y={h + 15} textAnchor="middle" fontSize="10" fill="rgb(115 115 115)">
-                            {p.monthLabel}
-                        </text>
-                        {i === peakIdx && (
-                            <text x={p.x} y={p.y - 10} textAnchor="middle" fontSize="10" fill="rgb(34 211 238)" fontWeight="600">
-                                {p.hours}h
+                {points.map((p, i) => {
+                    const active = hoverIdx === i;
+                    // Au repos : label sur le pic. Au survol : label du point visé.
+                    const showLabel = active || (hoverIdx === null && i === peakIdx);
+                    const highlight = active || i === peakIdx;
+                    const bandW = single ? w : stepX;
+                    return (
+                        <g key={i}>
+                            {active && (
+                                <line
+                                    x1={p.x}
+                                    y1={p.y}
+                                    x2={p.x}
+                                    y2={h - padY}
+                                    stroke="rgb(34 211 238 / 0.25)"
+                                    strokeWidth={1}
+                                    strokeDasharray="3 3"
+                                />
+                            )}
+                            <circle
+                                cx={p.x}
+                                cy={p.y}
+                                r={active ? 6 : i === peakIdx ? 5 : 3}
+                                fill={highlight ? "rgb(34 211 238)" : "rgb(255 255 255 / 0.6)"}
+                                stroke={highlight ? "rgb(34 211 238 / 0.3)" : "transparent"}
+                                strokeWidth={highlight ? 4 : 0}
+                                className="transition-all duration-150"
+                            />
+                            <text
+                                x={p.x}
+                                y={h + 15}
+                                textAnchor="middle"
+                                fontSize="10"
+                                fill={active ? "rgb(34 211 238)" : "rgb(115 115 115)"}
+                            >
+                                {p.monthLabel}
                             </text>
-                        )}
-                    </g>
-                ))}
+                            {showLabel && (
+                                <text
+                                    x={p.x}
+                                    y={p.y - 12}
+                                    textAnchor="middle"
+                                    fontSize="11"
+                                    fontWeight="600"
+                                    fill="rgb(34 211 238)"
+                                    stroke="rgb(10 10 10)"
+                                    strokeWidth={3}
+                                    paintOrder="stroke"
+                                >
+                                    {p.hours}h
+                                </text>
+                            )}
+                            {/* Bande de capture pleine hauteur → survol facile partout dans la colonne */}
+                            <rect
+                                x={p.x - bandW / 2}
+                                y={0}
+                                width={bandW}
+                                height={h}
+                                fill="transparent"
+                                style={{ cursor: "pointer" }}
+                                onMouseEnter={() => setHoverIdx(i)}
+                                onMouseLeave={() => setHoverIdx((cur) => (cur === i ? null : cur))}
+                            />
+                        </g>
+                    );
+                })}
             </svg>
         </div>
     );
@@ -820,7 +874,7 @@ const MissionsCard = ({ stats }: SectionProps) => {
 };
 
 // ── 8. Combat + Schémas (2 col) ───────────────────────────────────────────
-const CombatAndBlueprints = ({ stats }: SectionProps) => {
+const CombatAndBlueprints = ({ stats, onClose }: SectionProps & { onClose: () => void }) => {
     const navigate = useNavigate();
     return (
         <div className="grid grid-cols-2 gap-4">
@@ -889,6 +943,13 @@ const CombatAndBlueprints = ({ stats }: SectionProps) => {
                             </span>
                         </div>
                     )}
+                    <p className="text-[10px] text-amber-300/80 leading-relaxed mt-3 bg-amber-500/[0.06] border border-amber-500/20 rounded-lg px-2.5 py-2">
+                        ⚠️ Combat partiel : depuis fin 2025, Star Citizen ne journalise plus les kills/morts
+                        dans les logs (mesure anti‑stalking de CIG) — toutes les apps de tracking sont
+                        touchées, pas que StarTrad. On reconstruit le maximum (tes kills via le CrimeStat,
+                        tes morts en vaisseau), mais le PvP en zone sans loi (Pyro…) n'est pas loggé par le
+                        jeu. Rien que StarTrad puisse forcer.
+                    </p>
                 </div>
             </div>
 
@@ -920,7 +981,12 @@ const CombatAndBlueprints = ({ stats }: SectionProps) => {
                     )}
                     <button
                         type="button"
-                        onClick={() => navigate("/blueprints")}
+                        onClick={() => {
+                            // Le carnet est un drawer overlay (z-100) : naviguer ne suffit
+                            // pas, il faut AUSSI le fermer pour révéler la page dessous.
+                            navigate("/blueprints");
+                            onClose();
+                        }}
                         className="text-xs text-violet-400 hover:text-white transition-colors mt-2"
                     >
                         Voir tous les schémas →
@@ -1018,9 +1084,75 @@ const EconomySection = ({ stats }: SectionProps) => {
     );
 };
 
+// Formulaire d'ajout manuel d'un coéquipier (handle RSI + note optionnelle).
+const AddTeammateForm = ({
+    onAdd,
+    onCancel,
+}: {
+    onAdd: (handle: string, note?: string) => void;
+    onCancel: () => void;
+}) => {
+    const [handle, setHandle] = useState("");
+    const [note, setNote] = useState("");
+    const submit = () => {
+        if (!handle.trim()) return;
+        onAdd(handle, note);
+        setHandle("");
+        setNote("");
+        onCancel();
+    };
+    const inputCls =
+        "w-full bg-black/30 border border-white/10 rounded-md px-2.5 py-1.5 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-sky-500/40";
+    return (
+        <div className="mt-3 p-3 rounded-lg border border-sky-500/20 bg-sky-500/[0.04] space-y-2">
+            <input
+                autoFocus
+                value={handle}
+                onChange={(e) => setHandle(e.target.value)}
+                onKeyDown={(e) => {
+                    if (e.key === "Enter") submit();
+                    if (e.key === "Escape") onCancel();
+                }}
+                placeholder="Handle RSI du coéquipier"
+                className={inputCls}
+            />
+            <input
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                onKeyDown={(e) => {
+                    if (e.key === "Enter") submit();
+                    if (e.key === "Escape") onCancel();
+                }}
+                placeholder="Note (optionnel)"
+                className={inputCls}
+            />
+            <div className="flex items-center justify-end gap-2">
+                <button type="button" onClick={onCancel} className="text-[11px] text-zinc-400 hover:text-white px-2 py-1">
+                    Annuler
+                </button>
+                <button
+                    type="button"
+                    onClick={submit}
+                    disabled={!handle.trim()}
+                    className="flex items-center gap-1 text-[11px] text-sky-300 hover:text-white border border-sky-500/30 bg-sky-500/10 rounded-md px-2.5 py-1 disabled:opacity-40"
+                >
+                    <Check className="w-3 h-3" /> Ajouter
+                </button>
+            </div>
+        </div>
+    );
+};
+
 // ── 8c. Compagnons de vol (social / party) ─────────────────────────────────
-const Companions = ({ stats }: SectionProps) => {
-    const c = stats.companions;
+interface CompanionsProps extends SectionProps {
+    onAddTeammate: (handle: string, note?: string) => void;
+    onRemoveTeammate: (id: string) => void;
+}
+const Companions = ({ stats, onAddTeammate, onRemoveTeammate }: CompanionsProps) => {
+    type CompanionsData = NonNullable<LogbookStats["companions"]>;
+    const c: CompanionsData =
+        stats.companions ?? { total: 0, named: 0, distinctTeammates: 0, sharedMissions: 0, timesLeader: 0, list: [] };
+    const [showAddTeam, setShowAddTeam] = useState(false);
     const gradients = [
         "from-sky-500/40 to-violet-500/40",
         "from-emerald-500/40 to-cyan-500/40",
@@ -1053,7 +1185,8 @@ const Companions = ({ stats }: SectionProps) => {
         }
     }, [enriched, setTag]);
     const [expanded, setExpanded] = useState(false);
-    if (!c || c.total === 0) return null;
+    // Carte toujours rendue (même vide) pour permettre l'ajout manuel de
+    // coéquipiers — cohérent avec les cartes Croisés / Causes de mort.
     const TOP_COUNT = 4;
     const visible = expanded ? c.list : c.list.slice(0, TOP_COUNT);
     const hidden = Math.max(0, c.list.length - TOP_COUNT);
@@ -1070,7 +1203,7 @@ const Companions = ({ stats }: SectionProps) => {
                         <span className="inline-block w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
                     </span>
                 ) : (
-                    <span className="ml-auto text-[10px] text-zinc-500 tabular-nums">{c.named}/{c.total} identifiés</span>
+                    <span className="ml-auto text-[10px] text-zinc-500 tabular-nums">{c.named} nommés</span>
                 )}
             </div>
             {/* Stats de groupe */}
@@ -1087,6 +1220,11 @@ const Companions = ({ stats }: SectionProps) => {
                 ))}
             </div>
             <ul className={`space-y-2 ${expanded ? "max-h-[420px] overflow-y-auto pr-1" : ""}`}>
+                {visible.length === 0 && (
+                    <li className="text-zinc-500 text-sm py-3 text-center">
+                        Aucun compagnon détecté — ajoute‑les à la main 👇
+                    </li>
+                )}
                 {visible.map((p, i) => {
                     const initials = p.resolved ? p.name.slice(0, 2).toUpperCase() : "?";
                     const grad = p.resolved ? gradients[i % gradients.length] : "from-zinc-600/40 to-zinc-700/40";
@@ -1130,6 +1268,11 @@ const Companions = ({ stats }: SectionProps) => {
                                     )}
                                     {p.isLeader && <Crown className="w-3 h-3 text-amber-400" />}
                                     {p.fought && <SwordsIcon className="w-3 h-3 text-rose-400" />}
+                                    {p.manual && (
+                                        <span className="text-[9px] text-amber-300/80" title="Ajouté à la main">
+                                            ✍️
+                                        </span>
+                                    )}
                                 </div>
                                 <div className="text-[10px] text-zinc-500 truncate">
                                     {prof?.orgName && (
@@ -1137,9 +1280,19 @@ const Companions = ({ stats }: SectionProps) => {
                                             <span className="text-sky-400/80">{prof.orgName}</span> ·{" "}
                                         </>
                                     )}
-                                    {p.isLeader ? "Chef de groupe" : "Coéquipier"}{p.fought ? " · croisé en combat" : ""}
+                                    {p.isLeader ? "Chef de groupe" : "Coéquipier"}{p.fought ? " · déjà affronté" : ""}{p.manual ? " · ajouté à la main" : ""}
                                 </div>
                             </div>
+                            {p.manual && p.manualId && (
+                                <button
+                                    type="button"
+                                    onClick={() => onRemoveTeammate(p.manualId!)}
+                                    title="Retirer ce coéquipier"
+                                    className="flex-shrink-0 text-zinc-600 hover:text-rose-400 transition-colors"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                            )}
                         </li>
                     );
                 })}
@@ -1153,11 +1306,24 @@ const Companions = ({ stats }: SectionProps) => {
                     {expanded ? "Masquer" : `Voir les ${hidden} autres`}
                 </button>
             )}
-            <div className="text-[10px] text-zinc-600 mt-3 pt-3 border-t border-white/5">
-                Compagnons nommés <span className="text-emerald-400/80">auto‑marqués amis</span> ❤
-                {c.total - c.named > 0
-                    ? ` · + ${c.total - c.named} coéquipiers anonymes (GEID seul, pseudo non récupérable).`
-                    : "."}
+            {showAddTeam ? (
+                <AddTeammateForm onAdd={onAddTeammate} onCancel={() => setShowAddTeam(false)} />
+            ) : (
+                <button
+                    type="button"
+                    onClick={() => setShowAddTeam(true)}
+                    className="mt-3 w-full flex items-center justify-center gap-1.5 rounded-lg border border-sky-500/20 bg-sky-500/[0.04] py-1.5 text-[11px] text-sky-300/90 transition-colors hover:border-sky-500/40 hover:text-white"
+                >
+                    <Plus className="w-3.5 h-3.5" /> Ajouter un coéquipier
+                </button>
+            )}
+            <div className="text-[10px] text-zinc-600 mt-3 pt-3 border-t border-white/5 space-y-1.5">
+                <p>Compagnons nommés <span className="text-emerald-400/80">auto‑marqués amis</span> ❤</p>
+                <p className="text-amber-300/80 leading-relaxed bg-amber-500/[0.06] border border-amber-500/20 rounded-lg px-2.5 py-2">
+                    ⚠️ Liste non exhaustive : Star Citizen ne journalise pas le pseudo de tous tes
+                    coéquipiers — certains ne sont connus que par un identifiant interne (GEID). On
+                    affiche tous ceux qu'on peut nommer ({c.named} sur {c.distinctTeammates} détectés).
+                </p>
             </div>
         </div>
     );
@@ -1206,7 +1372,7 @@ const RecordsAndEncounters = ({ stats }: SectionProps) => {
             </ul>
         </div>
 
-        {/* Croisés en combat */}
+        {/* Adversaires rencontrés (ex-« Croisés en combat ») */}
         <div className="bg-[hsl(var(--background)/0.55)] backdrop-blur-md border border-white/10 rounded-2xl p-5 group hover:border-sky-500/30 transition-colors relative z-10">
             <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none">
                 <div className="absolute right-[-15%] top-[-30%] w-40 h-40 bg-sky-500/[0.06] blur-3xl rounded-full" />
@@ -1215,7 +1381,10 @@ const RecordsAndEncounters = ({ stats }: SectionProps) => {
                 <div className="w-8 h-8 rounded-lg border border-sky-500/20 bg-sky-500/10 flex items-center justify-center text-sky-400">
                     <Users className="w-4 h-4" />
                 </div>
-                <h3 className="text-sm font-semibold text-white tracking-wide uppercase">Croisés en combat</h3>
+                <div>
+                    <h3 className="text-sm font-semibold text-white tracking-wide uppercase">Adversaires rencontrés</h3>
+                    <p className="text-[10px] text-zinc-500">Joueurs affrontés — pas tes coéquipiers</p>
+                </div>
                 {enrichLoading && (
                     <span
                         className="ml-auto text-[10px] text-sky-400 flex items-center gap-1.5"
@@ -1287,7 +1456,7 @@ const RecordsAndEncounters = ({ stats }: SectionProps) => {
             </div>
             <ul className={`space-y-2 ${encExpanded ? "max-h-[420px] overflow-y-auto pr-1" : ""}`}>
                 {players.length === 0 && (
-                    <li className="text-zinc-500 text-sm py-4 text-center">Aucun joueur croisé en combat</li>
+                    <li className="text-zinc-500 text-sm py-4 text-center">Aucun adversaire rencontré</li>
                 )}
                 {visibleEncounters.map((p, i) => {
                     const diff = p.kills - p.deaths;
@@ -1499,6 +1668,11 @@ const RecordsAndEncounters = ({ stats }: SectionProps) => {
                     {encExpanded ? "Masquer" : `Voir les ${hiddenEnc} autres joueurs`}
                 </button>
             )}
+            <p className="text-[10px] text-amber-300/80 leading-relaxed mt-3 bg-amber-500/[0.06] border border-amber-500/20 rounded-lg px-2.5 py-2">
+                ⚠️ Liste partielle : depuis fin 2025, Star Citizen ne journalise plus qui affronte qui
+                (mesure anti‑stalking de CIG). On ne retrouve tes adversaires que via le CrimeStat en zone
+                surveillée — le PvP en zone sans loi (Pyro…) n'est pas loggé par le jeu.
+            </p>
         </div>
     </div>
     );
@@ -1782,10 +1956,107 @@ const HourlyAndWeekday = ({ stats }: SectionProps) => {
     );
 };
 
+// Formulaire d'ajout manuel d'une mort (date / cause / système / tueur…).
+const DEATH_SYSTEMS = ["Stanton", "Pyro", "Nyx", "Castra", "Terra"];
+const AddDeathForm = ({
+    onAdd,
+    onCancel,
+}: {
+    onAdd: (d: Omit<ManualDeath, "id" | "addedTs">) => void;
+    onCancel: () => void;
+}) => {
+    const today = new Date().toISOString().slice(0, 10);
+    const [date, setDate] = useState(today);
+    const [cause, setCause] = useState<ManualDeathCause>("joueur");
+    const [system, setSystem] = useState("");
+    const [killer, setKiller] = useState("");
+    const [ship, setShip] = useState("");
+    const [note, setNote] = useState("");
+    const submit = () => {
+        const ts = date ? new Date(`${date}T12:00:00`).getTime() / 1000 : Date.now() / 1000;
+        onAdd({ ts, cause, system: system || null, killer: killer || null, ship: ship || null, note: note || null });
+        onCancel();
+    };
+    const inputCls =
+        "w-full bg-black/30 border border-white/10 rounded-md px-2.5 py-1.5 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-rose-500/40";
+    const showKiller = cause === "joueur" || cause === "pnj";
+    return (
+        <div className="mt-3 p-3 rounded-lg border border-rose-500/20 bg-rose-500/[0.04] space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+                <label className="block space-y-1">
+                    <span className="text-[9px] uppercase tracking-wide text-zinc-500">Date</span>
+                    <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} />
+                </label>
+                <label className="block space-y-1">
+                    <span className="text-[9px] uppercase tracking-wide text-zinc-500">Cause</span>
+                    <select value={cause} onChange={(e) => setCause(e.target.value as ManualDeathCause)} className={inputCls}>
+                        <option value="joueur">Tué par un joueur</option>
+                        <option value="pnj">Tué par un PNJ</option>
+                        <option value="accident">Collision / accident</option>
+                        <option value="autre">Autre</option>
+                    </select>
+                </label>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+                <label className="block space-y-1">
+                    <span className="text-[9px] uppercase tracking-wide text-zinc-500">Système</span>
+                    <select value={system} onChange={(e) => setSystem(e.target.value)} className={inputCls}>
+                        <option value="">—</option>
+                        {DEATH_SYSTEMS.map((sy) => (
+                            <option key={sy} value={sy}>
+                                {sy}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+                <label className="block space-y-1">
+                    <span className="text-[9px] uppercase tracking-wide text-zinc-500">Vaisseau perdu</span>
+                    <input value={ship} onChange={(e) => setShip(e.target.value)} placeholder="(optionnel)" className={inputCls} />
+                </label>
+            </div>
+            {showKiller && (
+                <label className="block space-y-1">
+                    <span className="text-[9px] uppercase tracking-wide text-zinc-500">
+                        {cause === "joueur" ? "Tué par (handle RSI)" : "Nom du PNJ / source"}
+                    </span>
+                    <input
+                        value={killer}
+                        onChange={(e) => setKiller(e.target.value)}
+                        placeholder={cause === "joueur" ? "Handle de l'adversaire (→ Adversaires rencontrés)" : "(optionnel)"}
+                        className={inputCls}
+                    />
+                </label>
+            )}
+            <label className="block space-y-1">
+                <span className="text-[9px] uppercase tracking-wide text-zinc-500">Note</span>
+                <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="(optionnel)" className={inputCls} />
+            </label>
+            <div className="flex items-center justify-end gap-2">
+                <button type="button" onClick={onCancel} className="text-[11px] text-zinc-400 hover:text-white px-2 py-1">
+                    Annuler
+                </button>
+                <button
+                    type="button"
+                    onClick={submit}
+                    className="flex items-center gap-1 text-[11px] text-rose-300 hover:text-white border border-rose-500/30 bg-rose-500/10 rounded-md px-2.5 py-1"
+                >
+                    <Check className="w-3 h-3" /> Enregistrer
+                </button>
+            </div>
+        </div>
+    );
+};
+
 // ── 12. Routes quantum + Causes de mort (2 col) ───────────────────────────
-const QuantumAndDeaths = ({ stats }: SectionProps) => {
+interface QuantumDeathsProps extends SectionProps {
+    manualDeaths: ManualDeath[];
+    onAddDeath: (d: Omit<ManualDeath, "id" | "addedTs">) => void;
+    onRemoveDeath: (id: string) => void;
+}
+const QuantumAndDeaths = ({ stats, manualDeaths, onAddDeath, onRemoveDeath }: QuantumDeathsProps) => {
     const [expandedRoutes, setExpandedRoutes] = useState(false);
     const [expandedDeaths, setExpandedDeaths] = useState(false);
+    const [showAddDeath, setShowAddDeath] = useState(false);
     const TOP_COUNT = 5;
     const routes = stats.topQuantumRoutes;
     const visibleRoutes = expandedRoutes ? routes : routes.slice(0, TOP_COUNT);
@@ -1878,6 +2149,65 @@ const QuantumAndDeaths = ({ stats }: SectionProps) => {
                     {expandedDeaths ? "Masquer" : `Voir les ${hiddenCauses} autres causes`}
                 </button>
             )}
+
+            {/* Morts ajoutées à la main — récupère ce que SC ne loggue plus */}
+            <div className="mt-3 pt-3 border-t border-white/5">
+                <div className="flex items-center justify-between mb-2">
+                    <span className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-zinc-500">
+                        <Pencil className="w-3 h-3" /> Morts ajoutées à la main
+                    </span>
+                    {!showAddDeath && (
+                        <button
+                            type="button"
+                            onClick={() => setShowAddDeath(true)}
+                            className="flex items-center gap-1 text-[10px] text-rose-300/90 transition-colors hover:text-white"
+                        >
+                            <Plus className="w-3 h-3" /> ajouter
+                        </button>
+                    )}
+                </div>
+                {manualDeaths.length > 0 && (
+                    <ul className="mb-1 space-y-1.5">
+                        {manualDeaths
+                            .slice()
+                            .sort((a, b) => b.ts - a.ts)
+                            .map((d) => {
+                                const meta = MANUAL_CAUSE_META[d.cause] ?? MANUAL_CAUSE_META.autre;
+                                return (
+                                    <li key={d.id} className="group/md flex items-center gap-2 text-[11px]">
+                                        <span className="text-amber-300/90" title="Ajouté à la main">
+                                            ✍️
+                                        </span>
+                                        <span className="flex-1 truncate text-zinc-300">
+                                            {meta.short}
+                                            {d.killer ? ` · ${d.killer}` : ""}
+                                            {d.system ? ` · ${d.system}` : ""}
+                                            <span className="text-zinc-600">
+                                                {" "}
+                                                · {formatShortDate(new Date(d.ts * 1000).toISOString())}
+                                            </span>
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => onRemoveDeath(d.id)}
+                                            title="Supprimer cette mort"
+                                            className="flex-shrink-0 text-zinc-600 opacity-0 transition hover:text-rose-400 group-hover/md:opacity-100"
+                                        >
+                                            <Trash2 className="w-3 h-3" />
+                                        </button>
+                                    </li>
+                                );
+                            })}
+                    </ul>
+                )}
+                {showAddDeath && <AddDeathForm onAdd={onAddDeath} onCancel={() => setShowAddDeath(false)} />}
+                {manualDeaths.length === 0 && !showAddDeath && (
+                    <p className="text-[10px] leading-relaxed text-zinc-600">
+                        Récupère ici les morts que le jeu ne loggue plus (ex. tué par un joueur sur Pyro). Comptées
+                        dans ton ratio K/D, taguées ✍️.
+                    </p>
+                )}
+            </div>
         </div>
     </div>
     );
@@ -2129,6 +2459,10 @@ interface LogbookProps {
 }
 export default function Logbook({ onClose }: LogbookProps) {
     const { stats, phase, progress, error } = useLogbookStats();
+    const { manual, addTeammate, removeTeammate, addDeath, removeDeath } = useCarnetManual();
+    // Fusionne les entrées manuelles (coéquipiers + morts) PAR-DESSUS le scan
+    // auto — jamais à la place. Recalcul léger (pas de re-scan des logs).
+    const mergedStats = useMemo(() => (stats ? mergeManualIntoStats(stats, manual) : null), [stats, manual]);
     const contentRef = useRef<HTMLDivElement>(null);
     const { toast } = useToast();
 
@@ -2207,27 +2541,32 @@ export default function Logbook({ onClose }: LogbookProps) {
         <>
             <Header onClose={onClose} onExport={handleExport} />
             <div ref={contentRef} className="flex-1 overflow-y-auto w-full relative">
-                {stats ? (
+                {mergedStats ? (
                     <div className="w-full max-w-[1100px] mx-auto p-6 md:p-8 space-y-4">
-                        <LastSession stats={stats} />
-                        <KpiRow stats={stats} />
-                        <Heatmap stats={stats} />
+                        <LastSession stats={mergedStats} />
+                        <KpiRow stats={mergedStats} />
+                        <Heatmap stats={mergedStats} />
                         <div className="grid grid-cols-2 gap-4">
-                            <TopList id="logbook-top-vehicles" title="Vaisseaux pilotés" icon={Ship} color="sky" metric="sessions" items={stats.topVehicles} />
-                            <TopList id="logbook-top-locations" title="Lieux visités" icon={MapPin} color="violet" metric="visits" items={stats.topLocations} />
+                            <TopList id="logbook-top-vehicles" title="Vaisseaux pilotés" icon={Ship} color="sky" metric="sessions" items={mergedStats.topVehicles} />
+                            <TopList id="logbook-top-locations" title="Lieux visités" icon={MapPin} color="violet" metric="visits" items={mergedStats.topLocations} />
                         </div>
-                        <MonthlyChart stats={stats} />
-                        <RecentSessions stats={stats} />
-                        <MissionsCard stats={stats} />
-                        <EconomySection stats={stats} />
-                        <CombatAndBlueprints stats={stats} />
-                        <RecordsAndEncounters stats={stats} />
-                        <Companions stats={stats} />
-                        <GalaxyMap stats={stats} />
-                        <HourlyAndWeekday stats={stats} />
-                        <QuantumAndDeaths stats={stats} />
-                        <ProfileCard stats={stats} />
-                        <Achievements stats={stats} />
+                        <MonthlyChart stats={mergedStats} />
+                        <RecentSessions stats={mergedStats} />
+                        <MissionsCard stats={mergedStats} />
+                        <EconomySection stats={mergedStats} />
+                        <CombatAndBlueprints stats={mergedStats} onClose={onClose} />
+                        <RecordsAndEncounters stats={mergedStats} />
+                        <Companions stats={mergedStats} onAddTeammate={addTeammate} onRemoveTeammate={removeTeammate} />
+                        <GalaxyMap stats={mergedStats} />
+                        <HourlyAndWeekday stats={mergedStats} />
+                        <QuantumAndDeaths
+                            stats={mergedStats}
+                            manualDeaths={manual.deaths}
+                            onAddDeath={addDeath}
+                            onRemoveDeath={removeDeath}
+                        />
+                        <ProfileCard stats={mergedStats} />
+                        <Achievements stats={mergedStats} />
                     </div>
                 ) : (
                     <LogbookPlaceholder phase={phase} progress={progress} error={error} />

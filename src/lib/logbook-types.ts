@@ -71,7 +71,9 @@ export interface LogbookStats {
         distinctTeammates: number; // coéquipiers distincts (PlayerJoined)
         sharedMissions: number;    // missions partagées en groupe (MissionShared)
         timesLeader: number;       // fois chef de groupe (Transfer leadership depuis soi)
-        list: Array<{ name: string; count: number; isLeader: boolean; resolved: boolean; fought: boolean }>;
+        // `manual`/`manualId` : entrée ajoutée à la main (carnet_manuel.json),
+        // pas détectée dans les logs. Permet le badge ✍️ + la suppression.
+        list: Array<{ name: string; count: number; isLeader: boolean; resolved: boolean; fought: boolean; manual?: boolean; manualId?: string }>;
     } | null;
 
     patchesTraversed: number;
@@ -131,6 +133,7 @@ export interface LogbookStats {
         kills: number; // kills sur ce joueur
         deaths: number; // morts contre ce joueur
         lastSeen: string; // ISO
+        manual?: boolean; // dérivé d'une mort ajoutée à la main (tueur)
     }>;
 
     // Cartographie : heures par système (que les visités)

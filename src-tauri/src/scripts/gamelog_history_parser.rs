@@ -61,6 +61,7 @@ const EVENT_MARKERS: &[&str] = &[
     "<Player Selected Quantum Target",
     "<Player Requested Fuel to Quantum Target",
     "<Changing Solar System>",
+    "RequestLocationInventory", // inventaire de lieu → présence système (cartographie sans saut)
     "OnClientSpawned",
     "Ending session",
     "<Spawn Flow>",
@@ -146,6 +147,14 @@ pub enum GameEvent {
     /// de changement de système loggé. Émis dédupliqué (1× par système/fichier).
     SystemSeen { ts: f64, system: String },
 
+    /// Le joueur local consulte un inventaire de lieu (`<RequestLocationInventory>
+    /// Player[<nom>] requested inventory for Location[<lieu>]`). Signal de PRÉSENCE
+    /// fiable, player-anchored, RÉPARTI sur la session : le nom de Location porte
+    /// le système en préfixe (Nyx_Levski, Stanton3_Area18, Pyro4_…). Sert à
+    /// attribuer le temps par système quand AUCUN `SolarSystemChange` n'est loggé
+    /// (fréquent : Nyx, ou client qui ne loggue pas les sauts — cas Artics).
+    LocationInventory { ts: f64, player: String, location: String },
+
     /// Épisode d'asphyxie (manque d'O2) — `[STAMINA] Player started/stopped
     /// suffocating`. `started=false` = fin d'épisode (permet de mesurer la durée).
     Suffocation { ts: f64, player: String, started: bool },
@@ -191,6 +200,21 @@ pub enum GameEvent {
         hit_entity: String,
         part: String,
     },
+
+    /// Crime commis par le joueur local, NOMMANT la victime (`<SHUDEvent_OnNotification>
+    /// "Crime Committed: <type>` puis ligne suivante `against <victime>:`). Depuis que
+    /// CIG a retiré `<Actor Death>`/`<Vehicle Destruction>` des logs (~nov 2025,
+    /// anti-exploit/anti-stalking), c'est la SEULE source NOMINATIVE de combat :
+    /// `Homicide` = kill joueur, `Destruction of Vehicle` = kill vaisseau, `Aggravated
+    /// Assault`/`Grievous Bodily Harm` = engagement. ⚠️ zone surveillée only (Pyro
+    /// lawless non capté) et joueur en AGRESSEUR (pas les kills subis).
+    CrimeCommitted { ts: f64, crime_type: String, victim: String },
+
+    /// Un coéquipier NOMMÉ rejoint le groupe/le canal du vaisseau (notif
+    /// `<SHUDEvent_OnNotification> "New Member Joined` puis `<X> has joined the
+    /// party/channel …`). Source la plus riche pour NOMMER les compagnons : les
+    /// `PartyMember` (CPartyMarkerComponent) ne portent qu'un GEID souvent anonyme.
+    PartyJoin { ts: f64, member: String },
 
     SpawnFlow {
         ts: f64,
@@ -875,6 +899,23 @@ pub fn parse_line(line: &str) -> Option<GameEvent> {
         }
     }
 
+    // Inventaire de lieu — signal de présence système (le lieu porte le système
+    // en préfixe). Player-anchored ; le client ne loggue QUE les requêtes du
+    // joueur local. Ex : `Player[Artics001] requested inventory for Location[Nyx_Levski]`.
+    if line.contains("<RequestLocationInventory>") {
+        static RE_LOC_INV: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
+        let re = RE_LOC_INV.get_or_init(|| {
+            Regex::new(r"Player\[([^\]]+)\] requested inventory for Location\[([^\]]+)\]").unwrap()
+        });
+        if let Some(caps) = re.captures(line) {
+            return Some(GameEvent::LocationInventory {
+                ts,
+                player: caps[1].to_string(),
+                location: caps[2].to_string(),
+            });
+        }
+    }
+
     // Mort en vaisseau — éjecté d'un véhicule détruit.
     if line.contains("destroyed vehicle") && line.contains("[ActorState] Dead") {
         if let Some(caps) = re_vehicle_death().captures(line) {
@@ -1186,6 +1227,48 @@ fn system_from_location_path(line: &str) -> Option<&'static str> {
     else { None }
 }
 
+/// Déduit le système solaire depuis un token de LIEU (`Location[...]` de
+/// `RequestLocationInventory`, zone d'éjection, destination QT, etc.). Renvoie
+/// `None` sur token inconnu → l'appelant NE déplace PAS le système courant (jamais
+/// de faux positif sur du bruit). Vocabulaire validé sur les logs réels d'Artics
+/// (Nyx_Levski, Stanton3_Area18, Pyro4_Outpost…, RR_JP_…, éjections pyro1/P3_L3…).
+fn system_from_zone_token(tok: &str) -> Option<&'static str> {
+    let l = tok.to_ascii_lowercase();
+    // Points de saut `RR_JP_<Origine><Dest>` → attribués à l'ORIGINE (1er système).
+    if let Some(rest) = l.strip_prefix("rr_jp_") {
+        if rest.starts_with("nyx") { return Some("Nyx"); }
+        if rest.starts_with("pyro") { return Some("Pyro"); }
+        if rest.starts_with("stanton") { return Some("Stanton"); }
+    }
+    // Nyx (Levski, Keeger, Delamar…)
+    if l.contains("nyx") || l.contains("levski") || l.contains("keeger") || l.contains("delamar") {
+        return Some("Nyx");
+    }
+    // Pyro : `pyro…`, `rr_p<chiffre>…`, éjections `p<chiffre>_l<chiffre>`.
+    let is_pyro_pl = l.len() >= 4
+        && l.as_bytes()[0] == b'p'
+        && l.as_bytes()[1].is_ascii_digit()
+        && l[2..].starts_with("_l");
+    if l.starts_with("pyro") || l.starts_with("rr_p") || is_pyro_pl {
+        return Some("Pyro");
+    }
+    // Stanton (préfixes + lieux connus).
+    if l.starts_with("stanton") || l.starts_with("ooc_stanton")
+        || l.starts_with("rr_arc") || l.starts_with("rr_hur")
+        || l.starts_with("rr_cru") || l.starts_with("rr_mic")
+        || l.contains("area18") || l.contains("arccorp") || l.contains("orison")
+        || l.contains("newbabbage") || l.contains("new_babbage") || l.contains("grimhex")
+        || l.contains("lorville") || l.contains("hurston") || l.contains("crusader")
+        || l.contains("microtech") || l.contains("babbage")
+        || l.contains("hurdyn") || l.contains("shubin") || l.contains("terramills")
+        || l.contains("daymar") || l.contains("aberdeen")
+        || (l.contains("outpost") && l.contains("stanton"))
+    {
+        return Some("Stanton");
+    }
+    None
+}
+
 pub fn scan_file(path: &Path) -> Result<FileScanResult, String> {
     let bytes = fs::read(path).map_err(|e| format!("Lecture {}: {e}", path.display()))?;
     let content = String::from_utf8_lossy(&bytes);
@@ -1198,6 +1281,9 @@ pub fn scan_file(path: &Path) -> Result<FileScanResult, String> {
     // Comptes d'objectifs par type (Hauling, Bounty…) pour CE fichier. Agrégé
     // ici plutôt qu'en events car le jeu en loggue des dizaines de milliers.
     let mut objective_kinds: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
+    // État pour le parsing multi-ligne des "Crime Committed" (type sur la ligne N,
+    // "against <victime>" sur la ligne N+1, même timestamp).
+    let mut pending_crime: Option<(f64, String)> = None;
 
     for line in content.lines() {
         if line.is_empty() {
@@ -1217,6 +1303,42 @@ pub fn scan_file(path: &Path) -> Result<FileScanResult, String> {
         if let Some(sys) = system_from_location_path(line) {
             if systems_seen.insert(sys) {
                 events.push(GameEvent::SystemSeen { ts: parse_ts(line).unwrap_or(0.0), system: sys.to_string() });
+            }
+        }
+
+        // Crime commis (multi-ligne) : "...Crime Committed: <type>" (ligne N) puis
+        // "against <victime>:" (ligne N+1). Seule source NOMINATIVE de kills PVP
+        // depuis le retrait de <Actor Death>/<Vehicle Destruction> par CIG.
+        if let Some((cts, ctype)) = pending_crime.take() {
+            let vstart = line.find("against ").map(|i| i + "against ".len())
+                .or_else(|| line.find("contre ").map(|i| i + "contre ".len()));
+            if let Some(vs) = vstart {
+                let victim = line[vs..].split(':').next().unwrap_or("").trim().to_string();
+                if !victim.is_empty() {
+                    events.push(GameEvent::CrimeCommitted { ts: cts, crime_type: ctype, victim });
+                }
+            }
+        }
+        if let Some(after_idx) = ["Crime Committed: ", "Crime commis : ", "Crime commis: "]
+            .iter().find_map(|p| line.find(p).map(|i| i + p.len()))
+        {
+            let after = line[after_idx..].trim().trim_end_matches('"').trim();
+            if !after.is_empty() {
+                pending_crime = Some((parse_ts(line).unwrap_or(0.0), after.to_string()));
+            }
+        }
+
+        // Compagnon NOMMÉ qui rejoint : "<X> has joined the party/channel …" (3ᵉ
+        // personne → autre joueur ; "You have joined" = soi, exclu car "have"). Le
+        // pseudo est récupérable ici alors que les PartyMember sont des GEID anonymes.
+        if line.contains(" has joined the channel ") || line.contains(" has joined the party") {
+            if let Some(jidx) = line.find(" has joined the ") {
+                let before = &line[..jidx];
+                // Retire le préfixe timestamp "<...> " pour ne garder que le pseudo.
+                let member = before.rfind("> ").map(|i| &before[i + 2..]).unwrap_or(before).trim();
+                if !member.is_empty() && member.len() <= 32 && !member.contains(' ') {
+                    events.push(GameEvent::PartyJoin { ts: parse_ts(line).unwrap_or(0.0), member: member.to_string() });
+                }
             }
         }
 
@@ -1304,6 +1426,7 @@ fn event_ts(e: &GameEvent) -> f64 {
         GameEvent::VehicleControl { ts, .. } => *ts,
         GameEvent::SolarSystemChange { ts, .. } => *ts,
         GameEvent::SystemSeen { ts, .. } => *ts,
+        GameEvent::LocationInventory { ts, .. } => *ts,
         GameEvent::Suffocation { ts, .. } => *ts,
         GameEvent::VehicleDeath { ts, .. } => *ts,
         GameEvent::PartyLeader { ts, .. } => *ts,
@@ -1313,6 +1436,8 @@ fn event_ts(e: &GameEvent) -> f64 {
         GameEvent::GroupLeadershipTransfer { ts, .. } => *ts,
         GameEvent::MissionEnded { ts, .. } => *ts,
         GameEvent::FatalCollision { ts, .. } => *ts,
+        GameEvent::CrimeCommitted { ts, .. } => *ts,
+        GameEvent::PartyJoin { ts, .. } => *ts,
         GameEvent::SpawnFlow { ts, .. } => *ts,
         GameEvent::Purchase { ts, .. } => *ts,
         GameEvent::MissionObjective { ts, .. } => *ts,
@@ -1735,6 +1860,24 @@ pub fn build_logbook_stats(
         }
         geid_freq.into_iter().max_by_key(|&(_, c)| c).map(|(g, _)| g)
     });
+    // GEID PERSONNAGE (CharacterIdentified = AccountLoginCharacterStatus). C'est une
+    // famille d'ID DIFFÉRENTE du geid entité SetDriver (`resolved_local_geid`). Les
+    // lignes `[ActorState] Dead` (morts en vaisseau) loggent le geid PERSONNAGE → si
+    // on les ancrait sur `resolved_local_geid` (entité), elles ne matchaient jamais
+    // et les morts en vaisseau étaient zérotées (bug Artics : mort PvP sur Pyro non
+    // comptée). On résout donc le geid personnage à part pour ancrer ces morts.
+    // ENSEMBLE des geids personnage (le joueur peut RECRÉER son perso → plusieurs
+    // geids pour la même personne, ex Artics : 204269890159 puis 204502563322). On
+    // les collecte TOUS pour ne filtrer aucune mort en vaisseau (sinon on en rate la
+    // moitié — bug : 5 comptées sur 8). CharacterIdentified n'est loggé que pour le
+    // joueur LOCAL (son propre AccountLoginCharacterStatus) → aucun risque d'inclure
+    // un autre joueur.
+    let character_geids: std::collections::HashSet<u64> = all_events.iter()
+        .filter_map(|ev| match ev {
+            GameEvent::CharacterIdentified { geid, .. } if *geid != 0 => Some(*geid),
+            _ => None,
+        })
+        .collect();
     // ── Ancrage des arrivées QT (le `Quantum Drive Arrived` n'a PAS de `- Local`) ──
     // Le PROBLÈME historique : on filtrait les arrivées sur le GEID extrait du nom
     // du SetDriver (`local_vehicle_geids`). Mais le SetDriver capture le GEID de
@@ -1790,6 +1933,12 @@ pub fn build_logbook_stats(
             Some(g) if actor_geid != 0 => actor_geid == g,
             _ => actor_name == moniker,
         }
+    };
+    // Morts en vaisseau (`[ActorState] Dead`) : le geid loggé est le geid PERSONNAGE
+    // → on le matche en priorité, puis fallback sur l'ancrage entité/moniker normal.
+    let is_local_vehicle_death = |actor_geid: u64, actor_name: &str| -> bool {
+        if actor_geid != 0 && character_geids.contains(&actor_geid) { return true; }
+        is_local_actor(actor_geid, actor_name)
     };
     // Éco : un `playerId` de transaction est-il le joueur local ? Le playerId
     // loggé EST de la famille du SetDriver GEID → comparaison directe. Si on n'a
@@ -1941,8 +2090,14 @@ pub fn build_logbook_stats(
                 last_vehicle = Some((*ts, canonicalize_vehicle(vehicle)));
             }
             // `QuantumSelected` est garanti local au parsing (marqueur `- Local`).
-            GameEvent::QuantumSelected { ts, vehicle, .. } => {
+            GameEvent::QuantumSelected { ts, vehicle, destination, .. } => {
                 last_vehicle = Some((*ts, canonicalize_vehicle(vehicle)));
+                // La destination d'un saut QT est un lieu (re)joint par le joueur →
+                // compte comme « lieu visité ». Avant, les lieux ne venaient QUE des
+                // morts (`ActorDeath`) → un joueur qui meurt peu (mineur/hauler)
+                // affichait « 0 lieu visité » (bug Artics).
+                let qz = prettify_zone_sc(destination);
+                if !qz.is_empty() { *zone_hits.entry(qz).or_insert(0) += 1; }
             }
             // ⚠️ On ne dérive la zone QUE des morts du joueur LOCAL : une zone où
             // un INCONNU est mort n'est PAS une zone que NOUS avons visitée
@@ -2002,9 +2157,14 @@ pub fn build_logbook_stats(
                     .and_then(|idx| idx.classify(text));
 
                 // 2. Fallback heuristique mots-clés multi-langue (EN/FR/DE/ES/IT)
-                let is_mining_kw = t.contains("mining") || t.contains("asteroid")
-                    || t.contains("minage") || t.contains("astéroïde") || t.contains("astéroïdes") || t.contains("mineur")
-                    || t.contains("bergbau") || t.contains("minería") || t.contains("estrazione");
+                // ⚠️ Mots-clés d'ACTIVITÉ minière uniquement — PAS de mots de LIEU.
+                // « asteroid »/« astéroïde » désignent un ENDROIT, pas une activité :
+                // une mission d'élimination DANS une zone d'astéroïdes n'est PAS du
+                // minage (bug Zero : tagué « Mineur » car il fait du combat en zone
+                // de minage). On retire donc ces mots-lieu de la détection minière.
+                let is_mining_kw = t.contains("mining") || t.contains("minage")
+                    || t.contains("mineur") || t.contains("bergbau")
+                    || t.contains("minería") || t.contains("estrazione");
                 let is_salvage_kw = t.contains("salvage") || t.contains("salvaging")
                     || t.contains("sauvetage") || t.contains("récupération") || t.contains("récupérer")
                     || t.contains("épave") || t.contains("epave") || t.contains("wreck")
@@ -2022,9 +2182,9 @@ pub fn build_logbook_stats(
                 // (ex "livrer le minerai" = mining + cargo) était double-comptée.
                 // FIX : on choisit UNE catégorie dominante. Le classifieur PolyTool
                 // (déjà exclusif) prime ; sinon argmax mots-clés par ordre de
-                // priorité du PLUS SPÉCIFIQUE au plus large : mining > salvage >
-                // bounty > cargo (« cargo/livraison/haul » est le terme le plus
-                // générique → dernier recours).
+                // priorité : bounty (action de combat, sans ambiguïté) > mining >
+                // salvage > cargo (« cargo/livraison/haul » = terme le plus
+                // générique → dernier recours). Voir le bloc `None` plus bas.
                 use crate::scripts::mission_classifier::MissionCategory;
                 #[derive(PartialEq)]
                 enum DomCat { Mining, Salvage, Bounty, Cargo, None }
@@ -2040,9 +2200,14 @@ pub fn build_logbook_stats(
                     // Pas de classifieur (offline / mission inconnue) → mots-clés,
                     // 1ʳᵉ correspondance dans l'ordre de priorité = catégorie unique.
                     None => {
-                        if is_mining_kw { DomCat::Mining }
+                        // Priorité à l'ACTION de combat : « eliminate/bounty/prime »
+                        // est un signal fort et sans ambiguïté → une mission
+                        // d'élimination reste du COMBAT même si elle se déroule en
+                        // zone de minage/astéroïdes (bug Zero). Ensuite
+                        // mining > salvage > cargo (du plus spécifique au plus large).
+                        if is_bounty_kw { DomCat::Bounty }
+                        else if is_mining_kw { DomCat::Mining }
                         else if is_salvage_kw { DomCat::Salvage }
-                        else if is_bounty_kw { DomCat::Bounty }
                         else if is_cargo_kw { DomCat::Cargo }
                         else { DomCat::None }
                     }
@@ -2173,9 +2338,12 @@ pub fn build_logbook_stats(
                 Some(MissionCategory::Touring) => "touring",
                 Some(MissionCategory::Tutorial) => "tutorial",
                 _ => {
-                    if t.contains("mining") || t.contains("asteroid") || t.contains("minage") || t.contains("astéroïde") || t.contains("mineur") { "mining" }
+                    // bounty (action de combat) AVANT mining ; « asteroid »/
+                    // « astéroïde » = LIEU, pas activité → retirés du minage
+                    // (bug Zero : combat en zone de minage classé « mining »).
+                    if t.contains("bounty") || t.contains("eliminate") || t.contains("prime") || t.contains("élimine") || t.contains("éliminer") { "bounty" }
+                    else if t.contains("mining") || t.contains("minage") || t.contains("mineur") { "mining" }
                     else if t.contains("salvage") || t.contains("sauvetage") || t.contains("épave") || t.contains("wreck") || t.contains("debris") || t.contains("débris") { "salvage" }
-                    else if t.contains("bounty") || t.contains("eliminate") || t.contains("prime") || t.contains("élimine") || t.contains("éliminer") { "bounty" }
                     else if t.contains("cargo") || t.contains("delivery") || t.contains("haul") || t.contains("cargaison") || t.contains("livraison") { "cargo" }
                     else if t.contains("refuel") || t.contains("ravitaill") { "refuel" }
                     else if t.contains("collect") || t.contains("récolter") || t.contains("récupére") || t.contains("probe") || t.contains("sonde") { "investigation" }
@@ -2302,6 +2470,59 @@ pub fn build_logbook_stats(
             }
         }
     }
+    // ─── Combat via "Crime Committed" (builds récents : SC ne loggue plus
+    //     <Actor Death>). Homicide = kill joueur, Destruction of Vehicle = kill
+    //     vaisseau, le reste (assauts) = engagement. Dédup sur (ts,type,victime)
+    //     car la notif est re-loggée. ⚠️ zone surveillée only / joueur agresseur. ──
+    // La notif "Crime Committed" est re-loggée en BOUCLE pour un même affrontement
+    // (ex Reaktron : 2 Homicide + N assauts, tous au même instant). On collecte, on
+    // trie par ts, puis dédup FENÊTRÉ : un même (catégorie, victime) à < 120 s = le
+    // même affrontement → compté une seule fois (un 2ᵉ kill de la même cible 10 min
+    // plus tard recompte). is_kill regroupe Homicide + Destruction of Vehicle (kill
+    // joueur OU vaisseau de la même cible dans le même affrontement = 1 kill).
+    let mut crimes: Vec<(f64, String, String)> = all_events.iter().filter_map(|ev| match ev {
+        GameEvent::CrimeCommitted { ts, crime_type, victim } if !victim.is_empty() =>
+            Some((*ts, crime_type.to_lowercase(), victim.clone())),
+        _ => None,
+    }).collect();
+    crimes.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+    let mut crime_kills = 0usize;
+    let mut crime_victims: Vec<(String, f64, bool)> = Vec::new(); // (victime, ts, is_kill)
+    let mut crime_last: HashMap<(&'static str, String), f64> = HashMap::new();
+    for (ts, t, victim) in &crimes {
+        let is_kill = t.contains("homicide")
+            || t.contains("destruction of vehicle") || t.contains("destruction de véhicule");
+        let is_combat = is_kill
+            || t.contains("assault") || t.contains("bodily harm")
+            || t.contains("voies de fait") || t.contains("coups et blessures") || t.contains("agression");
+        if !is_combat { continue; }
+        let cat = if is_kill { "kill" } else { "engage" };
+        let key = (cat, victim.clone());
+        if let Some(&last) = crime_last.get(&key) {
+            if ts - last < 120.0 { continue; } // même affrontement re-loggé → skip
+        }
+        crime_last.insert(key, *ts);
+        if is_kill { crime_kills += 1; }
+        crime_victims.push((victim.clone(), *ts, is_kill));
+    }
+    // Les kills de crime (contre des joueurs) s'ajoutent aux kills PVP.
+    kills_pvp += crime_kills;
+    // lastKill : victime de crime-kill la plus récente (arme inconnue → champ vide).
+    if let Some((vts, vname)) = crime_victims.iter().filter(|(_, _, k)| *k)
+        .map(|(n, ts, _)| (*ts, n.clone()))
+        .max_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal))
+    {
+        if last_kill.as_ref().map(|lk| vts > lk.0).unwrap_or(true) {
+            last_kill = Some((vts, String::new(), vname));
+        }
+    }
+    // Morts en vaisseau comptées comme morts (combat.deaths + K/D) : sur les builds
+    // récents c'est la seule mort journalisée (le détail par cause est calculé plus bas).
+    deaths += all_events.iter().filter(|e| match e {
+        GameEvent::VehicleDeath { actor, actor_geid, .. } => is_local_vehicle_death(*actor_geid, actor),
+        _ => false,
+    }).count();
+
     let fav_weapon = weapon_freq.iter().max_by_key(|&(_, c)| c).map(|(w, n)| (w.clone(), *n)).unwrap_or_default();
 
     // ─── Ratio K/D (source de vérité UNIQUE) ──────────────────────────
@@ -2421,6 +2642,13 @@ pub fn build_logbook_stats(
             }
         }
     }
+    // Croisés en combat via les "Crime Committed" (source PVP des builds récents,
+    // sans GEID → clé par nom). Homicide/Destruction = kill compté pour ce joueur.
+    for (victim, ts, is_kill) in &crime_victims {
+        let e = encounters.entry(format!("n:{}", victim)).or_insert((0, 0, 0.0, victim.clone()));
+        if *is_kill { e.0 += 1; }
+        if *ts > e.2 { e.2 = *ts; }
+    }
     // Re-projette en (pseudo affiché, (kills, deaths, max_ts)) pour le reste du
     // pipeline (sort/JSON inchangés). Le pseudo vient du dico GEID→nom (résolu).
     let mut top_encounters: Vec<(String, (usize, usize, f64))> = encounters
@@ -2456,6 +2684,31 @@ pub fn build_logbook_stats(
             _ => {}
         }
     }
+    // Compagnons NOMMÉS via les notifs "<X> has joined the party/channel" — la
+    // source la plus riche (les PartyMember GEID restent souvent anonymes). Dédup
+    // fenêtré (même membre < 300 s = même join re-loggé par le HUD).
+    let mut joins_sorted: Vec<(f64, String)> = all_events.iter().filter_map(|ev| match ev {
+        GameEvent::PartyJoin { ts, member }
+            if !member.is_empty() && member.as_str() != moniker && Some(member.as_str()) != handle =>
+            Some((*ts, member.clone())),
+        _ => None,
+    }).collect();
+    joins_sorted.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+    let mut join_last: HashMap<String, f64> = HashMap::new();
+    for (ts, member) in &joins_sorted {
+        if let Some(&last) = join_last.get(member) {
+            if ts - last < 300.0 { continue; }
+        }
+        join_last.insert(member.clone(), *ts);
+        let e = companions.entry(member.clone()).or_insert((0, false, true));
+        e.0 += 1;
+        e.2 = true; // pseudo récupéré → compagnon NOMMÉ
+    }
+
+    // Exclut le joueur lui-même (peut s'auto-lister via un PartyMember portant son
+    // propre geid personnage, ≠ resolved_local_geid entité → non filtré plus haut).
+    companions.remove(moniker);
+    if let Some(h) = handle { companions.remove(h); }
     let companions_total = companions.len();
     let companions_named = companions.values().filter(|(_, _, r)| *r).count();
     let mut companions_vec: Vec<(String, u32, bool, bool)> = companions.into_iter()
@@ -2767,7 +3020,9 @@ pub fn build_logbook_stats(
     // suivi en running-state, mis à jour AU FIL des events par les seuls
     // signaux de présence LOCAUX :
     //   • `SolarSystemChange` du joueur local (`ssc_is_local`) → `to`
-    //   • `SystemSeen` (chargement de zone par NOTRE client) → system
+    // (`SystemSeen` n'est PLUS pris en compte pour le TEMPS : trop de faux
+    //  positifs via le préchargement d'assets `StatObjLoad … File exists in P4K`
+    //  — cf. note dans la boucle ci-dessous. Reste utilisé pour le badge « visité ».)
     // Anciennement : O(n²) (re-scan complet de tous les events par session) ET
     // le système était choisi par le DERNIER changement GLOBAL (n'importe quelle
     // entité) avant la session → une session pouvait être attribuée à un système
@@ -2800,9 +3055,22 @@ pub fn build_logbook_stats(
                 let pretty = prettify_zone_sc(to);
                 if !pretty.is_empty() { current_system = pretty; }
             }
-            GameEvent::SystemSeen { system, .. } => {
-                if !system.is_empty() { current_system = system.clone(); }
+            // Inventaire de lieu (`RequestLocationInventory`) : signal de présence
+            // FIABLE, réparti sur la session, player-anchored (le client ne loggue
+            // que les requêtes du joueur local). C'est la source PRINCIPALE du temps
+            // par système quand AUCUN `SolarSystemChange` n'est loggé (cas Artics : 0
+            // saut → sans ça tout tombait à tort sur Stanton). `system_from_zone_token`
+            // renvoie None sur token inconnu → ne déplace jamais le système sur du bruit.
+            GameEvent::LocationInventory { location, .. } => {
+                if let Some(sys) = system_from_zone_token(location) {
+                    current_system = sys.to_string();
+                }
             }
+            // `SystemSeen` (chargement de zone `loc/mod/<sys>/`) volontairement
+            // IGNORÉ pour le temps : massivement du préchargement d'assets
+            // (`<StatObjLoad> … 'File exists in P4K'`), PAS de la présence réelle —
+            // un seul faux "Nyx" rendait `current_system` collant (bug 216h Nyx). Il
+            // ne sert qu'au badge « systèmes visités ».
             _ => {}
         }
     }
@@ -2851,13 +3119,27 @@ pub fn build_logbook_stats(
     }
 
     // ─── Morts en vaisseau (éjecté d'un véhicule détruit) ─────────────────
+    // Corrélé à <FatalCollision> (même id véhicule, |Δt|<10s) pour distinguer une
+    // mort par COLLISION/accident (PvE) d'une destruction au COMBAT — la seule cause
+    // récupérable depuis le retrait de <Vehicle Destruction> des logs.
+    let fatal_collisions: Vec<(f64, u64)> = all_events.iter().filter_map(|e| match e {
+        GameEvent::FatalCollision { ts, vehicle, .. } => vehicle_geid_from_name(vehicle).map(|g| (*ts, g)),
+        _ => None,
+    }).collect();
     let mut vehicle_death_count: u32 = 0;
     let mut vehicle_death_hits: HashMap<String, usize> = HashMap::new();
+    let mut vehicle_death_causes: HashMap<&'static str, usize> = HashMap::new();
     for ev in all_events {
-        if let GameEvent::VehicleDeath { actor, actor_geid, vehicle, .. } = ev {
-            if is_local_actor(*actor_geid, actor) {
+        if let GameEvent::VehicleDeath { actor, actor_geid, vehicle, ts } = ev {
+            if is_local_vehicle_death(*actor_geid, actor) {
                 vehicle_death_count += 1;
                 *vehicle_death_hits.entry(canonicalize_vehicle(vehicle)).or_insert(0) += 1;
+                let vid = vehicle_geid_from_name(vehicle);
+                let is_collision = vid.is_some()
+                    && fatal_collisions.iter().any(|(cts, cg)| Some(*cg) == vid && (cts - ts).abs() < 10.0);
+                *vehicle_death_causes
+                    .entry(if is_collision { "Collision / accident" } else { "Détruit au combat" })
+                    .or_insert(0) += 1;
             }
         }
     }
@@ -2875,10 +3157,13 @@ pub fn build_logbook_stats(
         serde_json::Value::Null
     };
     let vehicle_deaths_json = if vehicle_death_count > 0 {
+        let mut causes: Vec<(String, usize)> = vehicle_death_causes.iter().map(|(c, n)| (c.to_string(), *n)).collect();
+        causes.sort_by(|a, b| b.1.cmp(&a.1));
         serde_json::json!({
             "count": vehicle_death_count,
             "deadliestVehicle": deadliest_vehicle.as_ref()
                 .map(|(name, n)| serde_json::json!({ "name": name, "count": *n })),
+            "byCause": causes.iter().map(|(c, n)| serde_json::json!({ "cause": c, "count": n })).collect::<Vec<_>>(),
         })
     } else {
         serde_json::Value::Null
@@ -3833,13 +4118,24 @@ fn zone_count_total(events: &[GameEvent], local_geid: Option<u64>, moniker: &str
     let anchor_active = local_geid.is_some() || !moniker.is_empty();
     let mut set = std::collections::HashSet::new();
     for ev in events {
-        if let GameEvent::ActorDeath { zone, victim, victim_geid, .. } = ev {
-            let is_local = match local_geid {
-                Some(g) if *victim_geid != 0 => *victim_geid == g,
-                _ => victim == moniker,
-            };
-            if anchor_active && !is_local { continue; }
-            set.insert(clean_zone_name(zone));
+        match ev {
+            GameEvent::ActorDeath { zone, victim, victim_geid, .. } => {
+                let is_local = match local_geid {
+                    Some(g) if *victim_geid != 0 => *victim_geid == g,
+                    _ => victim == moniker,
+                };
+                if anchor_active && !is_local { continue; }
+                let z = clean_zone_name(zone);
+                if !z.is_empty() { set.insert(z); }
+            }
+            // Destinations de saut QT (event LOCAL garanti via `- Local`) : lieux
+            // (re)joints par le joueur. Avant, le compte ne venait QUE des morts →
+            // « 0 lieu visité » pour qui meurt peu (bug Artics mineur/hauler).
+            GameEvent::QuantumSelected { destination, .. } => {
+                let z = prettify_zone_sc(destination);
+                if !z.is_empty() { set.insert(z); }
+            }
+            _ => {}
         }
     }
     set.len()
@@ -5681,7 +5977,6 @@ mod tests {
         println!("  Versions        : {}", versions.len());
         println!("  QT arrived      : {}", all_events.iter().filter(|e| matches!(e, GameEvent::QuantumArrived { .. })).count());
     }
-
 
     /// Bench complet sur la fixture privée R-om (343 fichiers, 991 MB).
     /// Skip par défaut, lancer avec :

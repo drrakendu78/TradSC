@@ -767,6 +767,8 @@ pub fn run() {
             scripts::gamelog_blueprint_watcher::gamelog_watcher_start,
             scripts::gamelog_blueprint_watcher::gamelog_watcher_stop,
             scripts::gamelog_blueprint_watcher::gamelog_blueprints_import_history,
+            scripts::carnet_manual::carnet_manual_load,
+            scripts::carnet_manual::carnet_manual_save,
             scripts::gamelog_history_parser::gamelog_history_scan,
             scripts::gamelog_history_parser::gamelog_history_load,
             scripts::gamelog_history_parser::gamelog_history_summary,
