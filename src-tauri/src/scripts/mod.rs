@@ -3,6 +3,7 @@ pub mod background_service;
 pub mod bindings_functions;
 pub mod blueprints;
 pub mod cache_functions;
+pub mod carnet_manual;
 pub mod character_backup;
 pub mod citizen_profile_cache;
 pub mod citizen_tags;
