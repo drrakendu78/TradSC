@@ -91,7 +91,7 @@ export interface LogbookStats {
     // Évolution mensuelle : 12 mois (du plus ancien au plus récent)
     monthlyEvolution: Array<{ monthLabel: string; hours: number }>;
 
-    // Dernières sessions (jusqu'à 10)
+    // Dernières sessions (jusqu'à 30 ; l'UI en montre 5 puis « expand »)
     recentSessions: Array<{
         startedAt: string; // ISO
         durationMinutes: number;
@@ -105,7 +105,9 @@ export interface LogbookStats {
     combat: {
         kills: number;
         deaths: number;
-        ratio: number;
+        // Ratio K/D. `null` si 0 mort (ratio non défini) — l'UI affiche alors
+        // « ∞ » (kills > 0) ou « — » (0 kill) en se basant sur `deaths === 0`.
+        ratio: number | null;
         favoriteWeapon: { name: string; kills: number };
         lastKill?: { weapon: string; victim: string; date: string };
     };
@@ -147,8 +149,14 @@ export interface LogbookStats {
     // Causes de mort
     deathCauses: Array<{ cause: string; count: number; icon: string }>;
 
-    // Statistiques de missions (mining/salvage/bounty/cargo + totaux)
-    // Vient des Game.log via MissionEnded v2 + classifier global.ini
+    // Statistiques de missions.
+    // Compteurs de complétion (réussies/échouées/abandonnées) : agrégés depuis
+    // les `<EndMission>` réels, ancrés sur l'ownership GEID du joueur local.
+    // La SPÉCIALITÉ vient des objectifs `<Create…ObjectiveHandler>` (type
+    // dominant). ⚠️ Le `missionId` de ces objectifs étant à 0, on ne peut PAS
+    // lier un objectif à une mission → pas de breakdown fiable « X missions
+    // cargo complétées » par type. Les champs mining/cargo/salvage/bounty
+    // MissionsComplete restent là pour compat mais ne sont plus affichés.
     missionStats?: {
         miningMissionsComplete: number;
         salvageMissionsComplete: number;
@@ -156,6 +164,12 @@ export interface LogbookStats {
         cargoMissionsComplete: number;
         totalMissionsComplete: number;
         totalMissionsFailed: number;
+        totalMissionsAbandoned: number;
+        // Spécialité dominante en label FR (ex "Cargo / Hauling"), ou null si
+        // aucun objectif `<Create…ObjectiveHandler>` connu dans les logs.
+        missionSpecialty: string | null;
+        // Répartition brute des objectifs par type (ex { Hauling: 72961 }).
+        objectiveTypeBreakdown?: Record<string, number>;
         hasMined: boolean;
         recentMissions?: Array<{
             completedAt: string; // ISO date

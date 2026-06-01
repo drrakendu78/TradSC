@@ -704,24 +704,13 @@ const MissionsCard = ({ stats }: SectionProps) => {
     if (!ms) return null;
     const total = ms.totalMissionsComplete;
     const failed = ms.totalMissionsFailed;
-    const hasMissions = total + failed > 0;
-    const successRate = hasMissions ? Math.round((total / (total + failed)) * 100) : 0;
-    const categorized = ms.miningMissionsComplete + ms.salvageMissionsComplete + ms.bountyMissionsComplete + ms.cargoMissionsComplete;
-    const uncategorized = Math.max(0, total - categorized);
-
-    type CategoryItem = {
-        label: string;
-        count: number;
-        icon: React.ComponentType<{ className?: string }>;
-        color: "amber" | "emerald" | "rose" | "sky" | "zinc";
-    };
-    const categories: CategoryItem[] = [
-        { label: "Minage", count: ms.miningMissionsComplete, icon: Pickaxe, color: "amber" },
-        { label: "Sauvetage", count: ms.salvageMissionsComplete, icon: Package, color: "emerald" },
-        { label: "Prime", count: ms.bountyMissionsComplete, icon: Crosshair, color: "rose" },
-        { label: "Cargaison", count: ms.cargoMissionsComplete, icon: Package, color: "sky" },
-        { label: "Autres", count: uncategorized, icon: MoreHorizontal, color: "zinc" },
-    ];
+    const abandoned = ms.totalMissionsAbandoned ?? 0;
+    // Le taux compare réussites vs (échecs + abandons) : un abandon n'est pas une
+    // réussite, le compter ici reflète mieux la fiabilité du joueur.
+    const terminated = total + failed + abandoned;
+    const hasMissions = terminated > 0;
+    const successRate = hasMissions ? Math.round((total / terminated) * 100) : 0;
+    const specialty = ms.missionSpecialty;
 
     return (
         <div className="bg-[hsl(var(--background)/0.55)] backdrop-blur-md border border-white/10 rounded-2xl p-6 group hover:border-amber-500/30 transition-colors relative overflow-hidden">
@@ -735,19 +724,23 @@ const MissionsCard = ({ stats }: SectionProps) => {
                         <div>
                             <h3 className="text-sm font-semibold text-white tracking-wide uppercase">Missions exécutées</h3>
                             <p className="text-[11px] text-zinc-400">
-                                Détectées via <span className="text-amber-300">MissionEnded</span> + <span className="text-amber-300">SHUDEvent</span> du global.ini
+                                Complétion via <span className="text-amber-300">EndMission</span> · spécialité via les objectifs <span className="text-amber-300">ObjectiveHandler</span>
                             </p>
                         </div>
                     </div>
-                    {/* Stats principales */}
+                    {/* Stats principales : réussies / échouées / abandonnées + taux */}
                     <div className="flex items-end gap-6">
                         <div className="text-right">
-                            <div className="text-[10px] uppercase tracking-widest text-zinc-500">Total complétées</div>
+                            <div className="text-[10px] uppercase tracking-widest text-zinc-500">Réussies</div>
                             <div className="text-3xl text-amber-300 font-bold tabular-nums leading-none">{total.toLocaleString("fr-FR")}</div>
                         </div>
                         <div className="text-right">
-                            <div className="text-[10px] uppercase tracking-widest text-zinc-500">Échecs</div>
+                            <div className="text-[10px] uppercase tracking-widest text-zinc-500">Échouées</div>
                             <div className="text-xl text-rose-400 font-semibold tabular-nums leading-none">{failed.toLocaleString("fr-FR")}</div>
+                        </div>
+                        <div className="text-right">
+                            <div className="text-[10px] uppercase tracking-widest text-zinc-500">Abandonnées</div>
+                            <div className="text-xl text-zinc-300 font-semibold tabular-nums leading-none">{abandoned.toLocaleString("fr-FR")}</div>
                         </div>
                         <div className="text-right">
                             <div className="text-[10px] uppercase tracking-widest text-zinc-500">Taux</div>
@@ -758,41 +751,23 @@ const MissionsCard = ({ stats }: SectionProps) => {
                     </div>
                 </div>
 
-                {/* Breakdown par catégorie */}
-                <div className="grid grid-cols-5 gap-3">
-                    {categories.map((cat) => {
-                        const c = COLOR_MAP[cat.color];
-                        const Icon = cat.icon;
-                        const pct = total > 0 ? Math.round((cat.count / total) * 100) : 0;
-                        return (
-                            <div
-                                key={cat.label}
-                                className={`bg-[hsl(var(--background)/0.4)] border border-white/10 rounded-xl p-3 hover:${c.hover} transition-colors`}
-                                title={`${cat.count} mission${cat.count > 1 ? "s" : ""} ${cat.label.toLowerCase()} (${pct}%)`}
-                            >
-                                <div className="flex items-center gap-2 mb-2">
-                                    <div className={`w-7 h-7 rounded-md border ${c.iconBorder} ${c.iconBg} flex items-center justify-center ${c.text}`}>
-                                        <Icon className="w-3.5 h-3.5" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold">{cat.label}</div>
-                                    </div>
-                                </div>
-                                <div className="flex items-baseline justify-between">
-                                    <div className={`text-2xl font-bold tabular-nums ${c.text}`}>{cat.count}</div>
-                                    {total > 0 && (
-                                        <div className="text-[10px] text-zinc-500 tabular-nums">{pct}%</div>
-                                    )}
-                                </div>
-                                {total > 0 && (
-                                    <div className="mt-2 w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                                        <div className={`h-full ${c.bar80} rounded-full`} style={{ width: `${Math.max(2, pct)}%` }} />
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
+                {/* Spécialité dominante (dérivée des objectifs ObjectiveHandler).
+                    Remplace l'ancien breakdown par-type complété : non calculable
+                    de façon fiable (objectifs non liés à une mission précise). */}
+                {specialty && (
+                    <div className="flex items-center gap-3 bg-[hsl(var(--background)/0.4)] border border-amber-500/20 rounded-xl px-4 py-3">
+                        <div className="w-9 h-9 rounded-lg border border-amber-500/30 bg-amber-500/15 flex items-center justify-center text-amber-300 flex-shrink-0">
+                            <Award className="w-4.5 h-4.5" />
+                        </div>
+                        <div className="min-w-0">
+                            <div className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold">Spécialité</div>
+                            <div className="text-lg font-semibold text-white leading-tight truncate">{specialty}</div>
+                        </div>
+                        <div className="ml-auto text-[10px] text-zinc-500 text-right hidden sm:block">
+                            d'après tes objectifs<br />de mission les plus fréquents
+                        </div>
+                    </div>
+                )}
 
                 {/* Mini liste des dernières missions complétées */}
                 {ms.recentMissions && ms.recentMissions.length > 0 && (
@@ -839,12 +814,6 @@ const MissionsCard = ({ stats }: SectionProps) => {
                     </div>
                 )}
 
-                {/* Note de fallback */}
-                {uncategorized > 0 && (
-                    <div className="mt-4 pt-3 border-t border-white/5 text-[11px] text-zinc-500">
-                        {uncategorized.toLocaleString("fr-FR")} missions complétées sans type identifié (SC 4.6+ ne loggue pas toujours le type de mission via le nouveau format).
-                    </div>
-                )}
             </div>
         </div>
     );
@@ -868,7 +837,7 @@ const CombatAndBlueprints = ({ stats }: SectionProps) => {
                         {stats.combat.kills} <span className="text-zinc-500">/</span> {stats.combat.deaths}
                     </div>
                     <div className="text-xs text-rose-400 border border-rose-500/25 bg-rose-500/10 rounded-md px-2 py-0.5">
-                        Ratio {stats.combat.deaths === 0
+                        Ratio {stats.combat.ratio == null
                             ? stats.combat.kills > 0 ? "∞" : "—"
                             : stats.combat.ratio.toFixed(1)}
                     </div>

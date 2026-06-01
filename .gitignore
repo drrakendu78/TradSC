@@ -64,6 +64,9 @@ PLAN_OVERLAY.md
 # Carnet mockup (donnees joueurs reelles rom/zero/acki - repo PUBLIC, ne pas committer)
 /src/lib/logbook-mock-combined.ts
 /src/lib/logbook-mock-data-combined.json
+/src/lib/logbook-mock-data-*.json
+# Audit interne bugs carnet (liste de bugs - garder local, repo PUBLIC)
+/LOGBOOK-BUGS-AUDIT.md
 # Local (hors repo) - brouillons notes release + assets page partenaire
 /.release-notes-*.md
 /page de partenaire.zip
