@@ -1,5 +1,6 @@
 pub mod app_stats;
 pub mod background_service;
+pub mod ban_system;
 pub mod bindings_functions;
 pub mod blueprints;
 pub mod cache_functions;

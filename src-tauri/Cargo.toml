@@ -1,6 +1,6 @@
 [package]
 name = "startradfr"
-version = "4.3.1"
+version = "4.3.2"
 description = "StarTrad FR - Traduction franÃ§aise pour Star Citizen"
 authors = ["Drrakendu78"]
 edition = "2021"
@@ -46,6 +46,7 @@ starbreaker-cryxml = { git = "https://github.com/diogotr7/StarBreaker.git", rev 
 walkdir = "2"
 discord-rich-presence = "1.0"
 base64 = "0.22"
+sha2 = "0.10"
 gilrs = "0.11"
 
 [target.'cfg(target_os = "windows")'.dependencies]
