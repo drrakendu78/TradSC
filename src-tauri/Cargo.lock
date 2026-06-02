@@ -4321,7 +4321,7 @@ dependencies = [
 
 [[package]]
 name = "startradfr"
-version = "4.3.1"
+version = "4.3.2"
 dependencies = [
  "auto-launch",
  "axum",
@@ -4336,6 +4336,7 @@ dependencies = [
  "reqwest 0.11.27",
  "serde",
  "serde_json",
+ "sha2",
  "starbreaker-cryxml",
  "starbreaker-p4k",
  "tauri",

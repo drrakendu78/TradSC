@@ -43,7 +43,8 @@ import {
     CircleCheck,
     Gamepad2,
     Download,
-    ExternalLink
+    ExternalLink,
+    FolderSearch
 } from 'lucide-react';
 import openExternal from '@/utils/external';
 import { usePreferencesSyncStore, ExportedPreferences } from '@/stores/preferences-sync-store';
@@ -1311,6 +1312,31 @@ function Home() {
     };
 
     // Lancer le RSI Launcher
+    // Idée drrakendu78 : si l'auto-détection rate (install custom genre B:\...),
+    // l'user pointe son RSI Launcher.exe à la main → sauvegardé + prioritaire.
+    const handleLocateLauncher = async () => {
+        if (!isInTauri) return;
+        try {
+            const { open } = await import('@tauri-apps/plugin-dialog');
+            const selected = await open({
+                title: 'Sélectionne ton RSI Launcher.exe',
+                multiple: false,
+                filters: [{ name: 'RSI Launcher', extensions: ['exe'] }],
+            });
+            if (!selected || typeof selected !== 'string') return;
+            const status = await tauriInvoke<LauncherStatus>('set_manual_launcher_path', { path: selected });
+            setLauncherStatus(status);
+            try { localStorage.setItem(LAUNCHER_CACHE_KEY, JSON.stringify(status)); } catch {}
+            toast(
+                status.installed
+                    ? { title: 'Launcher localisé ✅', description: status.path ?? '' }
+                    : { title: 'Chemin enregistré', description: 'Il sera utilisé au prochain lancement.', variant: 'destructive' }
+            );
+        } catch (error) {
+            console.error('Localisation launcher échouée:', error);
+        }
+    };
+
     const handleLaunchLauncher = async () => {
         if (!isInTauri) return;
         setLaunchingLauncher(true);
@@ -1711,6 +1737,7 @@ function Home() {
                         </div>
                     </button>
                 ) : isInTauri ? (
+                    <>
                     <button
                         type="button"
                         onClick={() => openExternal(rsiLauncherDownloadUrl)}
@@ -1727,6 +1754,20 @@ function Home() {
                             <p className="text-[11px] text-muted-foreground truncate">RSI Launcher non détecté</p>
                         </div>
                     </button>
+                    <button
+                        type="button"
+                        onClick={handleLocateLauncher}
+                        className="group flex items-center gap-3 rounded-xl border border-border/40 bg-background/45 px-3 py-2.5 text-left backdrop-blur-md transition-colors hover:border-amber-500/40 hover:bg-background/65"
+                    >
+                        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-500">
+                            <FolderSearch className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold">Localiser mon launcher</p>
+                            <p className="text-[11px] text-muted-foreground truncate">Déjà installé ? Pointe ton RSI&nbsp;Launcher.exe</p>
+                        </div>
+                    </button>
+                    </>
                 ) : null}
 
                 <Popover>

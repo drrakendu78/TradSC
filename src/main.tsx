@@ -7,6 +7,7 @@ import "./index.css";
 import { ThemeProvider } from "@/components/utils/theme-provider";
 import { BorderBeam } from "@/components/magicui/border-beam";
 import { SecurityWarning } from "@/components/custom/SecurityWarning";
+import { BanGate } from "@/components/custom/BanGate";
 import AdminElevateButton from "@/components/custom/AdminElevateButton";
 import { ErrorBoundary } from "@/components/custom/ErrorBoundary";
 import { SplashScreen } from "@/components/custom/SplashScreen";
@@ -167,6 +168,9 @@ function App() {
             <SecurityWarning onContinue={() => {}} />
           )}
           <AppRouter />
+          {/* Garde de ban : overlay plein écran si le compte connecté est banni
+              (check au boot + Realtime). Self-gating : null si pas banni. */}
+          {!isOverlay && <BanGate />}
           {/* On masque les widgets fixed (admin button, BorderBeam) quand le
               wizard est actif : ils s'affichent par-dessus et bloquent les
               clics sur le footer du wizard ("Suivant"). */}

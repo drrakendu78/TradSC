@@ -32,10 +32,12 @@ use scripts::cloud_backup::{
     download_backup_from_supabase, delete_backup_from_supabase,
     save_preferences_to_cloud, load_preferences_from_cloud, delete_preferences_from_cloud,
 };
+use scripts::ban_system::{check_hwid_banned, check_user_banned, get_machine_id, link_user_device};
 use scripts::oauth_callback::start_oauth_callback_server;
 use scripts::gamepath::{
-    check_rsi_launcher, get_folder_creation_date, get_launcher_activity_status,
-    get_rsi_launcher_download_url, get_star_citizen_versions, launch_rsi_launcher,
+    check_rsi_launcher, clear_manual_launcher_path, get_folder_creation_date,
+    get_launcher_activity_status, get_rsi_launcher_download_url, get_star_citizen_versions,
+    launch_rsi_launcher, set_manual_launcher_path,
 };
 use scripts::graphics_settings::{
     get_graphics_renderer, set_graphics_renderer,
@@ -691,9 +693,15 @@ pub fn run() {
             save_preferences_to_cloud,
             load_preferences_from_cloud,
             delete_preferences_from_cloud,
+            get_machine_id,
+            check_user_banned,
+            check_hwid_banned,
+            link_user_device,
             check_rsi_launcher,
             get_launcher_activity_status,
             launch_rsi_launcher,
+            set_manual_launcher_path,
+            clear_manual_launcher_path,
             get_folder_creation_date,
             get_rsi_launcher_download_url,
             get_app_stats,

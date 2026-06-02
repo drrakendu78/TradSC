@@ -252,6 +252,16 @@ fn find_launcher_near_game(game_path: &str) -> Option<String> {
 /// **3. Registry Windows** HKLM + HKCU `Uninstall\*` cherchant `DisplayName`
 ///    contenant "RSI Launcher" (échoue si pas d'install via setup officiel).
 fn find_rsi_launcher_path() -> Option<String> {
+    // -1. Chemin MANUEL défini par l'utilisateur (priorité absolue, opt-in).
+    //     N'est utilisé que s'il a été sauvegardé ET que le .exe existe encore,
+    //     sinon on retombe sur l'auto-détection ci-dessous.
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(manual) = read_manual_launcher_path() {
+            return Some(manual);
+        }
+    }
+
     let log_lines = get_launcher_log_list();
 
     // 0. Déduction depuis le chemin du jeu. Récupère le premier chemin
@@ -316,16 +326,8 @@ fn find_rsi_launcher_path() -> Option<String> {
                 if let Ok(subkey) = hklm.open_subkey(&key_name) {
                     if let Ok(display_name) = subkey.get_value::<String, _>("DisplayName") {
                         if display_name.contains("RSI Launcher") {
-                            if let Ok(install_location) =
-                                subkey.get_value::<String, _>("InstallLocation")
-                            {
-                                let launcher_path = format!(
-                                    "{}\\RSI Launcher.exe",
-                                    install_location.trim_end_matches('\\')
-                                );
-                                if Path::new(&launcher_path).exists() {
-                                    return Some(launcher_path);
-                                }
+                            if let Some(p) = launcher_from_uninstall_key(&subkey) {
+                                return Some(p);
                             }
                         }
                     }
@@ -341,16 +343,8 @@ fn find_rsi_launcher_path() -> Option<String> {
                 if let Ok(subkey) = hkcu.open_subkey(&key_name) {
                     if let Ok(display_name) = subkey.get_value::<String, _>("DisplayName") {
                         if display_name.contains("RSI Launcher") {
-                            if let Ok(install_location) =
-                                subkey.get_value::<String, _>("InstallLocation")
-                            {
-                                let launcher_path = format!(
-                                    "{}\\RSI Launcher.exe",
-                                    install_location.trim_end_matches('\\')
-                                );
-                                if Path::new(&launcher_path).exists() {
-                                    return Some(launcher_path);
-                                }
+                            if let Some(p) = launcher_from_uninstall_key(&subkey) {
+                                return Some(p);
                             }
                         }
                     }
@@ -359,6 +353,159 @@ fn find_rsi_launcher_path() -> Option<String> {
         }
     }
 
+    // 4. Raccourcis Bureau / menu Démarrer (résout le .lnk → vrai chemin du
+    //    .exe ; attrape les installs custom hors C: type B:\...\RSI Launcher\).
+    //    Dernier recours : on ne le tente que si tout le reste a échoué.
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(path) = find_launcher_via_shortcuts() {
+            return Some(path);
+        }
+    }
+
+    None
+}
+
+// ─── Détection manuelle + raccourcis (.lnk) + registre robuste ────────────────
+
+/// Récupère le chemin du RSI Launcher depuis une clé Uninstall, même si
+/// `InstallLocation` est VIDE (cas réel : l'installeur RSI ne le remplit pas !).
+/// Fallback : `DisplayIcon` (ex `<dir>\uninstallerIcon.ico` → on prend le dossier)
+/// puis `UninstallString` (ex `"<dir>\Uninstall RSI Launcher.exe" /allusers`).
+#[cfg(target_os = "windows")]
+fn launcher_from_uninstall_key(subkey: &winreg::RegKey) -> Option<String> {
+    // 1. InstallLocation (souvent vide pour RSI Launcher).
+    if let Ok(loc) = subkey.get_value::<String, _>("InstallLocation") {
+        let loc = loc.trim().trim_end_matches('\\');
+        if !loc.is_empty() {
+            let p = format!("{}\\RSI Launcher.exe", loc);
+            if Path::new(&p).exists() {
+                return Some(p);
+            }
+        }
+    }
+    // 2. DisplayIcon → dossier d'install (on retire un éventuel index ",0").
+    if let Ok(icon) = subkey.get_value::<String, _>("DisplayIcon") {
+        let icon_path = icon.split(',').next().unwrap_or(&icon).trim().trim_matches('"');
+        if let Some(dir) = Path::new(icon_path).parent() {
+            let p = dir.join("RSI Launcher.exe");
+            if p.exists() {
+                return Some(p.to_string_lossy().to_string());
+            }
+        }
+    }
+    // 3. UninstallString → on extrait le .exe (entre quotes ou jusqu'au 1er espace).
+    if let Ok(uninstall) = subkey.get_value::<String, _>("UninstallString") {
+        let trimmed = uninstall.trim();
+        let exe = if let Some(stripped) = trimmed.strip_prefix('"') {
+            stripped.split('"').next().unwrap_or(stripped)
+        } else {
+            trimmed.split_whitespace().next().unwrap_or(trimmed)
+        };
+        if let Some(dir) = Path::new(exe).parent() {
+            let p = dir.join("RSI Launcher.exe");
+            if p.exists() {
+                return Some(p.to_string_lossy().to_string());
+            }
+        }
+    }
+    None
+}
+
+/// Fichier où on persiste le chemin manuel du launcher (choisi par l'user).
+#[cfg(target_os = "windows")]
+fn manual_launcher_path_file() -> Option<std::path::PathBuf> {
+    dirs::config_dir().map(|d| d.join("StarTradFR").join("launcher_manual_path.txt"))
+}
+
+/// Lit le chemin manuel sauvegardé — uniquement s'il existe ET que le .exe est
+/// toujours là (sinon None → on retombe sur l'auto-détection).
+#[cfg(target_os = "windows")]
+fn read_manual_launcher_path() -> Option<String> {
+    let file = manual_launcher_path_file()?;
+    let content = std::fs::read_to_string(file).ok()?;
+    let path = content.trim().to_string();
+    if !path.is_empty() && Path::new(&path).exists() {
+        Some(path)
+    } else {
+        None
+    }
+}
+
+/// Résout la cible d'un raccourci .lnk via WScript.Shell (résolveur Windows
+/// natif → gère tous les formats de raccourci). Fenêtre PowerShell masquée.
+#[cfg(target_os = "windows")]
+fn resolve_shortcut_target(lnk_path: &Path) -> Option<String> {
+    use std::os::windows::process::CommandExt;
+    use std::process::Command;
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+    let escaped = lnk_path.to_string_lossy().replace('\'', "''");
+    let script = format!(
+        "$s=(New-Object -ComObject WScript.Shell).CreateShortcut('{}');Write-Output $s.TargetPath",
+        escaped
+    );
+    let output = Command::new("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let target = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if target.is_empty() {
+        None
+    } else {
+        Some(target)
+    }
+}
+
+/// Cherche un raccourci RSI Launcher sur le Bureau (user + public) et dans le
+/// menu Démarrer, et résout sa cible. Marche pour n'importe quel chemin d'install.
+#[cfg(target_os = "windows")]
+fn find_launcher_via_shortcuts() -> Option<String> {
+    let mut dirs_to_scan: Vec<std::path::PathBuf> = Vec::new();
+    if let Ok(v) = std::env::var("USERPROFILE") {
+        dirs_to_scan.push(std::path::PathBuf::from(v).join("Desktop"));
+    }
+    if let Ok(v) = std::env::var("PUBLIC") {
+        dirs_to_scan.push(std::path::PathBuf::from(v).join("Desktop"));
+    }
+    if let Ok(v) = std::env::var("APPDATA") {
+        dirs_to_scan.push(std::path::PathBuf::from(v).join("Microsoft\\Windows\\Start Menu\\Programs"));
+    }
+    if let Ok(v) = std::env::var("ProgramData") {
+        dirs_to_scan.push(std::path::PathBuf::from(v).join("Microsoft\\Windows\\Start Menu\\Programs"));
+    }
+
+    for dir in dirs_to_scan {
+        if !dir.exists() {
+            continue;
+        }
+        for entry in walkdir::WalkDir::new(&dir).max_depth(3).into_iter().filter_map(|e| e.ok()) {
+            let p = entry.path();
+            let is_lnk = p
+                .extension()
+                .and_then(|e| e.to_str())
+                .map(|e| e.eq_ignore_ascii_case("lnk"))
+                .unwrap_or(false);
+            if !is_lnk {
+                continue;
+            }
+            // On ne résout que les raccourcis qui ont une chance d'être le launcher
+            // (évite de spawn PowerShell pour chaque .lnk du menu Démarrer).
+            let fname = p.file_name().and_then(|n| n.to_str()).unwrap_or("").to_lowercase();
+            if !(fname.contains("rsi") || fname.contains("launcher") || fname.contains("citizen")) {
+                continue;
+            }
+            if let Some(target) = resolve_shortcut_target(p) {
+                if target.to_lowercase().ends_with("rsi launcher.exe") && Path::new(&target).exists() {
+                    return Some(target);
+                }
+            }
+        }
+    }
     None
 }
 
@@ -426,6 +573,39 @@ pub fn get_launcher_activity_status() -> LauncherActivityStatus {
         launcher_running: is_process_running(&["RSI Launcher.exe"]),
         game_running: is_process_running(&["StarCitizen.exe"]),
     }
+}
+
+/// Définit manuellement le chemin du RSI Launcher (l'user pointe son .exe
+/// quand l'auto-détection échoue). Persisté, prioritaire sur l'auto-détection.
+#[command]
+pub fn set_manual_launcher_path(path: String) -> LauncherStatus {
+    #[cfg(target_os = "windows")]
+    {
+        let trimmed = path.trim().to_string();
+        if let Some(file) = manual_launcher_path_file() {
+            if let Some(parent) = file.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            let _ = std::fs::write(&file, &trimmed);
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = path;
+    }
+    check_rsi_launcher()
+}
+
+/// Efface le chemin manuel (revient à l'auto-détection seule).
+#[command]
+pub fn clear_manual_launcher_path() -> LauncherStatus {
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(file) = manual_launcher_path_file() {
+            let _ = std::fs::remove_file(file);
+        }
+    }
+    check_rsi_launcher()
 }
 
 /// Lance le RSI Launcher
