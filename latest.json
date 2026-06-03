@@ -1,11 +1,11 @@
 {
-    "version":  "4.2.7",
-    "notes":  "v4.2.7 - Auto-détection blueprints (Game.log watcher) avec notifications Windows natives + son custom. Refonte complète overlay in-game (hub avec coins Win11, oeil cliquable, sélecteur 9 presets, persistance position/taille). Outils SC réorganisés en 5 sous-dossiers + SC Trade Routes ajouté. Design unifié sur 5 pages outils. Timers PVP custom au clic. Companion LAN : sources perso + vue Blueprints. Fixes : user.cfg merge (Vulkan préservé), launcher non détecté (dossiers custom). Voir GitHub release pour la liste complète.",
-    "pub_date":  "2026-05-27T19:05:18.734Z",
+    "version":  "4.3.3",
+    "notes":  "v4.3.3 - Traduction anglaise (FR + EN dans le selecteur) + corrections. Voir la release GitHub pour les details.",
+    "pub_date":  "2026-06-03T21:06:08.240Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRb1BzLzdHaFk1RlR1KzBlNDhpMWtob2xYajFsN1pBWWEwbXk0S3hLcm9COGFqcnJOTSs2UVJ3dzdjYUd3SDArZ0srT2pycnk1TDdjdWV2S1E0TEkvQTlhOFczRVFBWHdRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5OTA4NTkzCWZpbGU6U3RhclRyYWQgRlJfNC4yLjdfeDY0LXNldHVwLmV4ZQpQYUMvZkZpQ1ZtV3AwZ1FRNU9SSHBaRWpmQjJ2RVRmLy9HbjhueG54emMreDZFWXpTeW9PNk1vbHhVQU9jWmxSS3c0VVpTOGJaWFBpZDZXbE80Y09DZz09Cg==",
-                                             "url":  "https://github.com/drrakendu78/TradSC/releases/download/v4.2.7/StarTrad.FR_4.2.7_x64-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRb1BzLzdHaFk1Rlo2WlJ4V2lnRVRCUHY5UkZzVTcxL0ZQUE5yaVFtY2QwR1Z6cVZQeGdyd3dONHJDUGF6K0ZxMlpjWjFwcktJMUcwOEJoSS9JeXE3cDR6YmlvT1pyMWdnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwNTIwNTYzCWZpbGU6U3RhclRyYWQgRlJfNC4zLjNfeDY0LXNldHVwLmV4ZQpBMVVreXhHWWliV25JR2l4akhVMTVpVWxhczV4YXlLaXR2cXdqalJoeEhmMGg4bm5DczNmMys1MjEwdGR1MEt4amlxKzJxTTBpWGNwd2t6T25pSDlEdz09Cg==",
+                                             "url":  "https://github.com/drrakendu78/TradSC/releases/download/v4.3.3/StarTrad.FR_4.3.3_x64-setup.exe"
                                          }
                   }
 }
