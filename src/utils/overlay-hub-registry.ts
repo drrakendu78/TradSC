@@ -41,7 +41,7 @@ const BUILTIN_OVERLAY_ITEMS: BuiltinOverlayHubDefinition[] = [
     {
         id: "spviewer",
         label: "SP Viewer",
-        kind: "iframe",
+        kind: "webview",
         url: "https://www.spviewer.eu/",
         width: 900,
         height: 700,
@@ -133,7 +133,7 @@ const BUILTIN_OVERLAY_ITEMS: BuiltinOverlayHubDefinition[] = [
     {
         id: "uexcorp",
         label: "Routes",
-        kind: "iframe",
+        kind: "webview",
         url: "https://uexcorp.space/",
         width: 600,
         height: 800,

@@ -170,13 +170,20 @@ fn count_installed_translations() -> (u32, Vec<String>) {
     let game_paths = get_game_paths_from_log();
 
     for (version, path) in game_paths {
-        let global_ini_path = Path::new(&path)
-            .join("data")
-            .join("Localization")
-            .join("french_(france)")
-            .join("global.ini");
+        let base = Path::new(&path);
+        let loc = base.join("data").join("Localization");
 
-        if global_ini_path.exists() {
+        // FR : le dossier french_(france) n'existe pas en vanilla → sa présence = install.
+        let fr_installed = loc.join("french_(france)").join("global.ini").exists();
+
+        // EN : english/global.ini existe toujours en vanilla → on confirme via
+        // g_language = english dans user.cfg (écrit par l'install StarTrad).
+        let en_installed = loc.join("english").join("global.ini").exists()
+            && fs::read_to_string(base.join("user.cfg"))
+                .map(|c| c.contains("g_language = english"))
+                .unwrap_or(false);
+
+        if fr_installed || en_installed {
             count += 1;
             versions.push(version);
         }

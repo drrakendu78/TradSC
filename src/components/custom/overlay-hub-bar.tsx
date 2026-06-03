@@ -110,33 +110,29 @@ function ToolButton({
 }) {
     const Icon = ICONS[tool.iconName] ?? Database;
     const active = tool.isOpen === true;
+    // Tooltip natif (title) plutôt qu'un Tooltip Radix : la fenêtre du hub est
+    // découpée en pill via SetWindowRgn, donc un portal Radix affiché SOUS la
+    // barre est rogné (invisible). Le title natif est rendu par l'OS comme une
+    // popup séparée hors fenêtre → toujours visible, exactement comme le
+    // tooltip "Glisser pour déplacer" du drag region.
     return (
-        <Tooltip.Root delayDuration={250}>
-            <Tooltip.Trigger asChild>
-                <button
-                    type="button"
-                    onClick={onClick}
-                    aria-label={tool.label}
-                    className={[
-                        "relative flex h-6 w-6 items-center justify-center rounded-full border border-transparent transition-colors",
-                        active
-                            ? "bg-cyan-400/10 text-cyan-300 shadow-[0_0_8px_rgba(12,231,247,0.45)]"
-                            : "text-slate-400 hover:text-white",
-                    ].join(" ")}
-                >
-                    <Icon className="h-3 w-3" strokeWidth={1.5} />
-                    {tool.isNew && (
-                        <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full border border-black bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.6)]" />
-                    )}
-                </button>
-            </Tooltip.Trigger>
-            <Tooltip.Portal>
-                <Tooltip.Content side="bottom" sideOffset={8} className={TOOLTIP}>
-                    {tool.label}
-                    <Tooltip.Arrow className="fill-zinc-900/95" />
-                </Tooltip.Content>
-            </Tooltip.Portal>
-        </Tooltip.Root>
+        <button
+            type="button"
+            onClick={onClick}
+            aria-label={tool.label}
+            title={tool.label}
+            className={[
+                "relative flex h-6 w-6 items-center justify-center rounded-full border border-transparent transition-colors",
+                active
+                    ? "bg-cyan-400/10 text-cyan-300 shadow-[0_0_8px_rgba(12,231,247,0.45)]"
+                    : "text-slate-400 hover:text-white",
+            ].join(" ")}
+        >
+            <Icon className="h-3 w-3" strokeWidth={1.5} />
+            {tool.isNew && (
+                <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full border border-black bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.6)]" />
+            )}
+        </button>
     );
 }
 

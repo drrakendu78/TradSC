@@ -13,7 +13,7 @@ import {
 
 const ORG_NAME_FALLBACK = "VECTARIS CORP.";
 const ORG_TAG = "Fret · Transport · Commerce · Passagers";
-const ORG_SID = "ARSW";
+const ORG_SID = "VCO";
 const ORG_DISCORD_URL = "https://discord.gg/BfGpnUCGPZ";
 const ORG_DISCORD_INVITE = "BfGpnUCGPZ";
 const ORG_RSI_URL = "https://robertsspaceindustries.com/en/orgs/ARSW";
@@ -171,7 +171,7 @@ export function OrgPill() {
                                         {ORG_SID}
                                     </span>
                                     <span className="text-[9.5px] font-mono uppercase tracking-wider text-amber-100/60">
-                                        Mon orga
+                                        Notre corpo
                                     </span>
                                 </div>
                             </div>
@@ -245,10 +245,10 @@ export function OrgPill() {
                         style={{ transformOrigin: "top left" }}
                         onClick={expand}
                         className="pointer-events-auto relative flex h-7 items-center gap-2 rounded-b-2xl border border-t-0 border-amber-500/50 bg-gradient-to-b from-amber-500/35 to-amber-600/20 pl-1.5 pr-2.5 text-[11px] font-semibold text-white shadow-[0_6px_18px_-10px_rgba(245,158,11,0.6)] backdrop-blur-xl transition-all hover:from-amber-500/50 hover:to-amber-600/30"
-                        title={`Mon orga — ${name}`}
+                        title={`Notre corpo — ${name}`}
                     >
                         {logoSmall}
-                        <span className="drop-shadow-sm">Mon orga</span>
+                        <span className="drop-shadow-sm">Notre corpo</span>
                         {members != null && (
                             <span className="flex items-center gap-1 rounded-full bg-black/30 px-1.5 py-0.5 text-[10px]">
                                 <Users className="h-2.5 w-2.5" />
