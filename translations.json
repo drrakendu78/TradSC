@@ -6,13 +6,13 @@
       {
         "id": 1,
         "name": "Circuspes",
-        "description": "Grosse traduction communautaire (Cirque Lisoir, 100+ contributeurs).",
+        "description": "Communautaire FR (communauté Hugo Lisoir), corrigée en amont via Evocati/PTU — à jour à chaque patch.",
         "url": "https://traduction.circuspes.fr/download/global.ini"
       },
       {
         "id": 0,
         "name": "SCEFRA (Settings FR)",
-        "description": "Traduction FR complète, menu réglages en français — la référence.",
+        "description": "Traduction FR complète, menu réglages en français. Générée avec ChatGPT-4o + corrigée par la communauté.",
         "url": "https://raw.githubusercontent.com/SPEED0U/Scefra/main/french_(france)/global.ini"
       },
       {
