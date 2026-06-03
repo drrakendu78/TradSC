@@ -4,6 +4,12 @@
     "enabled": true,
     "links": [
       {
+        "id": 1,
+        "name": "Circuspes",
+        "description": "Grosse traduction communautaire (Cirque Lisoir, 100+ contributeurs).",
+        "url": "https://traduction.circuspes.fr/download/global.ini"
+      },
+      {
         "id": 0,
         "name": "SCEFRA (Settings FR)",
         "description": "Traduction FR complète, menu réglages en français — la référence.",
@@ -14,12 +20,6 @@
         "name": "SCEFRA (Settings EN)",
         "description": "Jeu en français mais menu réglages en anglais (pour suivre les guides EN).",
         "url": "https://raw.githubusercontent.com/SPEED0U/Scefra/refs/heads/settings-en/french_(france)/global.ini"
-      },
-      {
-        "id": 1,
-        "name": "Circuspes",
-        "description": "Grosse traduction communautaire (Cirque Lisoir, 100+ contributeurs).",
-        "url": "https://traduction.circuspes.fr/download/global.ini"
       },
       {
         "id": 3,
