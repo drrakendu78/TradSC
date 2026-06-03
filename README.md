@@ -6,6 +6,8 @@
 
 _Traduction française pour Star Citizen – Version 3_
 
+<sub>🔱 À l'origine basé sur le <a href="https://github.com/Onivoid/MultitoolV2">Multitool d'Onivoid</a> (licence MIT) — depuis <strong>entièrement refondu</strong> pour la traduction FR. Merci à <a href="https://github.com/Onivoid">Onivoid</a> 🙏</sub>
+
 [![Release](https://img.shields.io/github/v/release/drrakendu78/TradSC?style=for-the-badge&logo=github&logoColor=white)](https://github.com/drrakendu78/TradSC/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/drrakendu78/TradSC/total?style=for-the-badge&logo=download&logoColor=white)](https://github.com/drrakendu78/TradSC/releases)
 [![License](https://img.shields.io/github/license/drrakendu78/TradSC?style=for-the-badge)](LICENSE)
