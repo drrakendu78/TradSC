@@ -1538,7 +1538,13 @@ export default function Traduction() {
                                     disabled={loadingButtonId !== null}
                                 >
                                     <SelectTrigger className="h-10 w-full rounded-lg border-border/60 bg-background/40">
-                                        <SelectValue placeholder="Choisir une traduction" />
+                                        {(() => {
+                                            const cur = translationsSelected[key as keyof TranslationsChoosen]?.link || "";
+                                            const sel = availableTranslationLinks.find((l: Link) => l.url === cur);
+                                            return sel
+                                                ? <span className="truncate">{sel.name}</span>
+                                                : <span className="text-muted-foreground">Choisir une traduction</span>;
+                                        })()}
                                     </SelectTrigger>
                                     <SelectContent>
                                         {availableTranslationLinks.map((link: Link) => (
