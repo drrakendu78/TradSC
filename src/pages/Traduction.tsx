@@ -1544,7 +1544,14 @@ export default function Traduction() {
                                         {availableTranslationLinks.map((link: Link) => (
                                             <SelectItem key={link.id} value={link.url}>
                                                 <div className="flex items-center justify-between w-full gap-2">
-                                                    <span>{link.name}</span>
+                                                    <div className="flex flex-col">
+                                                        <span>{link.name}</span>
+                                                        {link.description && (
+                                                            <span className="text-[11px] leading-tight text-muted-foreground">
+                                                                {link.description}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     {customSourceByUrl[link.url] && (
                                                         <span className="text-xs text-primary">
                                                             {getCustomLanguageLabel(customSourceByUrl[link.url].language)}
