@@ -317,6 +317,7 @@ async fn check_and_update_translations(app: &AppHandle, lang: &str) -> Result<()
                         match apply_branding_to_local_file(
                             version_path.clone(),
                             selected_lang.clone(),
+                            link.to_string(),
                         ) {
                             Ok(true) => println!(
                                 "[Background Service] Branding appliqué pour {}",

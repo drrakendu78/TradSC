@@ -16,6 +16,11 @@ export interface Link {
     id: number;
     name: string;
     url: string;
+    description?: string;
+    /** Langue de la source ("fr" | "en"...) — renseignée au merge des sections
+     *  de translations.json pour router l'install vers le bon dossier + afficher
+     *  un badge FR/EN dans le sélecteur. */
+    lang?: string;
 }
 
 interface LanguageConfig {

@@ -182,7 +182,13 @@ export default function Traduction() {
 
     const defaultLanguage = "fr";
 
-    const officialTranslationLinks = translations?.fr?.links ?? [];
+    // Sources built-in : fusion FR + EN (translations.json), chaque lien tagué
+    // avec sa langue → l'install vise le bon dossier (french_(france)/english)
+    // et le sélecteur affiche un badge FR/EN. de/ita/es exclus volontairement.
+    const officialTranslationLinks = useMemo<Link[]>(() => [
+        ...(translations?.fr?.links ?? []).map((l) => ({ ...l, lang: "fr" })),
+        ...(translations?.en?.links ?? []).map((l) => ({ ...l, lang: "en" })),
+    ], [translations]);
     const customTranslationLinks = useMemo<Link[]>(() => (
         customTranslationSources.map((source, index) => ({
             id: -1 - index,
@@ -547,6 +553,7 @@ export default function Traduction() {
                             await invoke("apply_branding_to_local_file", {
                                 path: value.path,
                                 lang: selectedLanguage,
+                                translationLink: versionSettings?.link ?? "",
                             });
                         } catch (e) {
                             console.error("Erreur branding:", e);
@@ -663,7 +670,9 @@ export default function Traduction() {
             const versionData = paths.versions[version as keyof GamePaths["versions"]];
             const previousLink = currentSetting?.link;
             const customSource = customSourceByUrl[linkUrl];
-            const selectedLanguage = customSource?.language || defaultLanguage;
+            // Lien built-in → langue taguée ("fr"/"en") ; sinon langue de la source perso.
+            const builtinLang = availableTranslationLinks.find((l) => l.url === linkUrl)?.lang;
+            const selectedLanguage = customSource?.language || builtinLang || defaultLanguage;
 
             const updatedTranslations: TranslationsChoosen = {
                 ...translationsSelected,
@@ -732,7 +741,7 @@ export default function Traduction() {
                 }
             }
         },
-        [translationsSelected, saveSelectedTranslations, paths, toast, CheckTranslationsState, customSourceByUrl, defaultLanguage, isAdmin, recordTranslationInstall],
+        [translationsSelected, saveSelectedTranslations, paths, toast, CheckTranslationsState, customSourceByUrl, availableTranslationLinks, defaultLanguage, isAdmin, recordTranslationInstall],
     );
 
     const handleInstallTranslation = useCallback(
@@ -1303,18 +1312,51 @@ export default function Traduction() {
         const fetchLastUpdatedDates = async () => {
             if (!translations?.fr?.links) return;
 
-            const dates: Record<string, string | null> = {};
+            // FR + EN : dates de dernière MàJ des deux langues.
+            const allLinks = [...(translations.fr?.links ?? []), ...(translations.en?.links ?? [])];
+
+            // Cache localStorage : affichage instantané + on évite de cramer le
+            // rate-limit de l'API GitHub (60 req/h non-auth) à chaque ouverture/HMR.
+            const CACHE_KEY = "startrad.translationDates.v2";
+            const TTL_MS = 6 * 60 * 60 * 1000; // 6h
+            let cached: Record<string, string | null> = {};
+            let cacheTs = 0;
+            try {
+                const raw = localStorage.getItem(CACHE_KEY);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    cached = parsed?.dates ?? {};
+                    cacheTs = parsed?.ts ?? 0;
+                    if (Object.keys(cached).length) setLastUpdatedDates(cached);
+                }
+            } catch { /* cache illisible, on ignore */ }
+
+            // On re-fetch si : cache absent/périmé (>TTL) OU s'il manque encore
+            // des dates (ex: rate-limit GitHub passager qui avait mis des null).
+            // Anti-hammer : au plus un re-fetch / 90s tant que c'est incomplet.
+            const complete = allLinks.length > 0 && allLinks.every((l) => cached[l.url]);
+            const freshTTL = cacheTs && Date.now() - cacheTs < TTL_MS;
+            const triedRecently = cacheTs && Date.now() - cacheTs < 90_000;
+            if ((freshTTL && complete) || (triedRecently && !complete)) return;
+
+            // Fetch frais : on ne remplace une date que par une valeur non-nulle
+            // (un null = rate-limit/erreur → on garde l'ancienne date cachée).
+            const merged: Record<string, string | null> = { ...cached };
             await Promise.all(
-                translations.fr.links.map(async (link: Link) => {
+                allLinks.map(async (link: Link) => {
                     try {
                         const date = await invoke<string | null>("get_translation_last_updated", { url: link.url });
-                        dates[link.url] = date;
+                        if (date) merged[link.url] = date;
+                        else if (!(link.url in merged)) merged[link.url] = null;
                     } catch {
-                        dates[link.url] = null;
+                        if (!(link.url in merged)) merged[link.url] = null;
                     }
                 })
             );
-            setLastUpdatedDates(dates);
+            setLastUpdatedDates(merged);
+            try {
+                localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), dates: merged }));
+            } catch { /* quota plein, on ignore */ }
         };
 
         fetchLastUpdatedDates();
@@ -1532,19 +1574,55 @@ export default function Traduction() {
                             </label>
                             {/* Sélecteur en ligne (prioritaire) */}
                             {availableTranslationLinks.length > 0 ? (
+                                <>
                                 <Select
                                     value={translationsSelected[key as keyof TranslationsChoosen]?.link || ""}
                                     onValueChange={(val) => handleTranslationSelect(key, val)}
                                     disabled={loadingButtonId !== null}
                                 >
                                     <SelectTrigger className="h-10 w-full rounded-lg border-border/60 bg-background/40">
-                                        <SelectValue placeholder="Choisir une traduction" />
+                                        {(() => {
+                                            const cur = translationsSelected[key as keyof TranslationsChoosen]?.link || "";
+                                            const sel = availableTranslationLinks.find((l: Link) => l.url === cur);
+                                            if (!sel) return <span className="text-muted-foreground">Choisir une traduction</span>;
+                                            const custom = customSourceByUrl[sel.url];
+                                            const date = !custom ? lastUpdatedDates[sel.url] : null;
+                                            return (
+                                                <span className="flex min-w-0 items-center gap-2">
+                                                    {sel.lang && !custom && (
+                                                        <span className={`flex-shrink-0 rounded px-1 py-px text-[9px] font-bold uppercase leading-none ${sel.lang === "en" ? "bg-sky-500/15 text-sky-400" : "bg-primary/15 text-primary"}`}>
+                                                            {sel.lang}
+                                                        </span>
+                                                    )}
+                                                    <span className="truncate font-medium">{sel.name}</span>
+                                                    {custom ? (
+                                                        <span className="flex-shrink-0 text-[11px] text-primary">{getCustomLanguageLabel(custom.language)}</span>
+                                                    ) : date ? (
+                                                        <span className="flex-shrink-0 whitespace-nowrap text-[11px] text-muted-foreground">• {formatRelativeDate(date)}</span>
+                                                    ) : null}
+                                                </span>
+                                            );
+                                        })()}
                                     </SelectTrigger>
                                     <SelectContent>
                                         {availableTranslationLinks.map((link: Link) => (
-                                            <SelectItem key={link.id} value={link.url}>
+                                            <SelectItem key={link.url} value={link.url}>
                                                 <div className="flex items-center justify-between w-full gap-2">
-                                                    <span>{link.name}</span>
+                                                    <div className="flex flex-col">
+                                                        <span className="flex items-center gap-1.5">
+                                                            {link.lang && !customSourceByUrl[link.url] && (
+                                                                <span className={`rounded px-1 py-px text-[9px] font-bold uppercase leading-none ${link.lang === "en" ? "bg-sky-500/15 text-sky-400" : "bg-primary/15 text-primary"}`}>
+                                                                    {link.lang}
+                                                                </span>
+                                                            )}
+                                                            {link.name}
+                                                        </span>
+                                                        {link.description && (
+                                                            <span className="text-[11px] leading-tight text-muted-foreground">
+                                                                {link.description}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     {customSourceByUrl[link.url] && (
                                                         <span className="text-xs text-primary">
                                                             {getCustomLanguageLabel(customSourceByUrl[link.url].language)}
@@ -1560,6 +1638,19 @@ export default function Traduction() {
                                         ))}
                                     </SelectContent>
                                 </Select>
+                                {/* Description de la source actuellement sélectionnée (compact, sous le sélecteur) */}
+                                {(() => {
+                                    const cur = translationsSelected[key as keyof TranslationsChoosen]?.link || "";
+                                    if (!cur) return null;
+                                    const sel = availableTranslationLinks.find((l: Link) => l.url === cur);
+                                    if (!sel?.description) return null;
+                                    return (
+                                        <p className="line-clamp-2 border-l-2 border-primary/50 pl-2.5 text-xs leading-snug text-foreground/80">
+                                            {sel.description}
+                                        </p>
+                                    );
+                                })()}
+                                </>
                             ) : cachedVersions[key.toUpperCase()] && Object.keys(cachedVersions[key.toUpperCase()]).length > 0 ? (
                                 /* Sélecteur hors-ligne basé sur le cache */
                                 (() => {
@@ -1968,13 +2059,13 @@ export default function Traduction() {
                                 <div className="rounded-lg border border-border/30 bg-background/20 p-2.5">
                                     <p className="text-sm font-semibold tracking-tight text-primary">SCEFRA</p>
                                     <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                                        Traduction assistée par IA et corrigée par les retours de la communauté. Mises à jour très fréquentes.
+                                        Traduction générée avec ChatGPT-4o, corrigée par la communauté. Mise à jour à chaque correction.
                                     </p>
                                 </div>
                                 <div className="rounded-lg border border-border/30 bg-background/20 p-2.5">
                                     <p className="text-sm font-semibold tracking-tight text-primary">Circuspes</p>
                                     <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                                        Traduction par des équipes de traducteurs et relecteurs (communauté Hugo Lisoir). Mises à jour moins fréquentes.
+                                        Traduction communautaire francophone (communauté Hugo Lisoir), corrigée en amont via les builds Evocati + PTU. À jour dès chaque patch.
                                     </p>
                                 </div>
                                 <button

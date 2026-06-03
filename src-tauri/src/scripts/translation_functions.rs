@@ -328,46 +328,14 @@ fn strip_user_cfg(base_path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// Applique le branding StarTrad FR directement sur le contenu (sans vérifier le lien)
-fn apply_startrad_branding_direct(content: &str) -> String {
-    // Remplacer tous les "Multitool" par "StarTrad FR" (SCEFRA)
-    let result = content.replace("Multitool", "StarTrad FR");
-
-    // Remplacer les mentions Discord SCEFRA par le contact StarTrad FR
-    let result = result.replace(
-        "Discord SCEFRA (SCEFRA sur StarTrad FR)",
-        "Discord pseudo drrakendu78 ou sur discord.startrad.link",
-    );
-
-    // Branding Circuspes (commentaire en haut du fichier)
-    let result = result.replace(
-        "; Lien pour télécharger le fichier et informations : https://traduction.circuspes.fr/download/",
-        "; Téléchargé via StarTrad FR (Traduction Circuspes) - Besoin d'aide ? Discord: drrakendu78"
-    );
-
-    // Branding Circuspes (texte dans le jeu)
-    let result = result.replace(
-        "Initiative de traduction communautaire francophone",
-        "Téléchargé via StarTrad FR (Traduction Circuspes) - Besoin d'aide ? Discord: drrakendu78",
-    );
-
-    // Supprimer le lien Circuspes dans le texte du jeu
-    result.replace(" : https://traduction.circuspes.fr/download/", "")
-}
-
-/// Vérifie si le fichier local a besoin du branding
-fn needs_branding(content: &str) -> bool {
-    // SCEFRA: vérifie si "Multitool" est présent
-    // Circuspes: vérifie les textes spécifiques
-    content.contains("Multitool")
-        || content.contains("; Lien pour télécharger le fichier et informations : https://traduction.circuspes.fr/download/")
-        || content.contains("Initiative de traduction communautaire francophone")
-        || content.contains(" : https://traduction.circuspes.fr/download/")
-}
+// NB : le branding est désormais 100% basé sur l'URL source (apply_startrad_branding).
+// Les anciens helpers basés-contenu (apply_startrad_branding_direct / needs_branding)
+// ont été retirés : ils brandaient à tort tout fichier contenant "Multitool" (l'objet
+// du jeu, présent dans les global.ini EN) → corruption + faux "pas à jour".
 
 /// Applique le branding StarTrad FR à un fichier local existant
 #[command]
-pub fn apply_branding_to_local_file(path: String, lang: String) -> Result<bool, String> {
+pub fn apply_branding_to_local_file(path: String, lang: String, translation_link: String) -> Result<bool, String> {
     let base_path = Path::new(&path);
 
     let lang_folder_name =
@@ -394,13 +362,15 @@ pub fn apply_branding_to_local_file(path: String, lang: String) -> Result<bool, 
 
     let content = String::from_utf8(content_bytes).map_err(|e| format!("Erreur UTF-8: {}", e))?;
 
-    // Vérifier si le branding est nécessaire
-    if !needs_branding(&content) {
-        return Ok(false);
+    // Branding basé sur la SOURCE (lien), PAS sur le contenu : sinon un fichier
+    // EN contenant l'objet "Multitool" du jeu, ou Nagalty (dérivé Circuspes),
+    // serait brandé à tort → corruption + faux "pas à jour" (local brandé ≠
+    // source non-brandée). apply_startrad_branding ne touche que SCEFRA/Circuspes
+    // (détectés via l'URL), comme is_translation_up_to_date.
+    let new_content = apply_startrad_branding(&content, &translation_link);
+    if new_content == content {
+        return Ok(false); // source non concernée par le branding → rien à faire
     }
-
-    // Appliquer le branding
-    let new_content = apply_startrad_branding_direct(&content);
 
     // Réécrire le fichier avec BOM
     let mut file = File::create(&global_ini_path).map_err(|e| format!("Erreur création: {}", e))?;
@@ -606,9 +576,11 @@ pub fn is_translation_up_to_date(path: String, translation_link: String, lang: S
     // Appliquer le branding StarTrad FR au contenu distant pour comparaison correcte
     let remote_ini_content = apply_startrad_branding(&remote_ini_content, &translation_link);
 
-    // Normaliser les contenus
-    let local_normalized = local_ini_content.replace("\r\n", "\n").trim().to_string();
-    let remote_normalized = remote_ini_content.replace("\r\n", "\n").trim().to_string();
+    // Normaliser les contenus (+ retirer un éventuel BOM en tête : reqwest
+    // .text() conserve le BOM du distant alors qu'on l'a retiré du local →
+    // sinon faux "pas à jour" permanent pour les sources servies avec BOM).
+    let local_normalized = local_ini_content.replace("\r\n", "\n").trim_start_matches('\u{feff}').trim().to_string();
+    let remote_normalized = remote_ini_content.replace("\r\n", "\n").trim_start_matches('\u{feff}').trim().to_string();
 
     // Comparer les contenus
     local_normalized == remote_normalized
@@ -752,9 +724,11 @@ pub async fn is_translation_up_to_date_async(
     // Appliquer le branding StarTrad FR au contenu distant pour comparaison correcte
     let remote_ini_content = apply_startrad_branding(&remote_ini_content, &translation_link);
 
-    // Normaliser les contenus
-    let local_normalized = local_ini_content.replace("\r\n", "\n").trim().to_string();
-    let remote_normalized = remote_ini_content.replace("\r\n", "\n").trim().to_string();
+    // Normaliser les contenus (+ retirer un éventuel BOM en tête : reqwest
+    // .text() conserve le BOM du distant alors qu'on l'a retiré du local →
+    // sinon faux "pas à jour" permanent pour les sources servies avec BOM).
+    let local_normalized = local_ini_content.replace("\r\n", "\n").trim_start_matches('\u{feff}').trim().to_string();
+    let remote_normalized = remote_ini_content.replace("\r\n", "\n").trim_start_matches('\u{feff}').trim().to_string();
 
     // Comparer les contenus
     local_normalized == remote_normalized
