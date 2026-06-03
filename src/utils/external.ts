@@ -11,7 +11,6 @@ const ALLOWED_DOMAINS = [
     "leonick.se",
     "api.github.com",
     "api.allorigins.win",
-    "multitool.onivoid.fr",
     "erkul.games",
     "www.erkul.games",
     "uexcorp.space",

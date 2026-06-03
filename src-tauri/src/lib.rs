@@ -62,7 +62,7 @@ use scripts::translation_functions::{
     uninstall_translation, update_translation, install_translation_from_cache,
 };
 use scripts::translation_preferences::{load_translations_selected, save_translations_selected};
-use scripts::translations_links::{get_translation_by_setting, get_translation_last_updated, get_translations};
+use scripts::translations_links::{get_translation_last_updated, get_translations};
 use scripts::updater_functions::launch_updater;
 use scripts::app_stats::{get_app_stats, get_playtime, debug_game_paths};
 use scripts::discord_presence::{
@@ -615,7 +615,6 @@ pub fn run() {
             save_translations_selected,
             load_translations_selected,
             get_translations,
-            get_translation_by_setting,
             get_translation_last_updated,
             get_cache_informations,
             delete_folder,

@@ -6,17 +6,44 @@
       {
         "id": 0,
         "name": "SCEFRA (Settings FR)",
+        "description": "Traduction FR complète, menu réglages en français — la référence.",
         "url": "https://raw.githubusercontent.com/SPEED0U/Scefra/main/french_(france)/global.ini"
       },
       {
         "id": 2,
         "name": "SCEFRA (Settings EN)",
+        "description": "Jeu en français mais menu réglages en anglais (pour suivre les guides EN).",
         "url": "https://raw.githubusercontent.com/SPEED0U/Scefra/refs/heads/settings-en/french_(france)/global.ini"
       },
       {
         "id": 1,
         "name": "Circuspes",
+        "description": "Grosse traduction communautaire (Cirque Lisoir, 100+ contributeurs).",
         "url": "https://traduction.circuspes.fr/download/global.ini"
+      },
+      {
+        "id": 3,
+        "name": "Nagalty",
+        "description": "Base Circuspes + annotations loot & blueprints dans les missions.",
+        "url": "https://raw.githubusercontent.com/Nagalty/sc-atlas/main/translation/global.ini"
+      },
+      {
+        "id": 4,
+        "name": "GerbyTV (SCTMN)",
+        "description": "Traduction FR de GerbyTV — la plus complète en français.",
+        "url": "https://raw.githubusercontent.com/GerbyTV/SCTMN/main/global.ini"
+      },
+      {
+        "id": 5,
+        "name": "GerbyTV (PolyTool)",
+        "description": "GerbyTV axée blueprints/composants (garde certains termes en anglais).",
+        "url": "https://raw.githubusercontent.com/GerbyTV/PolyToolSC/refs/heads/main/global.ini"
+      },
+      {
+        "id": 6,
+        "name": "DolbyFR Remix",
+        "description": "Remix FR de la traduction GerbyTV (ajustements perso).",
+        "url": "https://raw.githubusercontent.com/DolbyFR/SC-FR-remix/main/global.ini"
       }
     ]
   },
@@ -55,7 +82,26 @@
   },
   "en": {
     "folder": "english",
-    "enabled": false,
-    "links": ""
+    "enabled": true,
+    "links": [
+      {
+        "id": 0,
+        "name": "ExoAE — Composants courts",
+        "description": "Anglais : noms de composants raccourcis + marqueurs [Rep]/[BP] sur les missions.",
+        "url": "https://raw.githubusercontent.com/ExoAE/ScCompLangPack/main/ScCompLangPack/data/Localization/english/global.ini"
+      },
+      {
+        "id": 1,
+        "name": "StarStrings (MrKraken)",
+        "description": "Anglais composants — l'original de MrKraken (≈ ExoAE).",
+        "url": "https://raw.githubusercontent.com/MrKraken/StarStrings/refs/heads/master/Data/Localization/english/global.ini"
+      },
+      {
+        "id": 2,
+        "name": "BeltaKoda Remix",
+        "description": "Anglais composants, version compacte (sans les marqueurs).",
+        "url": "https://raw.githubusercontent.com/BeltaKoda/ScCompLangPackRemix/refs/heads/main/LIVE/data/Localization/english/global.ini"
+      }
+    ]
   }
 }
