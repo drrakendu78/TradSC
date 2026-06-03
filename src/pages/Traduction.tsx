@@ -1532,6 +1532,7 @@ export default function Traduction() {
                             </label>
                             {/* Sélecteur en ligne (prioritaire) */}
                             {availableTranslationLinks.length > 0 ? (
+                                <>
                                 <Select
                                     value={translationsSelected[key as keyof TranslationsChoosen]?.link || ""}
                                     onValueChange={(val) => handleTranslationSelect(key, val)}
@@ -1541,9 +1542,19 @@ export default function Traduction() {
                                         {(() => {
                                             const cur = translationsSelected[key as keyof TranslationsChoosen]?.link || "";
                                             const sel = availableTranslationLinks.find((l: Link) => l.url === cur);
-                                            return sel
-                                                ? <span className="truncate">{sel.name}</span>
-                                                : <span className="text-muted-foreground">Choisir une traduction</span>;
+                                            if (!sel) return <span className="text-muted-foreground">Choisir une traduction</span>;
+                                            const custom = customSourceByUrl[sel.url];
+                                            const date = !custom ? lastUpdatedDates[sel.url] : null;
+                                            return (
+                                                <span className="flex min-w-0 items-center gap-2">
+                                                    <span className="truncate font-medium">{sel.name}</span>
+                                                    {custom ? (
+                                                        <span className="flex-shrink-0 text-[11px] text-primary">{getCustomLanguageLabel(custom.language)}</span>
+                                                    ) : date ? (
+                                                        <span className="flex-shrink-0 whitespace-nowrap text-[11px] text-muted-foreground">• {formatRelativeDate(date)}</span>
+                                                    ) : null}
+                                                </span>
+                                            );
                                         })()}
                                     </SelectTrigger>
                                     <SelectContent>
@@ -1573,6 +1584,19 @@ export default function Traduction() {
                                         ))}
                                     </SelectContent>
                                 </Select>
+                                {/* Description de la source actuellement sélectionnée (compact, sous le sélecteur) */}
+                                {(() => {
+                                    const cur = translationsSelected[key as keyof TranslationsChoosen]?.link || "";
+                                    if (!cur) return null;
+                                    const sel = availableTranslationLinks.find((l: Link) => l.url === cur);
+                                    if (!sel?.description) return null;
+                                    return (
+                                        <p className="line-clamp-2 border-l-2 border-primary/50 pl-2.5 text-xs leading-snug text-foreground/80">
+                                            {sel.description}
+                                        </p>
+                                    );
+                                })()}
+                                </>
                             ) : cachedVersions[key.toUpperCase()] && Object.keys(cachedVersions[key.toUpperCase()]).length > 0 ? (
                                 /* Sélecteur hors-ligne basé sur le cache */
                                 (() => {
