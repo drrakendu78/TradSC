@@ -1,20 +1,7 @@
-StarTrad FR — Licence
-=====================
+MIT License
 
-StarTrad FR dérive à l'origine du projet « Multitool » de Logan Wilquin
-(Onivoid), publié sous licence MIT. L'application a depuis fait l'objet d'une
-refonte complète (interface, architecture) et de nombreuses fonctionnalités
-ajoutées par drrakendu78.
-
-Copyright (c) 2024 Logan Wilquin — code d'origine (Multitool)
-Copyright (c) 2026 drrakendu78 — StarTrad FR (refonte, interface et ajouts)
-
-
-1) Portions d'origine (Multitool) — Licence MIT
------------------------------------------------
-
-Les portions de code issues du projet d'origine restent régies par la licence
-MIT ci-dessous :
+Copyright (c) 2024 Logan Wilquin (Onivoid)
+Copyright (c) 2026 drrakendu78 (StarTrad FR)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -33,21 +20,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-
-2) Refonte et ajouts StarTrad FR — Tous droits réservés
--------------------------------------------------------
-
-La refonte de l'interface, l'architecture, et l'ensemble des fonctionnalités
-et du code écrits par drrakendu78 pour StarTrad FR sont la propriété exclusive
-de leur auteur.
-
-Sauf autorisation écrite préalable de l'auteur, il n'est PAS permis de :
-  - redistribuer, republier ou revendre StarTrad FR ou une version modifiée ;
-  - réutiliser ou intégrer ces ajouts (en tout ou partie) dans un autre projet ;
-  - retirer ou masquer les présentes mentions de licence et de copyright.
-
-StarTrad FR reste **gratuit** pour les utilisateurs finaux.
-
-Ce projet est « source-available » : le code peut être consulté, mais n'est pas
-open-source — les ajouts StarTrad FR ne sont pas concédés sous licence libre.
