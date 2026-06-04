@@ -1,4 +1,4 @@
-import { useEffect, useReducer } from 'react';
+import { useEffect, useReducer, useState } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import CloudBackupContent from './cloud-backup-content';
-import { User as UserIcon, Save, LogIn, Camera, RotateCcw, LogOut, ShieldAlert, CheckCircle2, KeyRound, ArrowLeft, Mail } from 'lucide-react';
+import { User as UserIcon, Save, LogIn, Camera, RotateCcw, LogOut, ShieldAlert, CheckCircle2, KeyRound, ArrowLeft, Mail, Database, Fingerprint, FileText, ShieldCheck } from 'lucide-react';
 
 function DiscordLogo({ className }: { className?: string }) {
     return (
@@ -38,9 +38,28 @@ function DiscordAuthButton({ label, loading, disabled, onClick }: { label: strin
     );
 }
 import { invoke } from '@tauri-apps/api/core';
+import { openExternalCustom } from '@/utils/external';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
 import { useAvatar } from '@/hooks/useAvatar';
+
+const PRIVACY_URL = 'https://startrad.link/privacy';
+const LEGAL_URL = 'https://startrad.link/mentions-legales';
+
+/** Liens légaux réutilisables (confidentialité + mentions légales), ouverts dans le navigateur. */
+function LegalLinks({ className = '' }: { className?: string }) {
+    return (
+        <span className={`inline-flex flex-wrap items-center gap-x-1 ${className}`}>
+            <button type="button" onClick={() => { void openExternalCustom(PRIVACY_URL); }} className="text-emerald-400 underline-offset-2 transition-colors hover:text-emerald-300 hover:underline">
+                Politique de confidentialité
+            </button>
+            <span className="text-muted-foreground/50">·</span>
+            <button type="button" onClick={() => { void openExternalCustom(LEGAL_URL); }} className="text-emerald-400 underline-offset-2 transition-colors hover:text-emerald-300 hover:underline">
+                Mentions légales
+            </button>
+        </span>
+    );
+}
 
 interface AuthDialogProps {
     open: boolean;
@@ -110,6 +129,9 @@ export default function AuthDialog({ open, onOpenChange, defaultTab }: AuthDialo
         deleteLoading: false,
     });
     const { avatarUrl, isCustom, setCustomAvatar, resetAvatar } = useAvatar(user);
+    const [acceptedTerms, setAcceptedTerms] = useState(false);
+    const [hwid, setHwid] = useState<string | null>(null);
+    const [pseudo, setPseudo] = useState('');
 
     // Réinitialiser l'onglet et la vue quand le dialog s'ouvre ou l'utilisateur change
     useEffect(() => {
@@ -141,6 +163,16 @@ export default function AuthDialog({ open, onOpenChange, defaultTab }: AuthDialo
         };
     }, [discordLoading, toast]);
 
+    // Récupère le HWID de la machine (SHA-256 du MachineGuid Windows) pour
+    // l'afficher dans "Mes données" — transparence : l'utilisateur voit
+    // exactement l'identifiant stocké le concernant.
+    useEffect(() => {
+        if (!user) { setHwid(null); return; }
+        invoke<string>('get_machine_id')
+            .then((id) => setHwid(id))
+            .catch(() => setHwid(null));
+    }, [user]);
+
     const checkSession = async () => {
         try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -158,6 +190,15 @@ export default function AuthDialog({ open, onOpenChange, defaultTab }: AuthDialo
             const { data, error } = await supabase.auth.signUp({
                 email,
                 password,
+                options: {
+                    // Pseudo stocké dans user_metadata : sert UNIQUEMENT à l'affichage
+                    // dans l'app + lier un nom lisible au compte (récupérable côté admin
+                    // pour identifier/bannir plus facilement les comptes email sans Discord).
+                    data: {
+                        full_name: pseudo.trim(),
+                        name: pseudo.trim(),
+                    },
+                },
             });
 
             if (error) throw error;
@@ -599,6 +640,46 @@ export default function AuthDialog({ open, onOpenChange, defaultTab }: AuthDialo
                                 </div>
                             </section>
 
+                            <section className="rounded-xl border border-border/45 bg-[hsl(var(--background)/0.24)] p-4">
+                                <div className="space-y-1">
+                                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/80">Transparence</p>
+                                    <h4 className="flex items-center gap-2 text-base font-semibold tracking-tight">
+                                        <Database className="h-4 w-4 text-primary" />
+                                        Mes données
+                                    </h4>
+                                    <p className="text-sm text-muted-foreground">Exactement ce que StarTrad enregistre te concernant, et pourquoi.</p>
+                                </div>
+
+                                <ul className="mt-3 space-y-2 text-sm">
+                                    <li className="flex items-start gap-2 rounded-lg border border-border/40 bg-[hsl(var(--background)/0.24)] p-2.5">
+                                        <UserIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary/90" />
+                                        <span><span className="font-medium">Pseudo</span> — affiché dans l'app et lié à ton compte (ton identité publique).</span>
+                                    </li>
+                                    <li className="flex items-start gap-2 rounded-lg border border-border/40 bg-[hsl(var(--background)/0.24)] p-2.5">
+                                        <Mail className="mt-0.5 h-4 w-4 shrink-0 text-primary/90" />
+                                        <span><span className="font-medium">Email (ou compte Discord)</span> — pour te connecter et sauvegarder tes données dans le cloud.</span>
+                                    </li>
+                                    <li className="flex items-start gap-2 rounded-lg border border-border/40 bg-[hsl(var(--background)/0.24)] p-2.5">
+                                        <Fingerprint className="mt-0.5 h-4 w-4 shrink-0 text-primary/90" />
+                                        <span>
+                                            <span className="font-medium">Identifiant d'appareil (HWID)</span> — pour la sécurité : empêcher un compte banni de revenir. C'est un hash anonyme, pas un numéro de série lisible.
+                                            {hwid && (
+                                                <span className="mt-1.5 block break-all rounded bg-background/60 px-2 py-1 font-mono text-[10px] text-muted-foreground">{hwid}</span>
+                                            )}
+                                        </span>
+                                    </li>
+                                </ul>
+
+                                <p className="mt-3 flex items-start gap-1.5 text-xs leading-relaxed text-muted-foreground">
+                                    <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                                    <span>Stockage : Supabase (hébergement EU). On ne collecte <span className="font-medium text-foreground">rien d'autre</span>. Détails : <LegalLinks className="text-xs" /></span>
+                                </p>
+                                <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+                                    <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                                    Tu peux supprimer ton compte et toutes tes données quand tu veux (juste en dessous).
+                                </p>
+                            </section>
+
                             <section className="rounded-xl border border-destructive/35 bg-[hsl(var(--destructive)/0.08)] p-4">
                                 <div className="space-y-3">
                                     <h4 className="flex items-center gap-2 text-sm font-medium text-destructive">
@@ -783,9 +864,29 @@ export default function AuthDialog({ open, onOpenChange, defaultTab }: AuthDialo
                                 disabled={loading || discordLoading}
                                 onClick={handleDiscordSignIn}
                             />
+
+                            <p className="pt-1 text-center text-[11px] text-muted-foreground/80">
+                                En te connectant, tu acceptes notre <LegalLinks className="text-[11px]" />
+                            </p>
                         </TabsContent>
                         <TabsContent value="signup" className="mt-4 space-y-4">
                             <form onSubmit={handleSignUp} className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="signup-pseudo">Pseudo</Label>
+                                    <Input
+                                        id="signup-pseudo"
+                                        type="text"
+                                        placeholder="Ton pseudo"
+                                        value={pseudo}
+                                        onChange={(e) => setPseudo(e.target.value)}
+                                        required
+                                        minLength={2}
+                                        maxLength={32}
+                                        disabled={loading || discordLoading}
+                                        className={authInputClass}
+                                    />
+                                    <p className="text-[11px] text-muted-foreground/80">Affiché dans l'app et lié à ton compte.</p>
+                                </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="signup-email">Email</Label>
                                     <Input
@@ -813,7 +914,24 @@ export default function AuthDialog({ open, onOpenChange, defaultTab }: AuthDialo
                                         className={authInputClass}
                                     />
                                 </div>
-                                <Button type="submit" className={authPrimaryButtonClass} disabled={loading || discordLoading}>
+                                <div className="space-y-2 rounded-lg border border-border/45 bg-[hsl(var(--background)/0.24)] p-3">
+                                    <label className="flex cursor-pointer items-start gap-2.5 text-xs leading-relaxed text-muted-foreground">
+                                        <input
+                                            type="checkbox"
+                                            checked={acceptedTerms}
+                                            onChange={(e) => setAcceptedTerms(e.target.checked)}
+                                            disabled={loading || discordLoading}
+                                            className="mt-0.5 h-4 w-4 shrink-0 accent-[hsl(var(--primary))]"
+                                        />
+                                        <span>
+                                            J'accepte que StarTrad enregistre mon <span className="font-medium text-foreground">pseudo</span>, mon <span className="font-medium text-foreground">email</span> et un <span className="font-medium text-foreground">identifiant d'appareil (HWID)</span> pour l'affichage, la connexion et la sécurité (anti-contournement de ban).
+                                        </span>
+                                    </label>
+                                    <p className="pl-[26px] text-[11px] text-muted-foreground">
+                                        Détails : <LegalLinks className="text-[11px]" />
+                                    </p>
+                                </div>
+                                <Button type="submit" className={authPrimaryButtonClass} disabled={loading || discordLoading || !acceptedTerms}>
                                     {loading ? 'Inscription...' : 'S\'inscrire'}
                                 </Button>
                             </form>
@@ -832,7 +950,7 @@ export default function AuthDialog({ open, onOpenChange, defaultTab }: AuthDialo
                             <DiscordAuthButton
                                 label="S'inscrire avec Discord"
                                 loading={discordLoading}
-                                disabled={loading || discordLoading}
+                                disabled={loading || discordLoading || !acceptedTerms}
                                 onClick={handleDiscordSignIn}
                             />
                         </TabsContent>
