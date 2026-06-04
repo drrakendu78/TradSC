@@ -20,6 +20,7 @@ import { ChevronLeft, Loader2, Rocket, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AuthDialog from "@/components/custom/auth-dialog";
 import { supabase } from "@/lib/supabase";
+import { openExternalCustom } from "@/utils/external";
 import {
     animateWindowResize,
     computeWizardSize,
@@ -395,9 +396,21 @@ export default function OnboardingWizard({ onClose }: OnboardingWizardProps) {
 
             {/* Footer glass — même langage que les panels Settings */}
             <div className="flex items-center justify-end gap-3 border-t border-border/55 bg-[hsl(var(--background)/0.34)] px-8 py-5 shadow-[0_-14px_30px_rgba(0,0,0,0.22)] backdrop-blur-xl">
-                <span className="mr-auto text-xs uppercase tracking-[0.14em] text-muted-foreground">
-                    {STEP_LABELS[stepIndex]} · {stepIndex + 1} / {TOTAL_STEPS}
-                </span>
+                <div className="mr-auto flex flex-col gap-0.5">
+                    <span className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                        {STEP_LABELS[stepIndex]} · {stepIndex + 1} / {TOTAL_STEPS}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground/70">
+                        En continuant, tu acceptes notre{" "}
+                        <button type="button" onClick={() => { void openExternalCustom("https://startrad.link/privacy"); }} className="text-emerald-400 underline-offset-2 transition-colors hover:text-emerald-300 hover:underline">
+                            Politique de confidentialité
+                        </button>
+                        {" · "}
+                        <button type="button" onClick={() => { void openExternalCustom("https://startrad.link/mentions-legales"); }} className="text-emerald-400 underline-offset-2 transition-colors hover:text-emerald-300 hover:underline">
+                            Mentions légales
+                        </button>
+                    </span>
+                </div>
                 <Button
                     size="lg"
                     onClick={() => void handleNextFromStep()}
