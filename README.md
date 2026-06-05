@@ -38,8 +38,6 @@ winget install Drrakendu78.StarTradFR
 **StarTrad FR** est une application desktop moderne et gratuite pour gérer la traduction française de Star Citizen.  
 Développée avec <strong>Tauri 2</strong>, <strong>React</strong> et <strong>TypeScript</strong>, elle offre une interface intuitive et de nombreuses fonctionnalités pour améliorer votre expérience de jeu.
 
-> **Note** : StarTrad FR est basé sur [MultitoolV2](https://github.com/Onivoid/MultitoolV2) développé par [Onivoid](https://github.com/Onivoid), adapté et spécialisé pour la traduction française de Star Citizen.
-
 </div>
 
 ## Fonctionnalités
@@ -47,8 +45,7 @@ Développée avec <strong>Tauri 2</strong>, <strong>React</strong> et <strong>Ty
 ### Traduction Française
 
 - Installation de traductions françaises pour Star Citizen (LIVE, PTU, EPTU, TECH-PREVIEW)
-- **SCEFRA** : Traduction française principale
-- **Communauté Hugo Lisoir** : Traduction des circuspes
+- **Un regroupement de traductions réalisées par la communauté** (plusieurs sources FR/VO au choix)
 - Support de multiples sources de traduction
 - Vérification automatique des mises à jour des traductions en arrière-plan
 - Désinstallation propre en un clic
@@ -264,8 +261,7 @@ pnpm tauri build
 
 ### Partenaires & Sources de Traduction
 
-- **[SCEFRA](https://discord.com/invite/DccQN8BN2V)** - Traductions françaises de Star Citizen
-- **Communauté Hugo Lisoir** - Traduction des circuspes
+- **Un regroupement de traductions réalisées par la communauté** — plusieurs sources FR/VO au choix
 - **[Star Citizen Characters](https://www.star-citizen-characters.com/)** - Base de données de presets
 
 ### Support
@@ -326,9 +322,7 @@ Ce projet est sous licence **MIT** - voir le fichier [LICENSE](LICENSE) pour plu
 
 ### Crédits
 
-**StarTrad FR** est basé sur **[MultitoolV2](https://github.com/Onivoid/MultitoolV2)** développé par **[Onivoid](https://github.com/Onivoid)**.
-
-Un grand merci à **Onivoid** pour avoir créé cette base solide et open-source !
+**StarTrad FR** a démarré comme un fork **non officiel** de **[MultitoolV2](https://github.com/Onivoid/MultitoolV2)** par **[Onivoid](https://github.com/Onivoid)** (licence MIT), puis a été **réécrit à ~95 %** : sur 190 fichiers source, 115 sont entièrement nouveaux. D'après une analyse fichier par fichier, le code encore issu de Multitool ne représente plus que **~1,7 % du total**, réparti dans **~9 à 11 petits fichiers de plomberie backend** (du code technique standard, pas une œuvre créative). Le fork **StarTrad V5** a été réalisé **avec l'accord d'Onivoid**.
 
 _Merci également à la communauté Star Citizen française et aux contributeurs !_
 

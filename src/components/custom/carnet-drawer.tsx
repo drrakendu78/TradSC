@@ -60,7 +60,7 @@ export function CarnetDrawer() {
                     {/* Drawer pleine fenêtre, slide-in depuis la droite */}
                     <m.aside
                         key="carnet-drawer"
-                        className="absolute inset-0 z-[100] bg-[hsl(var(--background)/0.46)] backdrop-blur-2xl backdrop-saturate-150 border-l border-white/10 shadow-[0_18px_46px_rgba(0,0,0,0.32)] flex flex-col overflow-hidden"
+                        className="dark absolute inset-0 z-[100] bg-[hsl(var(--background)/0.96)] backdrop-blur-2xl backdrop-saturate-150 border-l border-white/10 shadow-[0_18px_46px_rgba(0,0,0,0.32)] flex flex-col overflow-hidden text-foreground"
                         initial={{ x: "100%", opacity: 0.5 }}
                         animate={{ x: 0, opacity: 1 }}
                         exit={{ x: "100%", opacity: 0.5 }}

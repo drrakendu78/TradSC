@@ -10,9 +10,10 @@ import {
     PinOff
 } from 'lucide-react';
 import { IconHome, IconBrandDiscord, IconCloud, IconBrandGithub, IconLanguage, IconUsers, IconNews, IconKeyboard, IconCalculator, IconMap2, IconSearch, IconSwords, IconPackage, IconHammer, IconBook, IconDatabase } from "@tabler/icons-react";
-import { BrushCleaning, Download, Power, PowerOff, Loader2, RotateCcw, Monitor, Route, BarChart3, Calendar, Languages, Trash2, Save, Users, Pickaxe, ShieldCheck, Handshake, Coins, Ship } from "lucide-react";
+import { BrushCleaning, Download, Power, PowerOff, Loader2, RotateCcw, Monitor, Route, BarChart3, Calendar, Languages, Trash2, Save, Users, Pickaxe, ShieldCheck, Handshake, Coins, Ship, Sun, Moon } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { ColorPicker } from "@/components/custom/color-picker";
+import { useTheme } from "@/components/utils/theme-provider";
 import openExternal, { isAllowedUrl, openExternalCustom } from "@/utils/external";
 import { SC_EXTERNAL_TOOLS, SC_IFRAME_TOOLS, type ScTool, type ScToolIcon, type ScToolCategory } from "@/data/sc-tools";
 import { useCustomLinksStore } from "@/stores/custom-links-store";
@@ -1535,6 +1536,7 @@ function isOverlayHubPreset(value: string | null): value is OverlayHubPreset {
 
 function SettingsContent() {
     const { toast } = useToast();
+    const { theme, setTheme } = useTheme();
     const [{ loading, serviceRunning, config, autoStartupEnabled, checkingAutoStartup }, setServiceState] = useState<{ loading: boolean; serviceRunning: boolean; config: BackgroundServiceConfig; autoStartupEnabled: boolean; checkingAutoStartup: boolean }>({
         loading: false,
         serviceRunning: false,
@@ -2068,6 +2070,32 @@ function SettingsContent() {
                                 <p className="text-sm text-muted-foreground">Adapte instantanement la DA de l'application.</p>
                             </div>
                             <ColorPicker />
+                        </div>
+
+                        <div className={settingRowClass}>
+                            <div className={settingInfoClass}>
+                                <span className="text-sm font-medium">Apparence</span>
+                                <p className="text-sm text-muted-foreground">Force le mode clair ou sombre (sinon suit Windows).</p>
+                            </div>
+                            <div className="inline-flex items-center rounded-lg border border-border/60 bg-background/40 p-0.5">
+                                {([
+                                    { key: "system", label: "Systeme", Icon: Monitor },
+                                    { key: "light", label: "Clair", Icon: Sun },
+                                    { key: "dark", label: "Sombre", Icon: Moon },
+                                ] as const).map(({ key, label, Icon }) => (
+                                    <button
+                                        key={key}
+                                        type="button"
+                                        onClick={() => setTheme(key)}
+                                        aria-label={label}
+                                        title={label}
+                                        className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${theme === key ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+                                    >
+                                        <Icon className="h-3.5 w-3.5" />
+                                        <span className="hidden sm:inline">{label}</span>
+                                    </button>
+                                ))}
+                            </div>
                         </div>
 
                         <div className={settingRowClass}>
