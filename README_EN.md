@@ -39,8 +39,6 @@ winget install Drrakendu78.StarTradFR
 **StarTrad FR** is a modern and free desktop application to manage the French translation for Star Citizen.
 Built with <strong>Tauri 2</strong>, <strong>React</strong> and <strong>TypeScript</strong>, it offers an intuitive interface and many features to enhance your gaming experience.
 
-> **Note**: StarTrad FR is based on [MultitoolV2](https://github.com/Onivoid/MultitoolV2) developed by [Onivoid](https://github.com/Onivoid), adapted and specialized for the French translation of Star Citizen.
-
 </div>
 
 ## Features
@@ -332,9 +330,7 @@ This project is licensed under the **MIT** License - see the [LICENSE](LICENSE) 
 
 ### Credits
 
-**StarTrad FR** is based on **[MultitoolV2](https://github.com/Onivoid/MultitoolV2)** developed by **[Onivoid](https://github.com/Onivoid)**.
-
-A big thank you to **Onivoid** for creating this solid and open-source foundation!
+**StarTrad FR** started as an **unofficial fork** of **[MultitoolV2](https://github.com/Onivoid/MultitoolV2)** by **[Onivoid](https://github.com/Onivoid)** (MIT license), then was **rewritten ~95%**: of 190 source files, 115 are entirely new. Per a file-by-file analysis, code still originating from Multitool now accounts for only **~1.7% of the total**, spread across **~9 to 11 small backend plumbing files** (standard technical code, not creative work). The **StarTrad V5** fork was made **with Onivoid's agreement**.
 
 _Thanks also to the French Star Citizen community and contributors!_
 
