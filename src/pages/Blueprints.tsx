@@ -755,16 +755,11 @@ export default function Blueprints({ isOverlayEmbed = false }: BlueprintsProps =
         return () => clearTimeout(t);
     }, [fetchList]);
 
-    // Refresh erkul classes (shields/coolers/QDs/weapons) en arrière-plan.
-    // Update le cache disque ; les prochains loads bénéficient des nouvelles classes.
+    // Telecharge les global.ini canoniques (PolyTool) en arriere-plan.
+    // Garantit la meme couverture FR/EN pour tous les users, peu importe
+    // le pack de traduction qu'ils ont installe (StarTrad, Circuspes, etc.)
     useEffect(() => {
         const t = setTimeout(() => {
-            invoke<number>("blueprints_refresh_erkul_classes").catch((e) =>
-                console.warn("[blueprints] erkul refresh failed:", e),
-            );
-            // Telecharge les global.ini canoniques (PolyTool) en arriere-plan.
-            // Garantit la meme couverture FR/EN pour tous les users, peu importe
-            // le pack de traduction qu'ils ont installe (StarTrad, Circuspes, etc.)
             invoke("blueprints_refresh_polytool_globals").catch((e) =>
                 console.warn("[blueprints] polytool refresh failed:", e),
             );

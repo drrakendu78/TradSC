@@ -7,7 +7,7 @@ export interface ToolPageHeaderProps {
     iconClassName?: string;
     toolName: string;
     detail?: string;
-    onRefresh: () => void;
+    onRefresh?: () => void;
     onOpenOverlay?: () => void;
     onOpenExternal?: () => void;
     /** Boutons additionnels rendus à gauche de Refresh (ex. « Copier trad FR » sur SCMDB). */
@@ -78,9 +78,11 @@ export function ToolPageHeader({
                     {customActions && (
                         <div className="mx-1 h-3 w-px bg-white/10" aria-hidden />
                     )}
-                    <IconButton tooltip="Rafraîchir" ariaLabel="Rafraîchir" onClick={onRefresh}>
-                        <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.5} />
-                    </IconButton>
+                    {onRefresh && (
+                        <IconButton tooltip="Rafraîchir" ariaLabel="Rafraîchir" onClick={onRefresh}>
+                            <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.5} />
+                        </IconButton>
+                    )}
                     {onOpenOverlay && (
                         <IconButton
                             tooltip="Détacher en overlay"

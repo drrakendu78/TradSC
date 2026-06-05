@@ -1,7 +1,5 @@
 import { m } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
-import { ExternalLink, Loader2, Calculator } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { ExternalLink, Calculator } from "lucide-react";
 import openExternal from "@/utils/external";
 import { invoke } from "@tauri-apps/api/core";
 import { ToolPageHeader } from "@/components/custom/tool-page-header";
@@ -10,64 +8,17 @@ const DPS_URL = "https://www.erkul.games/live/calculator";
 const SPVIEWER_URL = "https://www.spviewer.eu/";
 
 /**
- * DpsCalculator — wrapper iframe vers Erkul, uniformisé sous le design
- * ToolPageHeader (cohérent avec SC Trade Routes / ScExternalTool). Garde
- * un bouton "SP Viewer" custom dans customActions pour ouvrir spviewer.eu
- * en webview overlay (alternative à Erkul).
+ * DpsCalculator — page de redirection vers Erkul Games (calculateur DPS).
+ * On n'intègre plus le site en iframe : un simple bouton l'ouvre dans le
+ * navigateur (on n'embarque pas le frontend d'Erkul dans l'app). Garde le
+ * bouton « SP Viewer » comme alternative.
  */
 export default function DpsCalculator() {
-    const [isLoading, setIsLoading] = useState(true);
-    const [hasError, setHasError] = useState(false);
-    const iframeRef = useRef<HTMLIFrameElement>(null);
-    const { toast } = useToast();
-
-    useEffect(() => {
-        const timeout = setTimeout(() => setIsLoading(false), 12000);
-        return () => clearTimeout(timeout);
-    }, []);
-
-    const handleLoad = () => {
-        setIsLoading(false);
-        setHasError(false);
-    };
-
-    const handleError = () => {
-        setIsLoading(false);
-        setHasError(true);
-        toast({
-            title: "Erreur de chargement",
-            description: "Impossible de charger le calculateur DPS. Vérifiez votre connexion internet.",
-            variant: "destructive",
-        });
-    };
-
-    const handleRefresh = () => {
-        setIsLoading(true);
-        setHasError(false);
-        if (iframeRef.current) iframeRef.current.src = DPS_URL;
-    };
-
     const handleOpenExternal = async () => {
         try {
             await openExternal(DPS_URL);
         } catch {
             window.open(DPS_URL, "_blank", "noopener,noreferrer");
-        }
-    };
-
-    const handleOpenOverlay = async () => {
-        try {
-            await invoke("open_overlay", {
-                id: "erkul",
-                url: DPS_URL,
-                x: 100.0,
-                y: 100.0,
-                width: 500.0,
-                height: 700.0,
-                opacity: 1.0,
-            });
-        } catch (error) {
-            console.error(error);
         }
     };
 
@@ -85,8 +36,7 @@ export default function DpsCalculator() {
         }
     };
 
-    // Bouton custom "SP Viewer" qui apparaîtra à gauche du Refresh dans le
-    // ToolPageHeader (séparé du reste par une fine barre verticale).
+    // Bouton custom "SP Viewer" à gauche dans le ToolPageHeader.
     const spViewerButton = (
         <button
             type="button"
@@ -111,42 +61,29 @@ export default function DpsCalculator() {
                 iconClassName="text-emerald-500"
                 toolName="DPS Calculator"
                 detail="Erkul"
-                onRefresh={handleRefresh}
-                onOpenOverlay={handleOpenOverlay}
                 onOpenExternal={handleOpenExternal}
                 customActions={spViewerButton}
             />
 
-            <div className="relative min-h-0 flex-1 overflow-hidden">
-                {isLoading && (
-                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/50 backdrop-blur-sm">
-                        <div className="flex flex-col items-center gap-3">
-                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                            <p className="text-sm text-muted-foreground">Chargement du calculateur DPS...</p>
-                        </div>
+            <div className="flex min-h-0 flex-1 items-center justify-center p-6">
+                <div className="max-w-md rounded-2xl border border-border/60 bg-card/60 p-8 text-center shadow-lg backdrop-blur-md">
+                    <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/15 ring-1 ring-emerald-500/30">
+                        <Calculator className="h-7 w-7 text-emerald-400" strokeWidth={1.5} />
                     </div>
-                )}
-
-                {hasError && (
-                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/50 p-6 backdrop-blur-sm">
-                        <div className="max-w-md rounded-lg border border-border bg-card/80 p-5 text-center shadow-lg backdrop-blur-md">
-                            <p className="text-sm text-muted-foreground">
-                                Impossible de charger le calculateur DPS dans l'application.
-                            </p>
-                        </div>
-                    </div>
-                )}
-
-                <iframe
-                    ref={iframeRef}
-                    src={DPS_URL}
-                    className="block h-full w-full border-0"
-                    title="Erkul Games DPS Calculator"
-                    allow="clipboard-read; clipboard-write; fullscreen"
-                    referrerPolicy="no-referrer-when-downgrade"
-                    onLoad={handleLoad}
-                    onError={handleError}
-                />
+                    <h2 className="text-lg font-semibold text-foreground">Calculateur DPS — Erkul Games</h2>
+                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                        Le calculateur DPS et les builds de vaisseaux sont fournis par Erkul Games.
+                        Clique pour l'ouvrir dans ton navigateur.
+                    </p>
+                    <button
+                        type="button"
+                        onClick={handleOpenExternal}
+                        className="mx-auto mt-6 flex items-center gap-2 rounded-lg bg-emerald-500/15 px-5 py-2.5 text-sm font-semibold text-emerald-300 ring-1 ring-emerald-500/40 transition-colors hover:bg-emerald-500/25"
+                    >
+                        <ExternalLink className="h-4 w-4" strokeWidth={2} />
+                        Ouvrir Erkul
+                    </button>
+                </div>
             </div>
         </m.div>
     );
