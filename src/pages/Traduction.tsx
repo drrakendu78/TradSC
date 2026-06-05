@@ -2055,13 +2055,7 @@ export default function Traduction() {
                     <Card className="overflow-hidden rounded-xl border border-border/30 bg-[hsl(var(--background)/0.10)] shadow-none backdrop-blur-md">
                         <CardContent className="space-y-2 p-2.5">
                             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Sources disponibles</p>
-                            <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
-                                <div className="rounded-lg border border-border/30 bg-background/20 p-2.5">
-                                    <p className="text-sm font-semibold tracking-tight text-primary">SCEFRA</p>
-                                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                                        Traduction générée avec ChatGPT-4o, corrigée par la communauté. Mise à jour à chaque correction.
-                                    </p>
-                                </div>
+                            <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
                                 <div className="rounded-lg border border-border/30 bg-background/20 p-2.5">
                                     <p className="text-sm font-semibold tracking-tight text-primary">Circuspes</p>
                                     <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
