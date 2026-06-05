@@ -2058,7 +2058,7 @@ export default function Traduction() {
                             <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
                                 <div className="rounded-lg border border-primary/45 bg-primary/[0.07] p-2.5">
                                     <div className="flex items-center justify-between gap-2">
-                                        <p className="text-sm font-semibold tracking-tight text-primary">GerbyTV</p>
+                                        <p className="text-sm font-semibold tracking-tight text-primary">SCCompanion</p>
                                         <span className="rounded-full bg-primary/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-primary">Recommandée</span>
                                     </div>
                                     <p className="mt-1 text-xs leading-relaxed text-muted-foreground">

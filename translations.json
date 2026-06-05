@@ -6,31 +6,31 @@
       {
         "id": 4,
         "name": "FR - Avec prix UEX / Grade composants",
-        "description": "Par GerbyTV. Blueprints intégrés dans les titres et descriptions des missions.",
+        "description": "Par SCCompanion. Blueprints intégrés dans les titres et descriptions des missions.",
         "url": "https://raw.githubusercontent.com/GerbyTV/SCTMN/refs/heads/main/global.ini"
       },
       {
         "id": 5,
         "name": "FR - Sans prix / Grade composants",
-        "description": "Par GerbyTV. Blueprints intégrés dans les titres et descriptions des missions.",
+        "description": "Par SCCompanion. Blueprints intégrés dans les titres et descriptions des missions.",
         "url": "https://raw.githubusercontent.com/GerbyTV/SCTMN/refs/heads/main/globalfr.ini"
       },
       {
         "id": 7,
         "name": "FR/VO - Titres missions et settings en VO / Avec prix UEX / Grade composants",
-        "description": "Par GerbyTV. Blueprints intégrés dans les titres et descriptions des missions.",
+        "description": "Par SCCompanion. Blueprints intégrés dans les titres et descriptions des missions.",
         "url": "https://raw.githubusercontent.com/GerbyTV/PolyToolSC/refs/heads/main/global.ini"
       },
       {
         "id": 8,
         "name": "FR/VO - Titres missions et settings en VO / Sans prix UEX / Grade composants",
-        "description": "Par GerbyTV. Blueprints intégrés dans les titres et descriptions des missions.",
+        "description": "Par SCCompanion. Blueprints intégrés dans les titres et descriptions des missions.",
         "url": "https://raw.githubusercontent.com/GerbyTV/PolyToolSC/refs/heads/main/globalSPMIX.ini"
       },
       {
         "id": 9,
         "name": "VO - Avec prix UEX / Grade composants",
-        "description": "Par GerbyTV. Version anglaise (VO). Blueprints intégrés dans les titres et descriptions des missions.",
+        "description": "Par SCCompanion. Version anglaise (VO). Blueprints intégrés dans les titres et descriptions des missions.",
         "url": "https://raw.githubusercontent.com/GerbyTV/PolyToolSC/refs/heads/main/global_en.ini"
       },
       {
@@ -42,7 +42,7 @@
       {
         "id": 6,
         "name": "DolbyFR Remix",
-        "description": "Remix FR de la traduction GerbyTV (ajustements perso).",
+        "description": "Remix FR de la traduction SCCompanion (ajustements perso).",
         "url": "https://raw.githubusercontent.com/DolbyFR/SC-FR-remix/main/global.ini"
       },
       {
