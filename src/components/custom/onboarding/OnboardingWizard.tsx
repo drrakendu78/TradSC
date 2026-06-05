@@ -409,6 +409,10 @@ export default function OnboardingWizard({ onClose }: OnboardingWizardProps) {
                         <button type="button" onClick={() => { void openExternalCustom("https://startrad.link/mentions-legales"); }} className="text-emerald-400 underline-offset-2 transition-colors hover:text-emerald-300 hover:underline">
                             Mentions légales
                         </button>
+                        {" · "}
+                        <button type="button" onClick={() => { void openExternalCustom("https://startrad.link/cgu"); }} className="text-emerald-400 underline-offset-2 transition-colors hover:text-emerald-300 hover:underline">
+                            CGU
+                        </button>
                     </span>
                 </div>
                 <Button

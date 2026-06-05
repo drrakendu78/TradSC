@@ -45,8 +45,9 @@ import { useAvatar } from '@/hooks/useAvatar';
 
 const PRIVACY_URL = 'https://startrad.link/privacy';
 const LEGAL_URL = 'https://startrad.link/mentions-legales';
+const CGU_URL = 'https://startrad.link/cgu';
 
-/** Liens légaux réutilisables (confidentialité + mentions légales), ouverts dans le navigateur. */
+/** Liens légaux réutilisables (confidentialité + mentions légales + CGU), ouverts dans le navigateur. */
 function LegalLinks({ className = '' }: { className?: string }) {
     return (
         <span className={`inline-flex flex-wrap items-center gap-x-1 ${className}`}>
@@ -56,6 +57,10 @@ function LegalLinks({ className = '' }: { className?: string }) {
             <span className="text-muted-foreground/50">·</span>
             <button type="button" onClick={() => { void openExternalCustom(LEGAL_URL); }} className="text-emerald-400 underline-offset-2 transition-colors hover:text-emerald-300 hover:underline">
                 Mentions légales
+            </button>
+            <span className="text-muted-foreground/50">·</span>
+            <button type="button" onClick={() => { void openExternalCustom(CGU_URL); }} className="text-emerald-400 underline-offset-2 transition-colors hover:text-emerald-300 hover:underline">
+                CGU
             </button>
         </span>
     );
