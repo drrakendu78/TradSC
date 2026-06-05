@@ -383,21 +383,14 @@ pub fn apply_branding_to_local_file(path: String, lang: String, translation_link
 
 /// Applique le branding StarTrad FR selon la source de traduction
 fn apply_startrad_branding(content: &str, translation_link: &str) -> String {
-    let is_scefra =
-        translation_link.to_lowercase().contains("scefra") || translation_link.contains("SPEED0U");
     let is_circuspes = translation_link.to_lowercase().contains("circuspes");
 
     let mut result = content.to_string();
 
-    // Branding SCEFRA: remplacer tous les "Multitool" par "StarTrad FR"
-    if is_scefra {
-        result = result.replace("Multitool", "StarTrad FR");
-        // Remplacer les mentions Discord SCEFRA par le contact StarTrad FR
-        result = result.replace(
-            "Discord SCEFRA (SCEFRA sur StarTrad FR)",
-            "Discord pseudo drrakendu78 ou sur discord.startrad.link",
-        );
-    }
+    // NB : plus AUCUN branding SCEFRA — la traduction SCEFRA est désormais
+    // appliquée telle quelle. Avant, on remplaçait tout "Multitool" par
+    // "StarTrad FR" (ce qui corrompait aussi l'objet "Multitool" du jeu) et on
+    // réécrivait la mention Discord SCEFRA. Retiré à la demande.
 
     // Branding Circuspes
     if is_circuspes {
