@@ -15,7 +15,7 @@ use scripts::bindings_functions::{
 };
 use scripts::blueprints::{
     blueprint_detail, blueprint_resolve_sc_craft_id, blueprints_config, blueprints_list,
-    blueprints_list_full, blueprints_refresh_erkul_classes, blueprints_refresh_localization,
+    blueprints_list_full, blueprints_refresh_localization,
     blueprints_refresh_polytool_globals, blueprints_revalidate_full,
 };
 use scripts::partners::{partners_fetch_discord_invite, partners_fetch_twitch_status};
@@ -659,7 +659,6 @@ pub fn run() {
             blueprint_resolve_sc_craft_id,
             blueprints_config,
             blueprints_refresh_localization,
-            blueprints_refresh_erkul_classes,
             blueprints_refresh_polytool_globals,
             partners_fetch_discord_invite,
             partners_fetch_twitch_status,

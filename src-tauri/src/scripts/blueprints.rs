@@ -8,8 +8,6 @@ use tauri::command;
 use crate::scripts::gamepath::get_star_citizen_versions;
 
 const SC_CRAFT_BASE: &str = "https://sc-craft.tools";
-const ERKUL_BASE: &str = "https://server.erkul.games";
-const ERKUL_ENDPOINTS: &[&str] = &["shields", "coolers", "qeds", "radars", "weapons"];
 const SCCRAFTER_BLUEPRINTS_URL: &str = "https://www.sccrafter.com/Blueprints.json";
 /// Official CIG global.ini files hosted by PolyTool (auto-synced from game data).
 /// We pull from here instead of the user's local install so that translation
@@ -320,8 +318,6 @@ struct LocCache {
     en: Option<HashMap<String, String>>,
     /// Map from lowercased item key → class code, extracted from global.ini descriptions.
     classes: Option<HashMap<String, String>>,
-    /// Map from lowercased item localName → class code, pulled from erkul.games API.
-    erkul_classes: Option<HashMap<String, String>>,
     version: Option<String>,
 }
 
@@ -329,7 +325,6 @@ static LOC_CACHE: Mutex<LocCache> = Mutex::new(LocCache {
     fr: None,
     en: None,
     classes: None,
-    erkul_classes: None,
     version: None,
 });
 
@@ -484,15 +479,10 @@ fn ensure_loc_cache() -> Result<(), String> {
         }
     }
 
-    let erkul_classes = load_erkul_cache_from_disk();
-
     let mut cache = LOC_CACHE.lock().unwrap();
     cache.fr = fr_map;
     cache.en = en_map;
     cache.classes = Some(class_map);
-    if cache.erkul_classes.is_none() {
-        cache.erkul_classes = erkul_classes.or(Some(HashMap::new()));
-    }
     cache.version = Some(cache_key);
     Ok(())
 }
@@ -511,8 +501,7 @@ fn lookup_fr(key: &Option<String>) -> Option<String> {
 /// Lookup the class code (civi/mili/indu/stlh/comp) for an item.
 /// Priority chain:
 ///   1. global.ini description ("Classe : Militaire") — CIG data, highest authority
-///   2. erkul `class` field — covers most shields/coolers/QDs
-///   3. Manufacturer mapping (HRST=mili, AMRS=civi, etc.) — lore-based inference
+///   2. Manufacturer mapping (HRST=mili, AMRS=civi, etc.) — lore-based inference
 fn lookup_class(internal_name: &str) -> Option<String> {
     let lower = internal_name.to_ascii_lowercase();
     {
@@ -524,19 +513,12 @@ fn lookup_class(internal_name: &str) -> Option<String> {
         {
             return Some(v);
         }
-        if let Some(v) = cache
-            .erkul_classes
-            .as_ref()
-            .and_then(|m| m.get(&lower).cloned())
-        {
-            return Some(v);
-        }
     }
     manufacturer_class_from_id(&lower).map(|s| s.to_string())
 }
 
 /// Maps a manufacturer code (lowercase) to a default class orientation based on lore.
-/// Only applied as a last-resort fallback when CIG/erkul don't expose the class.
+/// Only applied as a last-resort fallback when CIG doesn't expose the class.
 ///
 /// sccrafter naming conventions seen in the wild :
 ///   - `bp_craft_<mfg>_<weapon>_...`     ← armes ship & FPS (parts[0] = mfg)
@@ -754,12 +736,6 @@ fn blueprints_cache_path() -> Option<PathBuf> {
     Some(dir.join("sccrafter_blueprints.json"))
 }
 
-fn erkul_cache_path() -> Option<PathBuf> {
-    let dir = dirs::data_local_dir()?.join("startradfr").join("blueprints");
-    fs::create_dir_all(&dir).ok()?;
-    Some(dir.join("erkul_classes.json"))
-}
-
 fn polytool_global_cache_path(suffix: &str) -> Option<PathBuf> {
     let dir = dirs::data_local_dir()?.join("startradfr").join("blueprints");
     fs::create_dir_all(&dir).ok()?;
@@ -846,107 +822,6 @@ pub async fn blueprints_refresh_polytool_globals() -> Result<(), String> {
         }
     }
     Ok(())
-}
-
-#[derive(Deserialize)]
-struct ErkulItem {
-    #[serde(default)]
-    data: Option<ErkulItemData>,
-    #[serde(default, rename = "localName")]
-    local_name_outer: Option<String>,
-}
-
-#[derive(Deserialize)]
-struct ErkulItemData {
-    #[serde(default, rename = "localName")]
-    local_name: Option<String>,
-    #[serde(default)]
-    class: Option<String>,
-}
-
-fn normalize_erkul_class(raw: &str) -> Option<&'static str> {
-    match raw.to_ascii_lowercase().as_str() {
-        "civilian" | "civi" | "civil" => Some("civi"),
-        "military" | "mili" => Some("mili"),
-        "industrial" | "indu" => Some("indu"),
-        "stealth" | "stlh" | "furtif" => Some("stlh"),
-        "competition" | "comp" => Some("comp"),
-        _ => None,
-    }
-}
-
-async fn fetch_erkul_classes() -> HashMap<String, String> {
-    let mut out = HashMap::with_capacity(400);
-    let client = match http_client() {
-        Ok(c) => c,
-        Err(_) => return out,
-    };
-    for endpoint in ERKUL_ENDPOINTS {
-        let url = format!("{}/live/{}", ERKUL_BASE, endpoint);
-        let req = client
-            .get(&url)
-            .header("Origin", "https://www.erkul.games")
-            .header("Referer", "https://www.erkul.games/");
-        let response = match req.send().await {
-            Ok(r) => r,
-            Err(e) => {
-                eprintln!("[blueprints] erkul {} failed: {}", endpoint, e);
-                continue;
-            }
-        };
-        if !response.status().is_success() {
-            eprintln!(
-                "[blueprints] erkul {} HTTP {}",
-                endpoint,
-                response.status()
-            );
-            continue;
-        }
-        let items: Vec<ErkulItem> = match response.json().await {
-            Ok(v) => v,
-            Err(e) => {
-                eprintln!("[blueprints] erkul {} json: {}", endpoint, e);
-                continue;
-            }
-        };
-        for item in items {
-            let local_name = item
-                .data
-                .as_ref()
-                .and_then(|d| d.local_name.clone())
-                .or(item.local_name_outer);
-            let class_raw = item.data.and_then(|d| d.class);
-            if let (Some(name), Some(cls)) = (local_name, class_raw) {
-                if let Some(code) = normalize_erkul_class(&cls) {
-                    out.insert(name.to_ascii_lowercase(), code.to_string());
-                }
-            }
-        }
-    }
-    out
-}
-
-/// Tauri command: refresh erkul class data in background and persist.
-#[command]
-pub async fn blueprints_refresh_erkul_classes() -> Result<u64, String> {
-    let map = fetch_erkul_classes().await;
-    let count = map.len() as u64;
-    if let Some(path) = erkul_cache_path() {
-        if let Ok(bytes) = serde_json::to_vec(&map) {
-            let _ = fs::write(&path, bytes);
-        }
-    }
-    {
-        let mut cache = LOC_CACHE.lock().unwrap();
-        cache.erkul_classes = Some(map);
-    }
-    Ok(count)
-}
-
-fn load_erkul_cache_from_disk() -> Option<HashMap<String, String>> {
-    let path = erkul_cache_path()?;
-    let bytes = fs::read(&path).ok()?;
-    serde_json::from_slice(&bytes).ok()
 }
 
 async fn fetch_sccrafter_payload() -> Result<SccrafterPayload, String> {
