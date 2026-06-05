@@ -46,8 +46,7 @@ Built with <strong>Tauri 2</strong>, <strong>React</strong> and <strong>TypeScri
 ### French Translation
 
 - Install French translations for Star Citizen (LIVE, PTU, EPTU, TECH-PREVIEW)
-- **SCEFRA**: Main French translation
-- **Hugo Lisoir Community**: Circuspes translation
+- **A collection of community-made translations** (several FR/EN sources to choose from)
 - Support for multiple translation sources
 - Automatic background check for translation updates
 - One-click clean uninstall
@@ -268,8 +267,7 @@ pnpm tauri build
 
 ### Partners & Translation Sources
 
-- **[SCEFRA](https://discord.com/invite/DccQN8BN2V)** - French translations for Star Citizen
-- **Hugo Lisoir Community** - Circuspes translation
+- **A collection of community-made translations** — several FR/EN sources to choose from
 - **[Star Citizen Characters](https://www.star-citizen-characters.com/)** - Preset database
 
 ### Support

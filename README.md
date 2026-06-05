@@ -45,8 +45,7 @@ Développée avec <strong>Tauri 2</strong>, <strong>React</strong> et <strong>Ty
 ### Traduction Française
 
 - Installation de traductions françaises pour Star Citizen (LIVE, PTU, EPTU, TECH-PREVIEW)
-- **SCEFRA** : Traduction française principale
-- **Communauté Hugo Lisoir** : Traduction des circuspes
+- **Un regroupement de traductions réalisées par la communauté** (plusieurs sources FR/VO au choix)
 - Support de multiples sources de traduction
 - Vérification automatique des mises à jour des traductions en arrière-plan
 - Désinstallation propre en un clic
@@ -262,8 +261,7 @@ pnpm tauri build
 
 ### Partenaires & Sources de Traduction
 
-- **[SCEFRA](https://discord.com/invite/DccQN8BN2V)** - Traductions françaises de Star Citizen
-- **Communauté Hugo Lisoir** - Traduction des circuspes
+- **Un regroupement de traductions réalisées par la communauté** — plusieurs sources FR/VO au choix
 - **[Star Citizen Characters](https://www.star-citizen-characters.com/)** - Base de données de presets
 
 ### Support
