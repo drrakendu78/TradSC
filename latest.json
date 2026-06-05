@@ -1,11 +1,11 @@
 {
-    "version":  "4.3.5",
-    "notes":  "v4.3.5 - Licence MIT pure, retrait du branding des traductions (appliquees telles quelles), retrait de l\u0027API Erkul, ajout des CGU. Voir la release GitHub pour les details.",
-    "pub_date":  "2026-06-05T16:57:23.253Z",
+    "version":  "4.3.6",
+    "notes":  "v4.3.6 - Theme clair/sombre (toggle systeme/clair/sombre) + carnet de bord toujours lisible, sources de traduction reorganisees (SCCompanion), nouveau sous-titre splash. Voir la release GitHub pour les details.",
+    "pub_date":  "2026-06-05T22:40:18.370Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRb1BzLzdHaFk1RmM1YmZ1VDhXYmIrMEFzSEZPT0tsYW9HVU0xQitYeHFpN24ybkxlTTdBblpoZ3doTGdsaHAxRlkrMmxMSmx1V2VKSUYzZVMwUStVY0RjQWNUNUFtYVF3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwNjc4NTIzCWZpbGU6U3RhclRyYWQgRlJfNC4zLjVfeDY0LXNldHVwLmV4ZQo5MkE4YnZkZzRFTDJpVStEa2dsSlFIdDRtNW0zSTcrN1N3WmhYMUFVdHJEbGMvRlRYT2hTaFpQUWNFcWhwbGRrREk2TGc3MHBYTUxvTU4ycFBJWm1DQT09Cg==",
-                                             "url":  "https://github.com/drrakendu78/TradSC/releases/download/v4.3.5/StarTrad.FR_4.3.5_x64-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRb1BzLzdHaFk1RmVnUEJFbTZUcUE3NTZCVWZaOU40VkxpdUVXTmNVSFhSOUN5NGZYTTVlMElHTHVROElNZWp5MjBGOGx6RVhpNDRkZEJHb3VLeVFDZmFPZkQvVkl0NFE4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwNjk5MTQ2CWZpbGU6U3RhclRyYWQgRlJfNC4zLjZfeDY0LXNldHVwLmV4ZQpqZy9RcnNBbFE1dnVURVlCTjJhS0N6MmZtK1o4bHpwSVNyRjlzc1lVbHhmK0ptejMvUGUwOVNBZUxrb2pvVXhmOGh2aDhRU0FnMllvWUpVMHp1WlRDZz09Cg==",
+                                             "url":  "https://github.com/drrakendu78/TradSC/releases/download/v4.3.6/StarTrad.FR_4.3.6_x64-setup.exe"
                                          }
                   }
 }
