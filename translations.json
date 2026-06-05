@@ -29,15 +29,27 @@
       },
       {
         "id": 4,
-        "name": "GerbyTV (SCTMN)",
-        "description": "Traduction FR de GerbyTV — la plus complète en français.",
-        "url": "https://raw.githubusercontent.com/GerbyTV/SCTMN/main/global.ini"
+        "name": "GerbyTV — FR (prix UEX)",
+        "description": "Traduction FR complète de GerbyTV, avec les prix UEX et le grade des composants. Blueprints dans les titres et descriptions de missions.",
+        "url": "https://raw.githubusercontent.com/GerbyTV/SCTMN/refs/heads/main/global.ini"
       },
       {
         "id": 5,
-        "name": "GerbyTV (PolyTool)",
-        "description": "GerbyTV axée blueprints/composants (garde certains termes en anglais).",
+        "name": "GerbyTV — FR (sans prix)",
+        "description": "Traduction FR de GerbyTV, sans les prix UEX. Grade des composants + blueprints dans les missions.",
+        "url": "https://raw.githubusercontent.com/GerbyTV/SCTMN/refs/heads/main/globalfr.ini"
+      },
+      {
+        "id": 7,
+        "name": "GerbyTV — FR/VO (prix UEX)",
+        "description": "FR avec les titres de missions et les réglages en VO (anglais). Prix UEX, grade des composants, blueprints dans les missions.",
         "url": "https://raw.githubusercontent.com/GerbyTV/PolyToolSC/refs/heads/main/global.ini"
+      },
+      {
+        "id": 8,
+        "name": "GerbyTV — FR/VO (sans prix)",
+        "description": "FR avec les titres de missions et les réglages en VO (anglais), sans les prix UEX. Grade des composants + blueprints dans les missions.",
+        "url": "https://raw.githubusercontent.com/GerbyTV/PolyToolSC/refs/heads/main/globalSPMIX.ini"
       },
       {
         "id": 6,
@@ -101,6 +113,12 @@
         "name": "BeltaKoda Remix",
         "description": "Anglais composants, version compacte (sans les marqueurs).",
         "url": "https://raw.githubusercontent.com/BeltaKoda/ScCompLangPackRemix/refs/heads/main/LIVE/data/Localization/english/global.ini"
+      },
+      {
+        "id": 3,
+        "name": "GerbyTV — VO anglais (prix UEX)",
+        "description": "Version originale anglaise de GerbyTV. Prix UEX, grade des composants, blueprints dans les titres et descriptions de missions.",
+        "url": "https://raw.githubusercontent.com/GerbyTV/PolyToolSC/refs/heads/main/global_en.ini"
       }
     ]
   }
