@@ -1,11 +1,11 @@
 {
-    "version":  "4.3.4",
-    "notes":  "v4.3.4 - Transparence (pseudo a l\u0027inscription, consentement, section Mes donnees + HWID). Voir la release GitHub pour les details.",
-    "pub_date":  "2026-06-04T16:09:04.843Z",
+    "version":  "4.3.5",
+    "notes":  "v4.3.5 - Licence MIT pure, retrait du branding des traductions (appliquees telles quelles), retrait de l\u0027API Erkul, ajout des CGU. Voir la release GitHub pour les details.",
+    "pub_date":  "2026-06-05T16:57:23.253Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRb1BzLzdHaFk1RlhkWmtmS1BmbWN0YXVRMGJmUVZIbUw1VDl1bmZCWDczNTFuR25rcGEyMFgvaDRMbWNMakNRZFZxaFJOelFlQTZPYThpYmp4dUF0d216bTdvQ1V6QVFRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwNTg5MjczCWZpbGU6U3RhclRyYWQgRlJfNC4zLjRfeDY0LXNldHVwLmV4ZQpjdFMxVG5MOWpyaTRGeSsxek5JRmk1Z2RnYUYzVS8yQkJ5ZkFRUG9XOXhNMmFNYlNoTGVoY3dXamx3UnVvU2JXVVFtUlQwbENZTXdTR2FhNm9GZlVCdz09Cg==",
-                                             "url":  "https://github.com/drrakendu78/TradSC/releases/download/v4.3.4/StarTrad.FR_4.3.4_x64-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRb1BzLzdHaFk1RmM1YmZ1VDhXYmIrMEFzSEZPT0tsYW9HVU0xQitYeHFpN24ybkxlTTdBblpoZ3doTGdsaHAxRlkrMmxMSmx1V2VKSUYzZVMwUStVY0RjQWNUNUFtYVF3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwNjc4NTIzCWZpbGU6U3RhclRyYWQgRlJfNC4zLjVfeDY0LXNldHVwLmV4ZQo5MkE4YnZkZzRFTDJpVStEa2dsSlFIdDRtNW0zSTcrN1N3WmhYMUFVdHJEbGMvRlRYT2hTaFpQUWNFcWhwbGRrREk2TGc3MHBYTUxvTU4ycFBJWm1DQT09Cg==",
+                                             "url":  "https://github.com/drrakendu78/TradSC/releases/download/v4.3.5/StarTrad.FR_4.3.5_x64-setup.exe"
                                          }
                   }
 }
