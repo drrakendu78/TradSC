@@ -65,8 +65,8 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
                     className="text-xs tracking-wider"
                     style={{ color: currentTheme === 'dark' ? 'rgba(148,163,184,0.8)' : 'rgba(100,116,139,0.9)' }}
                 >
-                    Traduction Star Citizen&nbsp;
-                    <span style={{ opacity: 0.6 }}>by</span>&nbsp;
+                    Ton compagnon tout-en-un pour Star Citizen&nbsp;
+                    <span style={{ opacity: 0.6 }}>par</span>&nbsp;
                     <span className="font-semibold" style={{ color: currentTheme === 'dark' ? 'rgba(186,230,253,0.9)' : 'rgba(14,116,144,0.9)' }}>Drrakendu78</span>
                 </p>
             </div>
