@@ -28,6 +28,18 @@
         "url": "https://raw.githubusercontent.com/Nagalty/sc-atlas/main/translation/global.ini"
       },
       {
+        "id": 4,
+        "name": "GerbyTV (SCTMN)",
+        "description": "Traduction FR de GerbyTV — la plus complète en français.",
+        "url": "https://raw.githubusercontent.com/GerbyTV/SCTMN/main/global.ini"
+      },
+      {
+        "id": 5,
+        "name": "GerbyTV (PolyTool)",
+        "description": "GerbyTV axée blueprints/composants (garde certains termes en anglais).",
+        "url": "https://raw.githubusercontent.com/GerbyTV/PolyToolSC/refs/heads/main/global.ini"
+      },
+      {
         "id": 6,
         "name": "DolbyFR Remix",
         "description": "Remix FR de la traduction GerbyTV (ajustements perso).",
