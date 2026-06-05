@@ -328,12 +328,12 @@ fn strip_user_cfg(base_path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-// NB : le branding est désormais 100% basé sur l'URL source (apply_startrad_branding).
-// Les anciens helpers basés-contenu (apply_startrad_branding_direct / needs_branding)
-// ont été retirés : ils brandaient à tort tout fichier contenant "Multitool" (l'objet
-// du jeu, présent dans les global.ini EN) → corruption + faux "pas à jour".
+// Aucun branding n'est appliqué aux traductions : StarTrad FR écrit les fichiers
+// tels quels (voir apply_startrad_branding, désormais un no-op).
 
-/// Applique le branding StarTrad FR à un fichier local existant
+/// Ancienne commande de branding — désormais NO-OP : apply_startrad_branding ne
+/// modifie plus rien, donc cette commande détecte « aucun changement » et n'écrit
+/// jamais. Conservée pour compat (appelée par le front + le service de fond).
 #[command]
 pub fn apply_branding_to_local_file(path: String, lang: String, translation_link: String) -> Result<bool, String> {
     let base_path = Path::new(&path);
@@ -381,35 +381,13 @@ pub fn apply_branding_to_local_file(path: String, lang: String, translation_link
     Ok(true)
 }
 
-/// Applique le branding StarTrad FR selon la source de traduction
-fn apply_startrad_branding(content: &str, translation_link: &str) -> String {
-    let is_circuspes = translation_link.to_lowercase().contains("circuspes");
-
-    let mut result = content.to_string();
-
-    // NB : plus AUCUN branding SCEFRA — la traduction SCEFRA est désormais
-    // appliquée telle quelle. Avant, on remplaçait tout "Multitool" par
-    // "StarTrad FR" (ce qui corrompait aussi l'objet "Multitool" du jeu) et on
-    // réécrivait la mention Discord SCEFRA. Retiré à la demande.
-
-    // Branding Circuspes
-    if is_circuspes {
-        let search_text3 = "; Lien pour télécharger le fichier et informations : https://traduction.circuspes.fr/download/";
-        let replace_text3 = "; Téléchargé via StarTrad FR (Traduction Circuspes) - Besoin d'aide ? Discord: drrakendu78";
-
-        let search_text4 = "Initiative de traduction communautaire francophone";
-        let replace_text4 = "Téléchargé via StarTrad FR (Traduction Circuspes) - Besoin d'aide ? Discord: drrakendu78";
-
-        let search_text5 = " : https://traduction.circuspes.fr/download/";
-        let replace_text5 = "";
-
-        result = result
-            .replace(search_text3, replace_text3)
-            .replace(search_text4, replace_text4)
-            .replace(search_text5, replace_text5);
-    }
-
-    result
+/// NO-OP : StarTrad FR n'applique plus AUCUN branding aux traductions tierces.
+/// Les fichiers sont écrits et comparés TELS QUELS (ni SCEFRA, ni Circuspes, ni
+/// rien d'autre). Conservé en simple pass-through pour garder la comparaison
+/// « à jour » cohérente (local brut == distant brut) sans toucher aux nombreux
+/// points d'appel.
+fn apply_startrad_branding(content: &str, _translation_link: &str) -> String {
+    content.to_string()
 }
 
 #[command]
