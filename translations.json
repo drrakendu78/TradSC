@@ -44,24 +44,6 @@
         "name": "DolbyFR Remix",
         "description": "Remix FR de la traduction SCCompanion (ajustements perso).",
         "url": "https://raw.githubusercontent.com/DolbyFR/SC-FR-remix/main/global.ini"
-      },
-      {
-        "id": 1,
-        "name": "Circuspes",
-        "description": "Communautaire FR (communauté Hugo Lisoir), corrigée en amont via Evocati/PTU — à jour à chaque patch.",
-        "url": "https://traduction.circuspes.fr/download/global.ini"
-      },
-      {
-        "id": 0,
-        "name": "SCEFRA (Settings FR)",
-        "description": "Traduction FR complète, menu réglages en français. Générée avec ChatGPT-4o + corrigée par la communauté.",
-        "url": "https://raw.githubusercontent.com/SPEED0U/Scefra/main/french_(france)/global.ini"
-      },
-      {
-        "id": 2,
-        "name": "SCEFRA (Settings EN)",
-        "description": "Jeu en français mais menu réglages en anglais (pour suivre les guides EN).",
-        "url": "https://raw.githubusercontent.com/SPEED0U/Scefra/refs/heads/settings-en/french_(france)/global.ini"
       }
     ]
   },
