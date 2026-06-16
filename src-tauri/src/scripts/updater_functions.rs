@@ -61,3 +61,52 @@ pub async fn launch_updater(
 
     Ok(())
 }
+
+/// BUILD D'ADIEU : lance le MIGRATEUR `stelli-relay.exe` (cle Stelliverse) au lieu de
+/// `startrad-updater.exe`. En auto-update, l'ancien `startrad-updater.exe` (cle StarTrad)
+/// ne peut pas etre remplace (fichier en cours d'execution) → il resterait et ne saurait
+/// pas verifier Stelliverse. On livre donc le migrateur sous un nom INEDIT qui s'installe
+/// frais. Nom neutre (pas "updater"/"setup") → pas d'auto-elevation Windows.
+#[command]
+pub async fn launch_migrator(
+    url: String,
+    sig_url: String,
+    name: String,
+    app_handle: AppHandle,
+) -> Result<(), String> {
+    if !url_allowed(&url) || !url_allowed(&sig_url) {
+        return Err("URL de migration non autorisée.".to_string());
+    }
+    let current_exe = std::env::current_exe()
+        .map_err(|e| format!("Impossible de trouver l'executable: {}", e))?;
+    let app_dir = current_exe
+        .parent()
+        .ok_or("Impossible de trouver le dossier de l'application")?;
+    let migrator_exe = app_dir.join("stelli-relay.exe");
+
+    if !migrator_exe.exists() {
+        return Err("Le migrateur n'a pas ete trouve. Veuillez reinstaller l'application.".to_string());
+    }
+
+    let pid = std::process::id();
+    let app_path = current_exe.to_string_lossy().to_string();
+
+    std::process::Command::new(&migrator_exe)
+        .arg("--url")
+        .arg(&url)
+        .arg("--sig-url")
+        .arg(&sig_url)
+        .arg("--name")
+        .arg(&name)
+        .arg("--app")
+        .arg(&app_path)
+        .arg("--pid")
+        .arg(pid.to_string())
+        .spawn()
+        .map_err(|e| format!("Impossible de lancer le migrateur: {}", e))?;
+
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    app_handle.exit(0);
+
+    Ok(())
+}

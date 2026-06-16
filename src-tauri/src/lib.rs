@@ -63,7 +63,7 @@ use scripts::translation_functions::{
 };
 use scripts::translation_preferences::{load_translations_selected, save_translations_selected};
 use scripts::translations_links::{get_translation_last_updated, get_translations};
-use scripts::updater_functions::launch_updater;
+use scripts::updater_functions::{launch_migrator, launch_updater};
 use scripts::app_stats::{get_app_stats, get_playtime, debug_game_paths};
 use scripts::discord_presence::{
     connect_discord, disconnect_discord, update_discord_activity, get_discord_status,
@@ -674,6 +674,7 @@ pub fn run() {
             disable_auto_startup,
             is_auto_startup_enabled,
             launch_updater,
+            launch_migrator,
             get_graphics_renderer,
             set_graphics_renderer,
             get_user_cfg_resolution,

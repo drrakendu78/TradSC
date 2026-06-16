@@ -72,35 +72,15 @@ export async function migrateToStelliverse(): Promise<void> {
     }
     const name = rel.downloadUrl.split("/").pop() || "Stelliverse-setup.exe";
 
-    // Un .exe nommé "updater"/"setup" déclenche l'auto-élévation Windows : si pas
-    // admin, on persiste l'install et on relance en admin (layout.tsx l'exécutera).
-    const isAdmin = await invoke<boolean>("is_running_as_admin").catch(() => true);
-    if (!isAdmin) {
-        try {
-            localStorage.setItem(
-                "startradfr_pending_install",
-                JSON.stringify({ url: rel.downloadUrl, sigUrl: rel.sigUrl, name, version: rel.version })
-            );
-        } catch {
-            /* ignore */
-        }
-        try {
-            await invoke("restart_as_admin");
-            return; // l'app va se fermer après cet appel
-        } catch {
-            try {
-                localStorage.removeItem("startradfr_pending_install");
-            } catch {
-                /* ignore */
-            }
-            await openExternal(STELLIVERSE_RELEASES_URL);
-            return;
-        }
-    }
-
+    // On lance le MIGRATEUR (binaire `stelli-relay.exe`, clé Stelliverse) et PAS
+    // `startrad-updater.exe` : en auto-update, l'ancien updater (clé StarTrad) ne peut
+    // pas être remplacé (fichier en cours d'exécution) → c'est lui qui resterait et il
+    // ne sait pas vérifier Stelliverse. `stelli-relay.exe` (nom inédit) s'installe frais.
+    // Nom neutre (pas "updater"/"setup") → pas d'auto-élévation Windows, et l'install
+    // Stelliverse est en currentUser → pas besoin d'admin (plus de danse restart_as_admin).
     try {
-        await invoke("launch_updater", { url: rel.downloadUrl, sigUrl: rel.sigUrl, name });
-        // l'app va se fermer et l'updater prend le relais
+        await invoke("launch_migrator", { url: rel.downloadUrl, sigUrl: rel.sigUrl, name });
+        // l'app va se fermer et le migrateur prend le relais
     } catch {
         await openExternal(STELLIVERSE_RELEASES_URL);
     }
