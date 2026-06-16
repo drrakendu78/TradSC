@@ -3,8 +3,10 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use tauri::{AppHandle, Emitter};
 
-/// Cle publique minisign embarquee (depuis tauri.conf.json du projet principal)
-const PUBKEY_BASE64: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE1MzkxNjFBRkJDRjNFMjgKUldRb1BzLzdHaFk1RlFSNWlMeWhua00yL3hlM0FWOHpkRzQxQkpWNkwvbGxvaWZsNU5tVlhGelYK";
+/// Cle publique minisign embarquee. BUILD D'ADIEU : c'est la cle publique de
+/// STELLIVERSE (et non celle de StarTrad) — cet updater telecharge et verifie
+/// les releases Stelliverse depuis GitLab pour migrer l'utilisateur.
+const PUBKEY_BASE64: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDkyMTNCNTQ4RkEyQzM2REQKUldUZE5pejZTTFVUa2szeEQ4T2JHZi9BcjJWY0V3TUNEbnF4ZDAvazRtYXFaSjF2SVdwL2NObTcK";
 
 static UPDATE_ARGS: OnceLock<UpdateArgs> = OnceLock::new();
 
@@ -111,13 +113,39 @@ async fn start_update(app: AppHandle) -> Result<(), String> {
     // Nettoyage
     let _ = std::fs::remove_file(&installer_path);
 
-    // Phase 5 : Relancement
-    emit_progress(&app, "relaunching", 100, "Lancement de StarTrad FR...");
+    // Phase 5 : Relancement. En migration on relance Stelliverse (pas StarTrad,
+    // sinon on reboucle sur le popup). Sinon (self-update normal) on relance l'app.
     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
 
-    std::process::Command::new(&args.app)
-        .spawn()
-        .map_err(|e| format!("Impossible de relancer l'application: {}", e))?;
+    match migration_target(&args.url) {
+        Some(stelli) if stelli.exists() => {
+            emit_progress(&app, "relaunching", 100, "Lancement de Stelliverse...");
+            let _ = std::process::Command::new(&stelli).spawn();
+        }
+        Some(_) => {
+            // Stelliverse introuvable au chemin attendu : on ne relance PAS StarTrad
+            // (eviter la boucle). L'utilisateur lancera Stelliverse manuellement.
+            emit_progress(&app, "relaunching", 100, "Stelliverse installe.");
+        }
+        None => {
+            emit_progress(&app, "relaunching", 100, "Lancement de StarTrad FR...");
+            let _ = std::process::Command::new(&args.app).spawn();
+        }
+    }
+
+    // Build d'adieu : Stelliverse vient d'etre installe → on desinstalle StarTrad
+    // (commande detachee, s'execute une fois cet updater ferme). Si l'uninstaller
+    // est introuvable, on ne fait rien (StarTrad reste, sans degat).
+    if migration_target(&args.url).is_some() {
+        if let Ok(self_exe) = std::env::current_exe() {
+            if let Some(dir) = self_exe.parent() {
+                let uninstaller = dir.join("uninstall.exe");
+                if uninstaller.exists() {
+                    spawn_uninstall_startrad(&uninstaller);
+                }
+            }
+        }
+    }
 
     tokio::time::sleep(std::time::Duration::from_millis(300)).await;
     app.exit(0);
@@ -135,6 +163,49 @@ fn emit_progress(app: &AppHandle, phase: &str, percent: u32, detail: &str) {
         },
     );
 }
+
+/// BUILD D'ADIEU : en migration, on relance STELLIVERSE (l'app qu'on vient
+/// d'installer) et pas StarTrad — sinon on reboucle sur le popup de migration.
+/// Chemin d'install par defaut (NSIS currentUser) : %LOCALAPPDATA%\Stelliverse\Stelliverse.exe
+fn migration_target(url: &str) -> Option<PathBuf> {
+    if url.contains("gitlab.com") && url.contains("Stelliverse") {
+        if let Ok(local) = std::env::var("LOCALAPPDATA") {
+            return Some(PathBuf::from(local).join("Stelliverse").join("Stelliverse.exe"));
+        }
+    }
+    None
+}
+
+/// Build d'adieu : desinstalle StarTrad en silence apres la migration. Commande
+/// DETACHEE (cmd) qui attend ~4s que l'updater se ferme, puis lance l'uninstaller
+/// NSIS silencieux (`/S`). L'uninstaller se copie en temp et supprime le dossier
+/// d'install (y compris ce binaire updater, qui aura quitte). ping = delai sans
+/// console (timeout echoue quand stdin est redirige).
+#[cfg(windows)]
+fn spawn_uninstall_startrad(uninstaller: &Path) {
+    use std::os::windows::process::CommandExt;
+    // PowerShell detache : attend que cet updater se ferme, puis lance l'uninstaller
+    // NSIS silencieux. (Avant : `cmd` + guillemets echappes \" que cmd.exe casse quand
+    // le chemin contient un espace, ex. « StarTrad FR » → l'uninstaller ne partait pas.)
+    // Chemin en quotes SIMPLES PowerShell → robuste avec les espaces.
+    let script = format!(
+        "Start-Sleep -Seconds 5; Start-Process -FilePath '{}' -ArgumentList '/S'",
+        uninstaller.display()
+    );
+    let _ = std::process::Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-WindowStyle",
+            "Hidden",
+            "-Command",
+            &script,
+        ])
+        .creation_flags(0x0800_0000) // CREATE_NO_WINDOW
+        .spawn();
+}
+#[cfg(not(windows))]
+fn spawn_uninstall_startrad(_uninstaller: &Path) {}
 
 // --- Attente du processus principal ---
 

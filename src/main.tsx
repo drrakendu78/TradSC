@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/components/utils/theme-provider";
 import { BorderBeam } from "@/components/magicui/border-beam";
 import { SecurityWarning } from "@/components/custom/SecurityWarning";
 import { BanGate } from "@/components/custom/BanGate";
+import { MigrationGate } from "@/components/custom/MigrationGate";
 import AdminElevateButton from "@/components/custom/AdminElevateButton";
 import { ErrorBoundary } from "@/components/custom/ErrorBoundary";
 import { SplashScreen } from "@/components/custom/SplashScreen";
@@ -171,6 +172,9 @@ function App() {
           {/* Garde de ban : overlay plein écran si le compte connecté est banni
               (check au boot + Realtime). Self-gating : null si pas banni. */}
           {!isOverlay && <BanGate />}
+          {/* Build d'adieu : migration StarTrad → Stelliverse. Popup bloquant
+              (ou variante Store sobre). Toujours affiché dans cette version finale. */}
+          {!isOverlay && <MigrationGate />}
           {/* On masque les widgets fixed (admin button, BorderBeam) quand le
               wizard est actif : ils s'affichent par-dessus et bloquent les
               clics sur le footer du wizard ("Suivant"). */}

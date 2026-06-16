@@ -1,6 +1,15 @@
 use tauri::{command, AppHandle};
 
-const ALLOWED_URL_PREFIX: &str = "https://github.com/drrakendu78/TradSC/releases/";
+// Sources autorisees : releases GitHub StarTrad (historique) + releases GitLab
+// Stelliverse (migration : la build finale telecharge Stelliverse depuis GitLab).
+const ALLOWED_URL_PREFIXES: &[&str] = &[
+    "https://github.com/drrakendu78/TradSC/releases/",
+    "https://gitlab.com/drrakendu78/Stelliverse/-/releases/",
+];
+
+fn url_allowed(u: &str) -> bool {
+    ALLOWED_URL_PREFIXES.iter().any(|p| u.starts_with(p))
+}
 
 /// Lance l'updater standalone et ferme l'application principale.
 /// L'updater gere le telechargement, la verification de signature, l'installation et le relancement.
@@ -11,7 +20,7 @@ pub async fn launch_updater(
     name: String,
     app_handle: AppHandle,
 ) -> Result<(), String> {
-    if !url.starts_with(ALLOWED_URL_PREFIX) || !sig_url.starts_with(ALLOWED_URL_PREFIX) {
+    if !url_allowed(&url) || !url_allowed(&sig_url) {
         return Err("URL de mise à jour non autorisée.".to_string());
     }
     // Trouver l'updater.exe a cote de l'exe principal
