@@ -4,6 +4,8 @@ import { invoke } from "@tauri-apps/api/core";
 const ALLOWED_DOMAINS = [
     "github.com",
     "drrakendu78.github.io",
+    "gitlab.com",
+    "stelliverse.fr",
     "discord.gg",
     "discord.com",
     "star-citizen-characters.com",
