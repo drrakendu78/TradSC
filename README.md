@@ -2,6 +2,8 @@
 
 # StarTrad FR &nbsp;➜&nbsp; ✦ Stelliverse
 
+**Français** | [English](README_EN.md)
+
 ### 🚀 Ce projet a déménagé.
 
 **StarTrad FR a été entièrement réécrit, modernisé et rebaptisé _Stelliverse_.**
