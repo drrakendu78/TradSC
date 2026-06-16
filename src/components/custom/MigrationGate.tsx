@@ -55,6 +55,7 @@ const CSS = `
 .mig-foot{margin-top:13px;font-family:'Geist Mono',monospace;font-size:9px;letter-spacing:.07em;color:#5d6f88}
 .mig-brand{margin-top:20px;padding-top:16px;border-top:1px solid rgba(132,176,224,.16);font-family:'Geist Mono',monospace;font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:#5d6f88}
 .mig-link{color:#54e6ff;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.mig-err{margin-top:14px;font-family:'Rajdhani',sans-serif;font-size:12.5px;line-height:1.55;color:#ff7a7a;background:rgba(255,122,122,.08);border:1px solid rgba(255,122,122,.25);border-radius:10px;padding:10px 12px;word-break:break-word}
 /* variante Store (sobre) */
 .mig-card.mig-store{width:430px;border-color:rgba(132,176,224,.22)}
 .mig-card.mig-store::before{background:linear-gradient(90deg,transparent,#5d6f88,transparent);opacity:.5}
@@ -85,6 +86,7 @@ export function MigrationGate() {
     const [isStore, setIsStore] = useState<boolean | null>(null);
     const [storeDismissed, setStoreDismissed] = useState(false);
     const [migrating, setMigrating] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         injectAssets();
@@ -105,11 +107,14 @@ export function MigrationGate() {
     if (isStore === null) return null;
 
     const onMigrate = async () => {
+        setError(null);
         setMigrating(true);
         try {
             await migrateToStelliverse();
+            // succès : run_migration ferme l'app — on ne revient normalement pas ici
+        } catch (e: any) {
+            setError(String(e?.message ?? e));
         } finally {
-            // si on est toujours là (échec / fallback navigateur), on réactive le bouton
             setMigrating(false);
         }
     };
@@ -204,6 +209,18 @@ export function MigrationGate() {
                     <div className="mig-foot">
                         Téléchargement &amp; installation automatiques · puis Stelliverse se lance
                     </div>
+                    {error && (
+                        <div className="mig-err">
+                            ⚠ {error}
+                            <br />
+                            <span
+                                className="mig-link"
+                                onClick={() => openExternal(STELLIVERSE_RELEASES_URL)}
+                            >
+                                Télécharger Stelliverse manuellement
+                            </span>
+                        </div>
+                    )}
                     <div className="mig-brand">
                         <span
                             className="mig-link"

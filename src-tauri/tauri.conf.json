@@ -31,7 +31,6 @@
                    "createUpdaterArtifacts":  true,
                    "externalBin":  [
                                        "binaries/startrad-updater",
-                                       "binaries/stelli-relay",
                                        "binaries/startrad-cargo-overlay"
                                    ],
                    "icon":  [

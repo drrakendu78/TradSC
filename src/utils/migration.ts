@@ -1,5 +1,4 @@
 import { invoke } from "@tauri-apps/api/core";
-import openExternal from "@/utils/external";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Migration StarTrad → Stelliverse.
@@ -67,21 +66,11 @@ export async function fetchLatestStelliverse(): Promise<StelliverseRelease | nul
 export async function migrateToStelliverse(): Promise<void> {
     const rel = await fetchLatestStelliverse();
     if (!rel) {
-        await openExternal(STELLIVERSE_RELEASES_URL);
-        return;
+        throw new Error("Impossible de joindre GitLab pour récupérer la dernière Stelliverse (réseau / CSP ?).");
     }
     const name = rel.downloadUrl.split("/").pop() || "Stelliverse-setup.exe";
-
-    // On lance le MIGRATEUR (binaire `stelli-relay.exe`, clé Stelliverse) et PAS
-    // `startrad-updater.exe` : en auto-update, l'ancien updater (clé StarTrad) ne peut
-    // pas être remplacé (fichier en cours d'exécution) → c'est lui qui resterait et il
-    // ne sait pas vérifier Stelliverse. `stelli-relay.exe` (nom inédit) s'installe frais.
-    // Nom neutre (pas "updater"/"setup") → pas d'auto-élévation Windows, et l'install
-    // Stelliverse est en currentUser → pas besoin d'admin (plus de danse restart_as_admin).
-    try {
-        await invoke("launch_migrator", { url: rel.downloadUrl, sigUrl: rel.sigUrl, name });
-        // l'app va se fermer et le migrateur prend le relais
-    } catch {
-        await openExternal(STELLIVERSE_RELEASES_URL);
-    }
+    // run_migration (app principale) : télécharge + vérifie (clé Stelliverse) + installe
+    // Stelliverse en silencieux, lance Stelliverse, désinstalle StarTrad, puis ferme l'app.
+    // Toute erreur (signature, réseau, install…) REMONTE au popup (fini les « ça fait rien »).
+    await invoke("run_migration", { url: rel.downloadUrl, sigUrl: rel.sigUrl, name });
 }
